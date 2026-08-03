@@ -79,6 +79,14 @@
     accessTokenInput: $("#accessTokenInput"),
     rememberAccessCheck: $("#rememberAccessCheck"),
     accessLoginBtn: $("#accessLoginBtn"),
+    corretorTabBtn: $("#corretorTabBtn"),
+    supervisorTabBtn: $("#supervisorTabBtn"),
+    corretorAuthPanel: $("#corretorAuthPanel"),
+    supervisorAuthPanel: $("#supervisorAuthPanel"),
+    supervisorEmailInput: $("#supervisorEmailInput"),
+    supervisorPasswordInput: $("#supervisorPasswordInput"),
+    supervisorLoginBtn: $("#supervisorLoginBtn"),
+    supervisorStatus: $("#supervisorStatus"),
     openAdminBtn: $("#openAdminBtn"),
     accessStatus: $("#accessStatus"),
     adminScreen: $("#adminScreen"),
@@ -923,6 +931,24 @@
 
   function setAuthLocked(locked) {
     document.body.classList.toggle("auth-locked", Boolean(locked));
+  }
+
+  function setAuthRole(role) {
+    const supervisorActive = role === "supervisor";
+    el.corretorTabBtn?.classList.toggle("active", !supervisorActive);
+    el.supervisorTabBtn?.classList.toggle("active", supervisorActive);
+    el.corretorTabBtn?.setAttribute("aria-selected", String(!supervisorActive));
+    el.supervisorTabBtn?.setAttribute("aria-selected", String(supervisorActive));
+    if (el.corretorAuthPanel) el.corretorAuthPanel.hidden = supervisorActive;
+    if (el.supervisorAuthPanel) el.supervisorAuthPanel.hidden = !supervisorActive;
+    setTimeout(() => (supervisorActive ? el.supervisorEmailInput : el.accessTokenInput)?.focus(), 0);
+  }
+
+  function mockSupervisorLogin() {
+    if (!el.supervisorStatus) return;
+    el.supervisorStatus.textContent = "Acesso supervisor em preparação.";
+    el.supervisorStatus.classList.remove("error");
+    el.supervisorStatus.classList.add("ok");
   }
 
   function setWhatsappPending(pending) {
@@ -2773,6 +2799,14 @@
     el.accessLoginBtn?.addEventListener("click", () => enterWithToken());
     el.accessTokenInput?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") enterWithToken();
+    });
+    el.corretorTabBtn?.addEventListener("click", () => setAuthRole("corretor"));
+    el.supervisorTabBtn?.addEventListener("click", () => setAuthRole("supervisor"));
+    el.supervisorLoginBtn?.addEventListener("click", mockSupervisorLogin);
+    [el.supervisorEmailInput, el.supervisorPasswordInput].forEach((input) => {
+      input?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") mockSupervisorLogin();
+      });
     });
     el.openAdminBtn?.addEventListener("click", openAdminArea);
     el.adminBackToAccessBtn?.addEventListener("click", closeAdminArea);

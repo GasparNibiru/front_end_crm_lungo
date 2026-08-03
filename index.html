@@ -22,6 +22,11 @@
           <p>Acesse seu ambiente comercial com o token recebido.</p>
         </div>
       </div>
+      <div class="auth-role-tabs" role="tablist" aria-label="Tipo de acesso">
+        <button id="corretorTabBtn" class="auth-role-tab active" type="button" role="tab" aria-selected="true" aria-controls="corretorAuthPanel">Corretor</button>
+        <button id="supervisorTabBtn" class="auth-role-tab" type="button" role="tab" aria-selected="false" aria-controls="supervisorAuthPanel">Supervisor</button>
+      </div>
+      <div id="corretorAuthPanel" class="auth-panel" role="tabpanel" aria-labelledby="corretorTabBtn">
       <div class="auth-form">
         <label>
           <span>Token de acesso</span>
@@ -38,6 +43,21 @@
         <article><b>1</b><span>Token valida o acesso ao painel.</span></article>
         <article><b>2</b><span>QR Code conecta o WhatsApp quando necessário.</span></article>
         <article><b>3</b><span>Leads, clientes e disparos ficam no ambiente do corretor.</span></article>
+      </div>
+      </div>
+      <div id="supervisorAuthPanel" class="auth-panel" role="tabpanel" aria-labelledby="supervisorTabBtn" hidden>
+        <div class="auth-form">
+          <label>
+            <span>E-mail</span>
+            <input id="supervisorEmailInput" type="email" placeholder="Digite seu e-mail" autocomplete="off">
+          </label>
+          <label>
+            <span>Senha</span>
+            <input id="supervisorPasswordInput" type="password" placeholder="Digite sua senha" autocomplete="new-password">
+          </label>
+          <button id="supervisorLoginBtn" class="btn primary auth-login-btn" type="button">Entrar como supervisor</button>
+          <div id="supervisorStatus" class="auth-status" aria-live="polite">Informe seu e-mail e senha.</div>
+        </div>
       </div>
     </div>
   </section>
