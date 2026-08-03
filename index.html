@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lungo Corretores</title>
+  <meta name="theme-color" content="#101820">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body class="auth-locked">
+  <section id="authScreen" class="auth-screen" aria-label="Acesso Lungo Corretores">
+    <div class="auth-bg-mark"></div>
+    <div class="auth-card">
+      <div class="auth-brand">
+        <img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo">
+        <div>
+          <h1>Lungo Corretores</h1>
+          <p>Acesse seu ambiente comercial com o token recebido.</p>
+        </div>
+      </div>
+      <div class="auth-form">
+        <label>
+          <span>Token de acesso</span>
+          <input id="accessTokenInput" type="password" placeholder="Digite seu token" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_access_gate_v42">
+        </label>
+        <label class="auth-check">
+          <input id="rememberAccessCheck" type="checkbox" checked>
+          <span>Lembrar neste dispositivo</span>
+        </label>
+        <button id="accessLoginBtn" class="btn primary auth-login-btn" type="button">Entrar</button>
+        <div id="accessStatus" class="auth-status">Informe o token para liberar o sistema.</div>
+      </div>
+      <div class="auth-steps">
+        <article><b>1</b><span>Token valida o acesso ao painel.</span></article>
+        <article><b>2</b><span>QR Code conecta o WhatsApp quando necessário.</span></article>
+        <article><b>3</b><span>Leads, clientes e disparos ficam no ambiente do corretor.</span></article>
+      </div>
+    </div>
+  </section>
+
+  <div class="app" id="appShell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row">
+        <div class="brand logo-only">
+          <img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo">
+        </div>
+        <button id="sidebarToggleBtn" class="sidebar-toggle" type="button" title="Recolher menu" aria-label="Recolher menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item" data-view="instance" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M9 18h6"/></svg></span>
+          <span class="nav-label">Minha Instância</span>
+        </button>
+        <button class="nav-item" data-view="connect" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M8 7a4 4 0 0 1 8 0v1"/><path d="M6 8h12v11H6z"/><path d="M12 12v3"/></svg></span>
+          <span class="nav-label">Conectar WhatsApp</span>
+        </button>
+        <button class="nav-item active" data-view="crm" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4z"/><path d="M4 15h5v4H4z"/><path d="M15 15h5v4h-5z"/><path d="M12 9v3"/><path d="M7 12h10"/><path d="M7 12v3"/><path d="M17 12v3"/></svg></span>
+          <span class="nav-label">Meus Leads</span>
+        </button>
+        <button class="nav-item" data-view="clients" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <span class="nav-label">Clientes</span>
+        </button>
+        <button class="nav-item soon-item" data-view="cotador" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></span>
+          <span class="nav-label">Cotador</span>
+        </button>
+        <button class="nav-item soon-item" data-view="comprar_leads" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M6 6h15l-2 8H8L6 6Z"/><path d="M6 6 5 3H3"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span>
+          <span class="nav-label">Comprar leads</span>
+        </button>
+        <button class="nav-item soon-item" data-view="vendedores" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8"/></svg></span>
+          <span class="nav-label">Vendedores</span>
+        </button>
+        <button class="nav-item soon-item" data-view="treinamentos" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg></span>
+          <span class="nav-label">Treinamentos</span>
+        </button>
+        <button class="nav-item soon-item" data-view="relatorios" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-7"/></svg></span>
+          <span class="nav-label">Relatórios</span>
+        </button>
+        <button class="nav-item soon-item" data-view="agenda" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="m14.7 6.3 3 3"/><path d="M3 21l6-6"/><path d="M14 7l3-3 3 3-3 3"/><path d="M9 15l6-6"/></svg></span>
+          <span class="nav-label">Agenda</span>
+        </button>
+        <button class="nav-item" data-view="broadcast" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 12 20 4l-4 16-4-7-8-1Z"/><path d="m12 13 4-5"/></svg></span>
+          <span class="nav-label">Disparos</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-meta">
+          <span>Status</span>
+          <b id="sidebarClient">Aguardando token</b>
+        </div>
+        <button id="logoutBtn" class="logout-btn" type="button" title="Logout">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6H6v12h4"/><path d="M14 8l4 4-4 4"/><path d="M8 12h10"/></svg>
+          <span class="nav-label">Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="title-block">
+          <h1 id="viewTitle">Meus Leads</h1>
+          <p id="viewSubtitle">Pipeline comercial com lista, kanban, importação e exportação.</p>
+        </div>
+        <div class="top-actions">
+          <span id="todayLabel" class="today-label"></span>
+          <span id="topStatus" class="status-mini">Status: —</span>
+          <button id="topLogoutBtn" class="mini-logout" type="button" title="Sair">Logout</button>
+          <div class="token-wrap">
+            <input id="globalToken" class="token-input" type="password" placeholder="Token do usuário" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_access_key_v29" readonly onfocus="this.removeAttribute('readonly')">
+            <button id="toggleTokenBtn" class="token-eye" type="button" title="Mostrar/ocultar token" aria-label="Mostrar ou ocultar token">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button id="saveTokenBtn" class="btn dark">Salvar token</button>
+          <button id="themeBtn" class="btn icon">Tema</button>
+        </div>
+      </header>
+
+      <section id="view-crm" class="view active">
+        <div class="crm-layout">
+          <div class="metrics-bar" id="metricsBar"></div>
+
+          <div class="toolbar compact">
+            <div class="segmented" role="tablist">
+              <button id="listModeBtn" class="active" type="button">Lista</button>
+              <button id="kanbanModeBtn" type="button">Kanban</button>
+            </div>
+            <input id="crmSearch" class="search" type="search" placeholder="Buscar nome, telefone, cidade, plano..." autocomplete="off" spellcheck="false">
+            <select id="crmStatusFilter" class="select compact-select">
+              <option value="">Todos os status</option>
+            </select>
+            <select id="crmPeriodFilter" class="select period-select">
+              <option value="all">Períodos</option>
+              <option value="yesterday">Ontem</option>
+              <option value="today">Hoje</option>
+              <option value="7">Últimos 7 dias</option>
+              <option value="15">Últimos 15 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="365">Últimos 12 meses</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            <input id="crmDateFrom" class="date-filter" type="date" autocomplete="off" hidden>
+            <input id="crmDateTo" class="date-filter" type="date" autocomplete="off" hidden>
+            <button id="newLeadBtn" class="btn primary">Novo</button>
+            <button id="configureAutoBtn" class="btn">Sincronizar conversas</button>
+            <button id="importBtn" class="btn">Importar lista</button>
+            <a class="btn" href="assets/modelo-leads.xlsx" download>Modelo de lista</a>
+            <button id="exportBtn" class="btn">Exportar lista</button>
+            <button id="deleteSelectedLeadsBtn" class="btn icon-only danger subtle-danger" type="button" title="Selecione leads para excluir" aria-label="Excluir selecionados">×</button>
+            <button id="openTrashBtn" class="btn icon-only" type="button" title="Abrir lixeira" aria-label="Abrir lixeira">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6M14 11v6"/></svg>
+            </button>
+            <input id="importFile" type="file" accept=".xlsx,.xls,.csv" hidden>
+          </div>
+
+          <div class="content-frame">
+            <div id="listView" class="list-view active">
+              <div class="table-wrap">
+                <table class="crm-table">
+                  <thead>
+                    <tr>
+                      <th class="select-col"><input id="leadSelectAll" type="checkbox" aria-label="Selecionar todos os leads visíveis"></th>
+                      <th>Contato</th>
+                      <th>Status</th>
+                      <th>Vidas</th>
+                      <th>Valor</th>
+                      <th>Plano</th>
+                      <th>Cidade</th>
+                      <th>Última mensagem</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="crmRows"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="kanbanView" class="kanban-view" aria-label="Kanban de leads"></div>
+          </div>
+        </div>
+      </section>
+
+
+      <section id="view-clients" class="view">
+        <div class="clients-layout">
+          <div class="client-metrics" id="clientMetrics"></div>
+
+          <div class="clients-main-grid">
+            <section class="client-list-panel">
+              <div class="toolbar client-toolbar">
+                <input id="clientSearch" class="search" type="search" placeholder="Buscar cliente, produto, telefone..." autocomplete="off" spellcheck="false">
+                <select id="clientStatusFilter" class="select compact-select">
+                  <option value="">Todos os status</option>
+                </select>
+                <select id="clientPeriodFilter" class="select period-select">
+                  <option value="all">Períodos</option>
+                  <option value="yesterday">Ontem</option>
+                  <option value="today">Hoje</option>
+                  <option value="7">Últimos 7 dias</option>
+                  <option value="15">Últimos 15 dias</option>
+                  <option value="30">Últimos 30 dias</option>
+                  <option value="90">Últimos 90 dias</option>
+                  <option value="365">Últimos 12 meses</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+                <input id="clientDateFrom" class="date-filter" type="date" autocomplete="off" hidden>
+                <input id="clientDateTo" class="date-filter" type="date" autocomplete="off" hidden>
+                <button id="syncClosedClientsBtn" class="btn icon-only" type="button" title="Atualizar fechamentos vindos dos Leads" aria-label="Atualizar fechamentos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2"/><path d="M3 12A9 9 0 0 1 18.5 5.8"/><path d="M18 2v4h-4"/><path d="M6 22v-4h4"/></svg></button>
+                <button id="newClientBtn" class="btn primary" type="button">Novo cliente</button>
+                <button id="importClientsBtn" class="btn" type="button">Importar</button>
+                <a class="btn icon-only" href="assets/modelo-clientes.xlsx" download title="Baixar modelo de lista" aria-label="Baixar modelo de lista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></a>
+                <button id="exportClientsBtn" class="btn" type="button">Exportar</button>
+                <input id="importClientsFile" type="file" accept=".xlsx,.xls,.csv" hidden>
+              </div>
+
+              <div class="clients-table-frame">
+                <table class="clients-table">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Produto</th>
+                      <th>Status</th>
+                      <th>Vidas</th>
+                      <th>Valor</th>
+                      <th>Renovação</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="clientRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <aside class="client-charts-panel">
+              <section class="chart-card compact-chart">
+                <header><b>Faturamento</b><span id="revenueChartTotal">—</span></header>
+                <div id="revenueChart" class="bar-chart"></div>
+              </section>
+              <section class="chart-card compact-chart">
+                <header><b>Produtos mais vendidos</b><span id="productsChartTotal">—</span></header>
+                <div id="productsChart" class="bar-chart"></div>
+              </section>
+              <section class="chart-card compact-chart">
+                <header><b>Vendas da base</b><span id="baseSalesChartTotal">—</span></header>
+                <div id="baseSalesChart" class="bar-chart"></div>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-soon" class="view">
+        <div class="soon-panel">
+          <span class="soon-badge big">Em breve</span>
+          <h2 id="soonTitle">Módulo em breve</h2>
+          <p id="soonText">Este módulo já está no roadmap do Lungo e será liberado em uma próxima atualização.</p>
+          <div class="soon-grid">
+            <article><b>Preparando estrutura</b><span>Layout, permissões e integração com a base comercial.</span></article>
+            <article><b>Sem afetar o MVP</b><span>As funções atuais seguem prontas para teste e uso.</span></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-connect" class="view">
+        <div class="split no-page-scroll">
+          <section class="flat-panel">
+            <h2>Conectar WhatsApp</h2>
+            <div class="form-grid two-cols">
+              <label><span>Token</span><input id="tokenInput" type="password" placeholder="Token recebido" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_connect_key_v29"></label>
+              <label><span>WhatsApp opcional</span><input id="connectPhone" type="text" placeholder="55DDDNUMERO" autocomplete="off" inputmode="numeric"></label>
+            </div>
+            <div class="row-actions">
+              <button id="generateQrBtn" class="btn primary">Gerar QR</button>
+              <button id="refreshQrBtn" class="btn">Atualizar</button>
+            </div>
+            <div class="status-strip" id="connectStatus">Aguardando ação</div>
+          </section>
+          <section class="flat-panel qr-panel">
+            <div class="qr-box" id="qrBox">
+              <span>Nenhum QR gerado</span>
+              <img id="qrImage" alt="QR Code" hidden>
+            </div>
+            <div class="info-line"><span>Usuário</span><b id="connClient">—</b></div>
+            <div class="info-line"><span>Instância</span><b id="connInstance">—</b></div>
+            <div class="info-line"><span>Conexão</span><b id="connState">—</b></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="view-broadcast" class="view">
+        <div class="split no-page-scroll">
+          <section class="flat-panel">
+            <h2>Nova campanha</h2>
+            <div class="form-grid">
+              <label><span>Instância</span><input id="broadcastInstance" type="text" placeholder="ID da instância" autocomplete="off"></label>
+              <label><span>Planilha de contatos</span><input id="broadcastFile" type="file" accept=".xlsx,.xls,.csv"></label>
+              <label class="full"><span>Mensagem</span><textarea id="broadcastMessage" rows="7" maxlength="1200" placeholder="Olá, {nome}! Tudo bem?" autocomplete="off" spellcheck="false"></textarea></label>
+            </div>
+            <div class="row-actions">
+              <button id="validateInstanceBtn" class="btn">Validar</button>
+              <button id="startCampaignBtn" class="btn primary">Iniciar</button>
+              <button id="stopCampaignBtn" class="btn danger">Parar</button>
+            </div>
+          </section>
+          <section class="flat-panel">
+            <h2>Campanha</h2>
+            <div class="campaign-grid">
+              <article><span>Total</span><b id="statTotal">0</b></article>
+              <article><span>Enviados</span><b id="statSent">0</b></article>
+              <article><span>Pendentes</span><b id="statPending">0</b></article>
+              <article><span>Erros</span><b id="statErrors">0</b></article>
+            </div>
+            <div class="progress"><span id="progressBar"></span></div>
+            <div id="campaignLog" class="log-box">Sem campanha ativa.</div>
+          </section>
+        </div>
+      </section>
+
+      <section id="view-instance" class="view">
+        <div class="flat-panel instance-panel">
+          <h2>Minha Instância</h2>
+          <div class="instance-grid">
+            <article><span>Usuário</span><b id="instClient">—</b></article>
+            <article><span>Instância</span><b id="instName">—</b></article>
+            <article><span>Estado</span><b id="instState">—</b></article>
+            <article><span>Conectado</span><b id="instConnected">—</b></article>
+          </div>
+          <div class="row-actions">
+            <button id="refreshInstanceBtn" class="btn primary">Atualizar status</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="leadModal" class="modal">
+    <form id="leadForm" method="dialog" class="modal-card" autocomplete="off" data-lpignore="true">
+      <header>
+        <div>
+          <h2 id="modalTitle">Lead</h2>
+          <p id="modalSubtitle">Edite as informações comerciais.</p>
+        </div>
+        <button id="closeModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <input type="hidden" id="leadId">
+      <div class="modal-grid">
+        <label><span>Nome</span><input id="leadNome" required autocomplete="off" name="lead_nome_v29"></label>
+        <label><span>Telefone</span><input id="leadTelefone" required autocomplete="off" inputmode="tel" name="lead_tel_v29"></label>
+        <label><span>Email</span><input id="leadEmail" type="email" autocomplete="off" name="lead_mail_v29"></label>
+        <label><span>CNPJ ou PF</span><select id="leadPessoaTipo"><option value="">—</option><option>CNPJ</option><option>PF</option></select></label>
+        <label><span>Número CNPJ/CPF</span><input id="leadCnpjOuPf" autocomplete="off" name="lead_doc_v29"></label>
+        <label><span>Qtd. de vidas</span><input id="leadQtdVidas" type="number" min="0" autocomplete="off" name="lead_vidas_v29"></label>
+        <label><span>Valor do negócio</span><input id="leadValorNegocio" placeholder="R$ 0,00" autocomplete="off" name="lead_valor_v29"></label>
+        <label><span>Plano de interesse</span><input id="leadPlanoInteresse" autocomplete="off" name="lead_plano_v29"></label>
+        <label><span>Cidade</span><input id="leadCidade" autocomplete="off" name="lead_cidade_v29"></label>
+        <label><span>Status</span><select id="leadStatus"></select></label>
+        <label class="full"><span>Observações</span><textarea id="leadObservacao" rows="4" autocomplete="off" spellcheck="false" name="lead_obs_v29"></textarea></label>
+      </div>
+      <footer>
+        <button id="scheduleLeadBtn" type="button" class="btn">Programar mensagem</button>
+        <button id="archiveLeadBtn" type="button" class="btn danger">Excluir da plataforma</button>
+        <span class="footer-spacer"></span>
+        <button id="cancelModalBtn" type="button" class="btn">Cancelar</button>
+        <button id="saveLeadBtn" type="submit" class="btn primary">Salvar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="leadScheduleModal" class="modal small-modal">
+    <form id="leadScheduleForm" method="dialog" class="modal-card" autocomplete="off" data-lpignore="true">
+      <header>
+        <div>
+          <h2>Programar mensagem</h2>
+          <p id="leadScheduleName">Lead</p>
+        </div>
+        <button id="closeLeadScheduleModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <input type="hidden" id="leadScheduleId">
+      <div class="modal-grid two-modal-cols">
+        <label><span>Data de retorno</span><input id="leadScheduleData" type="date" required autocomplete="off"></label>
+        <label><span>Hora</span><input id="leadScheduleHora" type="time" required value="09:00" autocomplete="off"></label>
+        <label class="full"><span>Mensagem WhatsApp</span><textarea id="leadScheduleMensagem" rows="4" autocomplete="off" spellcheck="false" placeholder="Olá, {nome}! Conforme combinado, estou retomando nosso atendimento."></textarea></label>
+      </div>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="cancelLeadScheduleModalBtn" type="button" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar programação</button>
+      </footer>
+    </form>
+  </dialog>
+
+
+  <dialog id="clientModal" class="modal client-editor-modal">
+    <form id="clientForm" method="dialog" class="modal-card client-editor-card" autocomplete="off" data-lpignore="true">
+      <header>
+        <div>
+          <h2 id="clientModalTitle">Cliente</h2>
+          <p>Pasta compacta com dados, produtos e documentos por contratação.</p>
+        </div>
+        <button id="closeClientModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <input type="hidden" id="clientId">
+      <div class="client-folder-layout">
+        <details class="folder-accordion" open>
+          <summary><b>Dados do cliente</b><span>Identificação e contato principal</span></summary>
+          <div class="compact-modal-grid">
+            <label><span>Nome</span><input id="clientNome" required autocomplete="off" name="cliente_nome_v30"></label>
+            <label><span>WhatsApp</span><input id="clientTelefone" required autocomplete="off" inputmode="tel" name="cliente_tel_v30"></label>
+            <label><span>E-mail</span><input id="clientEmail" type="email" autocomplete="off" name="cliente_email_v30"></label>
+            <label><span>CPF/CNPJ</span><input id="clientDocumento" autocomplete="off" name="cliente_doc_v30"></label>
+            <label><span>Cidade</span><input id="clientCidade" autocomplete="off" name="cliente_cidade_v30"></label>
+            <label class="wide-field"><span>Status do cliente</span><select id="clientStatus"></select></label>
+            <label class="full"><span>Observações gerais</span><textarea id="clientObservacao" rows="2" autocomplete="off" spellcheck="false" name="cliente_obs_v30"></textarea></label>
+          </div>
+        </details>
+
+        <details class="folder-accordion" open>
+          <summary><b>Produto inicial</b><span>Cadastro da primeira contratação</span></summary>
+          <div class="compact-modal-grid client-compact-product-grid">
+            <label><span>Produto</span><select id="clientProduto" name="cliente_produto_v30"></select></label>
+            <label><span>Vidas</span><input id="clientQtdVidas" type="number" min="0" autocomplete="off" name="cliente_vidas_v30"></label>
+            <label><span>Valor</span><input id="clientValorFechado" placeholder="R$ 0,00" autocomplete="off" name="cliente_valor_v30"></label>
+            <label><span>Contratação</span><input id="clientDataContratacao" type="date" autocomplete="off" name="cliente_contratacao_v30"></label>
+            <label><span>Renovação</span><input id="clientDataRenovacao" type="date" autocomplete="off" name="cliente_renovacao_v30"></label>
+          </div>
+        </details>
+
+        <section class="client-product-hint">
+          <div>
+            <b>Produtos e documentos</b>
+            <span>Depois de salvar, abra cada produto clicando no ícone dele na lista de clientes.</span>
+          </div>
+          <button id="sellAgainBtn" type="button" class="btn small">Cadastrar novo produto</button>
+          <div id="clientBaseSalesList" class="hidden-product-cache" hidden></div>
+          <span id="clientDocumentName" hidden>Nenhum PDF anexado</span>
+          <button id="downloadClientDocBtn" type="button" hidden disabled>Nenhum PDF</button>
+          <input id="clientDocumentFile" type="file" accept="application/pdf,.pdf" hidden>
+          <button id="attachClientDocBtn" type="button" hidden>Subir PDF</button>
+        </section>
+      </div>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="cancelClientModalBtn" type="button" class="btn">Cancelar</button>
+        <button id="saveClientBtn" type="submit" class="btn primary">Salvar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="postSaleModal" class="modal small-modal">
+    <form id="postSaleForm" method="dialog" class="modal-card" autocomplete="off" data-lpignore="true">
+      <header>
+        <div>
+          <h2>Agendar pós-venda</h2>
+          <p id="postSaleClientName">Cliente</p>
+        </div>
+        <button id="closePostSaleModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <input type="hidden" id="postSaleClientId">
+      <div class="modal-grid two-modal-cols">
+        <label><span>Tipo</span><select id="postSaleTipo"><option value="cobranca">Cobrança</option><option value="relacionamento">Relacionamento</option><option value="nova_oferta">Nova oferta</option></select></label>
+        <label><span>Data inicial</span><input id="postSaleData" type="date" required autocomplete="off"></label>
+        <label><span>Hora</span><input id="postSaleHora" type="time" required value="09:00" autocomplete="off"></label>
+        <label><span>Recorrência</span><select id="postSaleRecorrencia"><option value="unica">Uma única vez</option><option value="15_dias">A cada 15 dias</option><option value="mensal">Mensal</option><option value="trimestral">Trimestral</option><option value="anual">Anual</option></select></label>
+        <label class="full"><span>Mensagem WhatsApp</span><textarea id="postSaleMensagem" rows="4" autocomplete="off" spellcheck="false" placeholder="Olá, {nome}! Passando para acompanhar seu plano..."></textarea></label>
+      </div>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="cancelPostSaleModalBtn" type="button" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar agendamento</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="baseSaleModal" class="modal small-modal">
+    <form id="baseSaleForm" method="dialog" class="modal-card" autocomplete="off" data-lpignore="true">
+      <header>
+        <div>
+          <h2>Vender novamente</h2>
+          <p id="baseSaleClientName">Cliente</p>
+        </div>
+        <button id="closeBaseSaleModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <input type="hidden" id="baseSaleClientId">
+      <div class="modal-grid two-modal-cols">
+        <label><span>Produto</span><select id="baseSaleProduto" required></select></label>
+        <label><span>Qtd. de vidas</span><input id="baseSaleVidas" type="number" min="0" autocomplete="off"></label>
+        <label><span>Valor vendido</span><input id="baseSaleValor" placeholder="R$ 0,00" autocomplete="off"></label>
+        <label><span>Data da venda</span><input id="baseSaleData" type="date" autocomplete="off"></label>
+        <label class="full"><span>Observação</span><textarea id="baseSaleObs" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
+        <p class="full product-folder-note">Os PDFs deste produto serão anexados depois, clicando no ícone do produto na lista de clientes.</p>
+        <span id="baseSaleDocumentName" hidden>Nenhum PDF anexado</span>
+        <button id="attachBaseSaleDocBtn" type="button" hidden>Anexar PDF</button>
+        <input id="baseSaleDocumentFile" type="file" accept="application/pdf,.pdf" hidden>
+      </div>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="cancelBaseSaleModalBtn" type="button" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Registrar venda</button>
+      </footer>
+    </form>
+  </dialog>
+
+
+  <dialog id="productFolderModal" class="modal product-folder-modal">
+    <form id="productFolderForm" method="dialog" class="modal-card product-folder-card" autocomplete="off" data-lpignore="true">
+      <header>
+        <div>
+          <h2 id="productFolderTitle">Produto do cliente</h2>
+          <p id="productFolderSubtitle">Documentos e dados desta contratação.</p>
+        </div>
+        <button id="closeProductFolderModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <input type="hidden" id="productFolderClientId">
+      <input type="hidden" id="productFolderProductId">
+      <div class="product-folder-top">
+        <label><span>Produto</span><select id="productFolderProduto"></select></label>
+        <label><span>Vidas</span><input id="productFolderVidas" type="number" min="0" autocomplete="off"></label>
+        <label><span>Valor</span><input id="productFolderValor" placeholder="R$ 0,00" autocomplete="off"></label>
+        <label><span>Data</span><input id="productFolderData" type="date" autocomplete="off"></label>
+        <label class="full"><span>Observação do produto</span><textarea id="productFolderObs" rows="2" autocomplete="off" spellcheck="false"></textarea></label>
+      </div>
+      <section class="product-docs-panel">
+        <header>
+          <div>
+            <b>Documentos deste produto</b>
+            <span>Suba quantos PDFs precisar. Clique no nome para baixar.</span>
+          </div>
+          <button id="productFolderAttachBtn" type="button" class="btn small">Subir PDF(s)</button>
+          <input id="productFolderFile" type="file" accept="application/pdf,.pdf" multiple hidden>
+        </header>
+        <div id="productFolderDocs" class="product-doc-list"><div class="empty-state compact-empty">Nenhum PDF anexado neste produto.</div></div>
+      </section>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="cancelProductFolderModalBtn" type="button" class="btn">Fechar</button>
+        <button type="submit" class="btn primary">Salvar produto</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="saleViewModal" class="modal small-modal">
+    <div class="modal-card">
+      <header>
+        <div>
+          <h2>Venda da base</h2>
+          <p id="saleViewClientName">Cliente</p>
+        </div>
+        <button id="closeSaleViewModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <div class="sale-view-body" id="saleViewBody"></div>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="downloadSaleDocBtn" type="button" class="btn">Baixar documentação</button>
+        <button id="closeSaleViewFooterBtn" type="button" class="btn primary">Fechar</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog id="trashModal" class="modal trash-modal">
+    <div class="modal-card">
+      <header>
+        <div>
+          <h2>Lixeira de leads</h2>
+          <p>Contatos removidos da plataforma. Eles não voltam ao sincronizar, a menos que sejam restaurados.</p>
+        </div>
+        <button id="closeTrashModalBtn" type="button" class="btn icon">×</button>
+      </header>
+      <div class="trash-toolbar">
+        <span id="trashCount">0 contatos na lixeira</span>
+        <button id="restoreAllTrashBtn" type="button" class="btn small">Restaurar todos</button>
+      </div>
+      <div id="trashRows" class="trash-list"><div class="empty-state compact-empty">Nenhum lead na lixeira.</div></div>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="closeTrashFooterBtn" type="button" class="btn primary">Fechar</button>
+      </footer>
+    </div>
+  </dialog>
+
+
+
+  <dialog id="termsModal" class="modal terms-modal">
+    <div class="modal-card terms-card">
+      <header>
+        <div>
+          <h2>Termos de Uso — MVP Beta</h2>
+          <p id="termsVersionLabel">Versão MVP Beta</p>
+        </div>
+      </header>
+      <div class="terms-body">
+        <section class="terms-alert">
+          <b>Antes de continuar</b>
+          <span>A Lungo Corretores está em fase MVP Beta. O aceite é obrigatório para liberar o acesso ao painel.</span>
+        </section>
+        <h3>1. Sobre a plataforma</h3>
+        <p>A Lungo Corretores é uma plataforma para organização comercial de corretores, incluindo leads, clientes, produtos contratados, documentos, funil de atendimento, conversas do WhatsApp e comunicação com contatos autorizados.</p>
+        <h3>2. Período MVP Beta</h3>
+        <p>Durante o período de teste beta, a plataforma poderá apresentar instabilidades, falhas temporárias, lentidão, ajustes técnicos, mudanças de layout, erros de sincronização ou indisponibilidade parcial de funcionalidades.</p>
+        <p>O usuário reconhece que o MVP Beta ainda está em validação e não deve ser tratado como sistema definitivo ou único local de armazenamento das suas informações comerciais.</p>
+        <h3>3. Exportação e backup dos dados</h3>
+        <p>O usuário deve manter cópia própria das suas informações importantes. A Lungo Corretores recomenda exportar periodicamente contatos, leads e clientes usando o botão de exportação disponível na plataforma.</p>
+        <p>Essa exportação é especialmente importante durante o beta, pois podem ocorrer atualizações, manutenções, migrações de banco de dados ou falhas técnicas.</p>
+        <h3>4. Dados tratados pela plataforma</h3>
+        <p>A plataforma poderá armazenar e processar dados necessários ao funcionamento do CRM, como nome, telefone, e-mail, leads, clientes, produtos contratados, documentos, mensagens, histórico comercial, registros de acesso e métricas de produção.</p>
+        <p>O usuário declara que possui autorização ou base legítima para inserir e tratar dados de terceiros dentro da plataforma.</p>
+        <h3>5. Uso permitido</h3>
+        <p>O usuário se compromete a utilizar a plataforma apenas para fins lícitos e profissionais, respeitando regras aplicáveis, privacidade de terceiros e políticas de serviços integrados, incluindo WhatsApp e Evolution API.</p>
+        <p>É proibido utilizar a plataforma para spam, mensagens sem autorização, conteúdo ilegal, abusivo, enganoso ou acesso indevido a dados de outros usuários.</p>
+        <h3>6. Plano Legacy</h3>
+        <p>Usuários participantes do beta poderão ser elegíveis ao Plano Legacy, conforme condições comerciais informadas pela Lungo Corretores.</p>
+        <p>O benefício do Plano Legacy poderá ser mantido enquanto o usuário permanecer ativo, com pagamento em dia e sem cancelamento. Em caso de atraso, cancelamento, abandono da plataforma, violação dos termos ou uso irregular, o usuário poderá perder a elegibilidade e não terá garantia de retorno às mesmas condições comerciais.</p>
+        <h3>7. Aceite</h3>
+        <p>Ao aceitar, o usuário declara que leu e compreendeu estes termos, está ciente das possíveis instabilidades do MVP Beta, compromete-se a exportar seus dados periodicamente e entende as condições do Plano Legacy.</p>
+        <label class="terms-accept">
+          <input id="termsAcceptCheck" type="checkbox">
+          <span>Li e aceito os Termos de Uso da Lungo Corretores.</span>
+        </label>
+      </div>
+      <footer>
+        <button id="termsDeclineBtn" type="button" class="btn">Sair</button>
+        <span class="footer-spacer"></span>
+        <button id="termsContinueBtn" type="button" class="btn primary" disabled>Continuar</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog id="confirmModal" class="modal confirm-modal">
+    <div class="modal-card">
+      <header>
+        <div>
+          <h2 id="confirmTitle">Confirmar ação</h2>
+          <p id="confirmMessage">Tem certeza?</p>
+        </div>
+      </header>
+      <footer>
+        <span class="footer-spacer"></span>
+        <button id="confirmCancelBtn" type="button" class="btn">Cancelar</button>
+        <button id="confirmOkBtn" type="button" class="btn danger">Confirmar</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+</body>
+</html>
