@@ -5,10 +5,15 @@
   const STORAGE_KEY = "lungo-suite-access-v5";
   const THEME_KEY = "lungo-suite-theme-v5";
   const SIDEBAR_KEY = "lungo-suite-sidebar-v5";
+  const SUPERVISOR_SIDEBAR_KEY = "lungo-supervisor-sidebar-v1";
   const LEAD_SEEN_PREFIX = "lungo-lead-seen-v1";
   const ADMIN_SESSION_KEY = "lungo-admin-master-session-v1";
   const TERMS_VERSION = "mvp-beta-v1-2026-07-31";
   const TERMS_ACCEPT_PREFIX = "lungo-terms-accepted";
+  const COMPANY_BRANDING_KEY = "companyBranding";
+  const COMPANY_GOALS_KEY = "companyGoals";
+  const COMPANY_MESSAGE_KEY = "companyMessage";
+  const COMPANY_THEME_KEY = "companyTheme";
 
   const STATUSES = [
     { value: "novo", label: "Novos" },
@@ -69,6 +74,41 @@
     adminDashboard: null
   };
 
+  const SUPERVISOR_BROKERS = [
+    { id: "s1", name: "Mariana Costa", token: "SUPERVISOR", status: "online", statusLabel: "Supervisor", sales: 6, goal: 86, login: "Hoje, 10:16", supervisor: true, revenue: "R$ 27.500", leads: 31, clients: 18, postSales: 9 },
+    { id: "b1", name: "Ana Souza", token: "ANA-LUNGO-26", status: "online", statusLabel: "Online", sales: 9, goal: 90, login: "Hoje, 09:42" },
+    { id: "b2", name: "Bruno Lima", token: "BRUNO-LUNGO-26", status: "online", statusLabel: "Online", sales: 8, goal: 82, login: "Hoje, 09:18" },
+    { id: "b3", name: "Carla Mendes", token: "CARLA-LUNGO-26", status: "away", statusLabel: "Ausente", sales: 7, goal: 74, login: "Hoje, 08:51" },
+    { id: "b4", name: "Diego Alves", token: "DIEGO-LUNGO-26", status: "online", statusLabel: "Online", sales: 6, goal: 68, login: "Hoje, 08:30" },
+    { id: "b5", name: "Elisa Rocha", token: "ELISA-LUNGO-26", status: "", statusLabel: "Offline", sales: 5, goal: 61, login: "Ontem, 18:14" },
+    { id: "b6", name: "Felipe Costa", token: "FELIPE-LUNGO-26", status: "online", statusLabel: "Online", sales: 4, goal: 53, login: "Hoje, 10:02" },
+    { id: "b7", name: "Giovana Reis", token: "GIOVANA-LUNGO-26", status: "away", statusLabel: "Ausente", sales: 2, goal: 39, login: "Ontem, 16:40" },
+    { id: "b8", name: "Hugo Martins", token: "HUGO-LUNGO-26", status: "online", statusLabel: "Online", sales: 1, goal: 26, login: "Hoje, 07:55" }
+  ];
+  const SUPERVISOR_DEALS = [
+    { id: "d1", stage: "novos", client: "Marina Prado", seller: "Ana Souza", phone: "(11) 99991-1020", product: "Saúde", value: "R$ 3.480" },
+    { id: "d2", stage: "em_atendimento", client: "Rafael Nunes", seller: "Bruno Lima", phone: "(21) 98810-3344", product: "Vida", value: "R$ 1.920" },
+    { id: "d3", stage: "cotacao", client: "Cláudia Melo", seller: "Carla Mendes", phone: "(31) 99102-8877", product: "Saúde", value: "R$ 4.150" },
+    { id: "d4", stage: "documentacao", client: "Otávio Ramos", seller: "Diego Alves", phone: "(41) 99777-1212", product: "Auto", value: "R$ 2.640" },
+    { id: "d5", stage: "venda", client: "Beatriz Freire", seller: "Ana Souza", phone: "(11) 97654-0909", product: "Odonto", value: "R$ 980" },
+    { id: "d6", stage: "boleto", client: "Lucas Tavares", seller: "Elisa Rocha", phone: "(51) 98832-4550", product: "Saúde", value: "R$ 5.230" },
+    { id: "d7", stage: "fechamento", client: "Sofia Barros", seller: "Bruno Lima", phone: "(19) 99934-6210", email: "sofia@exemplo.com", personType: "PF", document: "123.456.789-00", lives: 1, product: "Vida", city: "Campinas", value: "R$ 3.790", notes: "Venda concluída e cliente encaminhado ao pós-venda." },
+    { id: "d8", stage: "perdida", client: "André Paiva", seller: "Felipe Costa", phone: "(85) 98711-5522", email: "andre@exemplo.com", personType: "PF", document: "987.654.321-00", lives: 1, product: "Auto", city: "Fortaleza", value: "R$ 2.100", notes: "Cliente optou por outra proposta." },
+    { id: "d9", stage: "fechamento", client: "Marina Prado", seller: "Ana Souza", phone: "(11) 99991-1020", email: "marina@exemplo.com", personType: "PF", document: "321.654.987-00", lives: 3, product: "Saúde", city: "São Paulo", value: "R$ 3.480", notes: "Plano empresarial familiar." },
+    { id: "d10", stage: "fechamento", client: "Otávio Ramos", seller: "Diego Alves", phone: "(41) 99777-1212", email: "otavio@exemplo.com", personType: "PF", document: "456.789.123-00", lives: 1, product: "Auto", city: "Curitiba", value: "R$ 2.640", notes: "Renovação automática em análise." }
+  ];
+  const SUPERVISOR_CUSTOMERS = [
+    { id: "c-d7", leadId: "d7", client: "Sofia Barros", seller: "Bruno Lima", phone: "(19) 99934-6210", email: "sofia@exemplo.com", product: "Vida", status: "Ativo", lives: 1, value: "R$ 3.790", date: "12/08/2026", renewal: "12/08/2027", post: "Pendente", notes: "Originado do fechamento d7." },
+    { id: "c-d9", leadId: "d9", client: "Marina Prado", seller: "Ana Souza", phone: "(11) 99991-1020", email: "marina@exemplo.com", product: "Saúde", status: "Ativo", lives: 3, value: "R$ 3.480", date: "10/08/2026", renewal: "10/08/2027", post: "Em dia", notes: "Originado do fechamento d9." },
+    { id: "c-d10", leadId: "d10", client: "Otávio Ramos", seller: "Diego Alves", phone: "(41) 99777-1212", email: "otavio@exemplo.com", product: "Auto", status: "Ativo", lives: 1, value: "R$ 2.640", date: "08/08/2026", renewal: "08/08/2027", post: "Contato agendado", notes: "Originado do fechamento d10." }
+  ];
+  const supervisorSelectedClientIds = new Set();
+  let supervisorActiveClientId = "";
+  let pendingCompanyLogo = "";
+  let pendingCompanyBanner = "";
+  const supervisorSharedViewState = new Map();
+  let supervisorMountedView = null;
+
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
@@ -87,6 +127,105 @@
     supervisorPasswordInput: $("#supervisorPasswordInput"),
     supervisorLoginBtn: $("#supervisorLoginBtn"),
     supervisorStatus: $("#supervisorStatus"),
+    supervisorScreen: $("#supervisorScreen"),
+    supervisorSidebarToggle: $("#supervisorSidebarToggle"),
+    supervisorLogoutBtn: $("#supervisorLogoutBtn"),
+    supervisorThemeBtn: $("#supervisorThemeBtn"),
+    supervisorViewTitle: $("#supervisorViewTitle"),
+    supervisorNavItems: $$(".supervisor-nav-item"),
+    supervisorViews: $$(".supervisor-view"),
+    supervisorBrokerList: $("#supervisorBrokerList"),
+    supervisorBrokerRows: $("#supervisorBrokerRows"),
+    supervisorKanban: $("#supervisorKanban"),
+    supervisorCustomerRows: $("#supervisorCustomerRows"),
+    supervisorClientMetrics: $("#supervisorClientMetrics"),
+    supervisorClientSearch: $("#supervisorClientSearch"),
+    supervisorClientStatusFilter: $("#supervisorClientStatusFilter"),
+    supervisorClientPeriodFilter: $("#supervisorClientPeriodFilter"),
+    supervisorNewClientBtn: $("#supervisorNewClientBtn"),
+    supervisorExportBtn: $("#supervisorExportBtn"),
+    supervisorSelectAllClients: $("#supervisorSelectAllClients"),
+    supervisorGoalRows: $("#supervisorGoalRows"),
+    supervisorBrokerName: $("#supervisorBrokerName"),
+    supervisorBrokerToken: $("#supervisorBrokerToken"),
+    supervisorGenerateMessageBtn: $("#supervisorGenerateMessageBtn"),
+    supervisorGeneratedMessage: $("#supervisorGeneratedMessage"),
+    supervisorCopyMessageBtn: $("#supervisorCopyMessageBtn"),
+    supervisorAccessStatus: $("#supervisorAccessStatus"),
+    supervisorGenerateReportBtn: $("#supervisorGenerateReportBtn"),
+    supervisorReportStatus: $("#supervisorReportStatus"),
+    supervisorMessageRecipient: $("#supervisorMessageRecipient"),
+    supervisorMessageText: $("#supervisorMessageText"),
+    supervisorSendMessageBtn: $("#supervisorSendMessageBtn"),
+    supervisorMessageStatus: $("#supervisorMessageStatus"),
+    supervisorMessageHistory: $("#supervisorMessageHistory"),
+    supervisorImportBtn: $("#supervisorImportBtn"),
+    supervisorArchiveBtn: $("#supervisorArchiveBtn"),
+    supervisorDetailModal: $("#supervisorDetailModal"),
+    supervisorModalTitle: $("#supervisorModalTitle"),
+    supervisorModalSubtitle: $("#supervisorModalSubtitle"),
+    supervisorModalBody: $("#supervisorModalBody"),
+    supervisorModalCloseBtn: $("#supervisorModalCloseBtn"),
+    supervisorModalFooterCloseBtn: $("#supervisorModalFooterCloseBtn"),
+    supervisorClientModal: $("#supervisorClientModal"),
+    supervisorClientForm: $("#supervisorClientForm"),
+    supervisorClientModalTitle: $("#supervisorClientModalTitle"),
+    supervisorClientName: $("#supervisorClientName"),
+    supervisorClientSeller: $("#supervisorClientSeller"),
+    supervisorClientPhone: $("#supervisorClientPhone"),
+    supervisorClientEmail: $("#supervisorClientEmail"),
+    supervisorClientStatus: $("#supervisorClientStatus"),
+    supervisorClientNotes: $("#supervisorClientNotes"),
+    supervisorProductModal: $("#supervisorProductModal"),
+    supervisorProductForm: $("#supervisorProductForm"),
+    supervisorProductClientName: $("#supervisorProductClientName"),
+    supervisorProductFolderModal: $("#supervisorProductFolderModal"),
+    supervisorFolderTitle: $("#supervisorFolderTitle"),
+    supervisorFolderClientName: $("#supervisorFolderClientName"),
+    supervisorProductDetails: $("#supervisorProductDetails"),
+    supervisorDocumentList: $("#supervisorDocumentList"),
+    supervisorUploadPdfBtn: $("#supervisorUploadPdfBtn"),
+    supervisorPdfInput: $("#supervisorPdfInput"),
+    supervisorSaveProductBtn: $("#supervisorSaveProductBtn"),
+    supervisorPostSaleModal: $("#supervisorPostSaleModal"),
+    supervisorPostSaleForm: $("#supervisorPostSaleForm"),
+    supervisorPostSaleClientName: $("#supervisorPostSaleClientName"),
+    supervisorOperationContent: $("#supervisorOperationContent"),
+    companySettingsForm: $("#companySettingsForm"),
+    companyLogoInput: $("#companyLogoInput"),
+    companyBannerInput: $("#companyBannerInput"),
+    companyLogoName: $("#companyLogoName"),
+    companyLogoPreview: $("#companyLogoPreview"),
+    supervisorCompanyLogo: $("#supervisorCompanyLogo"),
+    supervisorCompanyName: $("#supervisorCompanyName"),
+    companyBannerName: $("#companyBannerName"),
+    companyNameInput: $("#companyNameInput"),
+    companySloganInput: $("#companySloganInput"),
+    companyPhoneInput: $("#companyPhoneInput"),
+    companyWhatsappInput: $("#companyWhatsappInput"),
+    companyEmailInput: $("#companyEmailInput"),
+    companySiteInput: $("#companySiteInput"),
+    companyInstagramInput: $("#companyInstagramInput"),
+    companyCityInput: $("#companyCityInput"),
+    companyStateInput: $("#companyStateInput"),
+    companyMonthlyGoalInput: $("#companyMonthlyGoalInput"),
+    companyAnnualGoalInput: $("#companyAnnualGoalInput"),
+    companyBrokerGoalInput: $("#companyBrokerGoalInput"),
+    companyWeeklyMessageInput: $("#companyWeeklyMessageInput"),
+    companyPrimaryColorInput: $("#companyPrimaryColorInput"),
+    companySecondaryColorInput: $("#companySecondaryColorInput"),
+    companySettingsStatus: $("#companySettingsStatus"),
+    saveCompanyMessageBtn: $("#saveCompanyMessageBtn"),
+    brokerCompanyLogo: $("#brokerCompanyLogo"),
+    brokerCompanyName: $("#brokerCompanyName"),
+    brokerBrandingBanner: $("#brokerBrandingBanner"),
+    brokerBannerImage: $("#brokerBannerImage"),
+    brokerBannerCompanyName: $("#brokerBannerCompanyName"),
+    brokerWeeklyMessage: $("#brokerWeeklyMessage"),
+    brokerMonthlyGoal: $("#brokerMonthlyGoal"),
+    defaultSoonPanel: $("#defaultSoonPanel"),
+    teamUpgradePanel: $("#teamUpgradePanel"),
+    contactLungoTeamPlanBtn: $("#contactLungoTeamPlanBtn"),
     openAdminBtn: $("#openAdminBtn"),
     accessStatus: $("#accessStatus"),
     adminScreen: $("#adminScreen"),
@@ -944,11 +1083,372 @@
     setTimeout(() => (supervisorActive ? el.supervisorEmailInput : el.accessTokenInput)?.focus(), 0);
   }
 
+  function readLocalObject(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "{}"); }
+    catch { return {}; }
+  }
+
+  function loadCompanyBranding() {
+    return {
+      branding: readLocalObject(COMPANY_BRANDING_KEY),
+      goals: readLocalObject(COMPANY_GOALS_KEY),
+      message: localStorage.getItem(COMPANY_MESSAGE_KEY) || "",
+      theme: readLocalObject(COMPANY_THEME_KEY)
+    };
+  }
+
+  function fillCompanySettings() {
+    const data = loadCompanyBranding();
+    const branding = data.branding;
+    if (el.companyNameInput) el.companyNameInput.value = branding.name || "";
+    if (el.companySloganInput) el.companySloganInput.value = branding.slogan || "";
+    if (el.companyPhoneInput) el.companyPhoneInput.value = branding.phone || "";
+    if (el.companyWhatsappInput) el.companyWhatsappInput.value = branding.whatsapp || "";
+    if (el.companyEmailInput) el.companyEmailInput.value = branding.email || "";
+    if (el.companySiteInput) el.companySiteInput.value = branding.site || "";
+    if (el.companyInstagramInput) el.companyInstagramInput.value = branding.instagram || "";
+    if (el.companyCityInput) el.companyCityInput.value = branding.city || "";
+    if (el.companyStateInput) el.companyStateInput.value = branding.state || "";
+    if (el.companyMonthlyGoalInput) el.companyMonthlyGoalInput.value = data.goals.monthly || "";
+    if (el.companyAnnualGoalInput) el.companyAnnualGoalInput.value = data.goals.annual || "";
+    if (el.companyBrokerGoalInput) el.companyBrokerGoalInput.value = data.goals.broker || "";
+    if (el.companyWeeklyMessageInput) el.companyWeeklyMessageInput.value = data.message || "";
+    if (el.companyPrimaryColorInput) el.companyPrimaryColorInput.value = data.theme.primary || "#0ea5a5";
+    if (el.companySecondaryColorInput) el.companySecondaryColorInput.value = data.theme.secondary || "#10b8a8";
+    const themeRadio = document.querySelector(`input[name="companyTheme"][value="${data.theme.mode || "dark"}"]`);
+    if (themeRadio) themeRadio.checked = true;
+    pendingCompanyLogo = branding.logo || "";
+    pendingCompanyBanner = branding.banner || "";
+    if (el.companyLogoName) el.companyLogoName.textContent = branding.logo ? "Logo salva localmente" : "Nenhum arquivo";
+    if (el.companyBannerName) el.companyBannerName.textContent = branding.banner ? "Banner salvo localmente" : "Nenhum arquivo";
+  }
+
+  function saveCompanyBranding(options = {}) {
+    const current = loadCompanyBranding();
+    const branding = {
+      name: el.companyNameInput?.value.trim() || "", slogan: el.companySloganInput?.value.trim() || "",
+      phone: el.companyPhoneInput?.value.trim() || "", whatsapp: el.companyWhatsappInput?.value.trim() || "",
+      email: el.companyEmailInput?.value.trim() || "", site: el.companySiteInput?.value.trim() || "",
+      instagram: el.companyInstagramInput?.value.trim() || "", city: el.companyCityInput?.value.trim() || "",
+      state: el.companyStateInput?.value.trim().toUpperCase() || "", logo: pendingCompanyLogo || current.branding.logo || "",
+      banner: pendingCompanyBanner || current.branding.banner || ""
+    };
+    const goals = { monthly: el.companyMonthlyGoalInput?.value.trim() || "", annual: el.companyAnnualGoalInput?.value.trim() || "", broker: el.companyBrokerGoalInput?.value.trim() || "" };
+    const message = el.companyWeeklyMessageInput?.value.trim() || "";
+    const theme = { primary: el.companyPrimaryColorInput?.value || "#0ea5a5", secondary: el.companySecondaryColorInput?.value || "#10b8a8", mode: document.querySelector('input[name="companyTheme"]:checked')?.value || "dark" };
+    try {
+      localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(branding));
+      localStorage.setItem(COMPANY_GOALS_KEY, JSON.stringify(goals));
+      localStorage.setItem(COMPANY_MESSAGE_KEY, message);
+      localStorage.setItem(COMPANY_THEME_KEY, JSON.stringify(theme));
+    } catch {
+      if (el.companySettingsStatus) { el.companySettingsStatus.textContent = "Não foi possível salvar. Use imagens menores."; el.companySettingsStatus.classList.add("error"); }
+      return null;
+    }
+    renderCompanyBranding();
+    if (el.companySettingsStatus) { el.companySettingsStatus.textContent = options.messageOnly ? "Mensagem atualizada." : "Configurações salvas neste dispositivo."; el.companySettingsStatus.classList.add("ok"); }
+    return { branding, goals, message, theme };
+  }
+
+  function renderCompanyBranding() {
+    const data = loadCompanyBranding();
+    const branding = data.branding;
+    const hasBranding = Boolean(branding.name || branding.logo || branding.banner || data.message || data.goals.monthly);
+    const defaultLogo = "https://imagensconrato.pagecor.com.br/logo-lungo.png";
+    if (el.brokerCompanyLogo) el.brokerCompanyLogo.src = branding.logo || defaultLogo;
+    if (el.brokerCompanyLogo) el.brokerCompanyLogo.alt = branding.name || "Lungo";
+    if (el.brokerCompanyName) el.brokerCompanyName.textContent = branding.name || "Lungo";
+    if (el.brokerBrandingBanner) el.brokerBrandingBanner.hidden = !hasBranding;
+    if (el.brokerBannerImage) el.brokerBannerImage.src = branding.logo || defaultLogo;
+    if (el.brokerBannerCompanyName) el.brokerBannerCompanyName.textContent = branding.name || "Lungo Corretores";
+    if (el.brokerWeeklyMessage) el.brokerWeeklyMessage.textContent = data.message || branding.slogan || "Bem-vindo ao seu painel comercial.";
+    if (el.brokerMonthlyGoal) el.brokerMonthlyGoal.textContent = data.goals.monthly || "Não definida";
+    if (el.brokerBrandingBanner) {
+      el.brokerBrandingBanner.classList.toggle("has-background", Boolean(branding.banner));
+      el.brokerBrandingBanner.style.setProperty("--company-banner", branding.banner ? `url("${branding.banner}")` : "none");
+    }
+  }
+
+  function loadCompanyIdentity() {
+    const stored = readLocalObject(COMPANY_BRANDING_KEY);
+    return { name: String(stored.name || "").trim(), logo: String(stored.logo || "") };
+  }
+
+  function saveCompanyIdentity() {
+    const name = String(el.companyNameInput?.value || "").trim();
+    if (!name) {
+      el.companySettingsStatus.textContent = "Informe o nome da corretora.";
+      el.companySettingsStatus.classList.add("error");
+      return null;
+    }
+    const current = loadCompanyIdentity();
+    const identity = { name, logo: pendingCompanyLogo || current.logo || "" };
+    try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); }
+    catch {
+      el.companySettingsStatus.textContent = "Não foi possível salvar. Use uma imagem menor.";
+      el.companySettingsStatus.classList.add("error");
+      return null;
+    }
+    renderCompanyIdentity();
+    el.companySettingsStatus.textContent = "Identidade atualizada.";
+    el.companySettingsStatus.classList.remove("error");
+    el.companySettingsStatus.classList.add("ok");
+    return identity;
+  }
+
+  function renderCompanyIdentity() {
+    const identity = loadCompanyIdentity();
+    const defaultLogo = "https://imagensconrato.pagecor.com.br/logo-lungo.png";
+    const name = identity.name || "Lungo";
+    const logo = identity.logo || defaultLogo;
+    [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
+    if (el.brokerCompanyName) el.brokerCompanyName.textContent = name;
+    if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = name;
+    if (el.companyNameInput) el.companyNameInput.value = identity.name || "";
+    pendingCompanyLogo = identity.logo || pendingCompanyLogo;
+    if (el.companyLogoName) el.companyLogoName.textContent = identity.logo ? "Logo salva localmente" : "Nenhum arquivo";
+    const previewImage = el.companyLogoPreview?.querySelector("img");
+    if (previewImage) previewImage.src = logo;
+  }
+
+  function readCompanyImage(file, kind) {
+    if (!file || !String(file.type).startsWith("image/")) { toast("Selecione uma imagem válida."); return; }
+    if (file.size > 1500000) { toast("Use uma imagem de até 1,5 MB para o armazenamento local."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (kind === "logo") { pendingCompanyLogo = String(reader.result || ""); el.companyLogoName.textContent = file.name; const preview = el.companyLogoPreview?.querySelector("img"); if (preview) preview.src = pendingCompanyLogo; }
+      else { pendingCompanyBanner = String(reader.result || ""); el.companyBannerName.textContent = file.name; }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderSupervisorOperation(name) {
+    const labels = { instance: "Minha Instância", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    const descriptions = { instance: "Status da instância própria do Supervisor.", connect: "Conexão visual da conta WhatsApp do Supervisor.", crm: "Pipeline próprio do Supervisor.", clients: "Carteira própria do Supervisor.", broadcast: "Campanhas próprias do Supervisor.", cotador: "Cotações comerciais.", comprar_leads: "Aquisição de oportunidades.", treinamentos: "Trilhas e materiais comerciais.", agenda: "Compromissos e retornos comerciais." };
+    const cards = name === "crm" ? [["Leads próprios", "31"], ["Em atendimento", "12"], ["Fechamentos", "6"]] : name === "clients" ? [["Clientes próprios", "18"], ["Vidas", "37"], ["Pós-vendas", "9"]] : [["Ambiente", "Supervisor"], ["Status", "Mock visual"], ["Integração", "Aguardando backend"]];
+    el.supervisorOperationContent.innerHTML = `<header class="supervisor-operation-header"><div><h2>${escapeHtml(labels[name] || "Operação")}</h2><p>${escapeHtml(descriptions[name] || "Módulo operacional")}</p></div><span class="status-mini">Sessão própria · mock</span></header><div class="supervisor-operation-grid">${cards.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("")}</div><section class="supervisor-card"><header><div><h2>Estrutura operacional</h2><p>Esta prévia segue o padrão do corretor sem usar seu token ou chamar endpoints.</p></div></header><div class="toolbar"><input class="search" placeholder="Buscar neste módulo" disabled><button class="btn primary" type="button" disabled>Nova ação</button><button class="btn" type="button" disabled>Atualizar</button></div></section>`;
+  }
+
+  function restoreSupervisorSharedView() {
+    if (!supervisorMountedView) return;
+    const stateEntry = supervisorSharedViewState.get(supervisorMountedView);
+    if (stateEntry?.placeholder?.parentNode) stateEntry.placeholder.parentNode.insertBefore(supervisorMountedView, stateEntry.placeholder.nextSibling);
+    supervisorMountedView.classList.remove("supervisor-shared-view");
+    supervisorMountedView.classList.toggle("active", Boolean(stateEntry?.wasActive));
+    supervisorMountedView = null;
+  }
+
+  function mountSupervisorSharedView(name) {
+    restoreSupervisorSharedView();
+    const soonModules = ["cotador", "comprar_leads", "treinamentos", "agenda"];
+    const viewName = soonModules.includes(name) ? "soon" : name;
+    const node = el.views[viewName];
+    if (!node || !el.supervisorOperationContent) { renderSupervisorOperation(name); return; }
+    let stateEntry = supervisorSharedViewState.get(node);
+    if (!stateEntry) {
+      const placeholder = document.createComment(`supervisor-shared-${viewName}`);
+      node.parentNode.insertBefore(placeholder, node);
+      stateEntry = { placeholder, wasActive: node.classList.contains("active") };
+      supervisorSharedViewState.set(node, stateEntry);
+    } else stateEntry.wasActive = node.classList.contains("active");
+    if (viewName === "soon") {
+      if (el.defaultSoonPanel) el.defaultSoonPanel.hidden = false;
+      if (el.teamUpgradePanel) el.teamUpgradePanel.hidden = true;
+      const titles = { cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+      if (el.soonTitle) el.soonTitle.textContent = titles[name] || "Módulo em breve";
+      if (el.soonText) el.soonText.textContent = `${titles[name] || "Este módulo"} está no roadmap e será liberado em uma próxima atualização.`;
+    }
+    el.supervisorOperationContent.replaceChildren(node);
+    node.classList.add("active", "supervisor-shared-view");
+    supervisorMountedView = node;
+  }
+
+  function setSupervisorOperation(name) {
+    el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorOperation === name));
+    el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
+    if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
+    else renderSupervisorOperation(name);
+    const labels = { instance: "Minha Instância", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
+  }
+
   function mockSupervisorLogin() {
-    if (!el.supervisorStatus) return;
-    el.supervisorStatus.textContent = "Acesso supervisor em preparação.";
-    el.supervisorStatus.classList.remove("error");
-    el.supervisorStatus.classList.add("ok");
+    if (el.supervisorStatus) {
+      el.supervisorStatus.textContent = "Acesso supervisor em preparação.";
+      el.supervisorStatus.classList.remove("error");
+      el.supervisorStatus.classList.add("ok");
+    }
+    openSupervisorArea();
+  }
+
+  function supervisorInitials(name) {
+    return String(name || "").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
+  }
+
+  function renderSupervisorMocks() {
+    const brokerRows = SUPERVISOR_BROKERS.map((broker) => `
+      <div class="supervisor-broker-row">
+        <div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}</b></div>
+        <span><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</span>
+        <b>${broker.sales} vendas</b>
+        <div><div class="supervisor-progress"><i style="width:${broker.goal}%"></i></div><small>${broker.goal}% da meta</small></div>
+        <span>${escapeHtml(broker.login)}</span>
+      </div>`).join("");
+    if (el.supervisorBrokerList) el.supervisorBrokerList.innerHTML = brokerRows;
+    if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td><code>${escapeHtml(broker.token)}</code></td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td>${broker.sales}</td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}">Copiar acesso</button><button class="tiny-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}">Editar</button><button class="tiny-btn" type="button" data-supervisor-broker-action="disable" data-broker-id="${broker.id}">Desativar</button></div></td></tr>`).join("");
+
+    const stages = [
+      ["novos", "Novos", "Novos"], ["em_atendimento", "Em atendimento", "Em atendimento"], ["cotacao", "Cotação", "Cotação Enviada"], ["documentacao", "Doc. recebida", "Documentação recebida"],
+      ["venda", "Venda cadastrada", "Venda cadastrada"], ["boleto", "Boleto gerado", "Boleto Gerado"], ["fechamento", "Fechamento", "Fechamento"], ["perdida", "Venda perdida", "Venda Perdida"]
+    ];
+    if (el.supervisorKanban) el.supervisorKanban.innerHTML = stages.map(([key, label, fullLabel]) => {
+      const deals = SUPERVISOR_DEALS.filter((deal) => deal.stage === key);
+      const total = deals.reduce((sum, deal) => sum + Number(String(deal.value || "").replace(/[^0-9,]/g, "").replace(",", ".") || 0), 0);
+      const totalLabel = ["novos", "em_atendimento"].includes(key) ? "Valor especulativo" : key === "fechamento" ? "Realizado" : key === "perdida" ? "Perdido" : "Previsto";
+      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b><span title="Responsável: ${escapeHtml(deal.seller)}">${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
+    }).join("");
+
+    renderSupervisorCustomers();
+    if (el.supervisorGoalRows) el.supervisorGoalRows.innerHTML = SUPERVISOR_BROKERS.slice(0, 6).map((broker) => `<div class="supervisor-goal-row"><b>${escapeHtml(broker.name)}</b><div class="supervisor-progress"><i style="width:${broker.goal}%"></i></div><span>${broker.goal}% · ${broker.sales} vendas</span></div>`).join("");
+  }
+
+  function filteredSupervisorCustomers() {
+    const search = String(el.supervisorClientSearch?.value || "").trim().toLowerCase();
+    const status = el.supervisorClientStatusFilter?.value || "";
+    return SUPERVISOR_CUSTOMERS.filter((customer) => (!search || [customer.client, customer.seller, customer.product, customer.phone].join(" ").toLowerCase().includes(search)) && (!status || customer.status === status));
+  }
+
+  function renderSupervisorCustomers() {
+    const rows = filteredSupervisorCustomers();
+    if (el.supervisorClientMetrics) el.supervisorClientMetrics.innerHTML = [
+      ["Clientes", SUPERVISOR_CUSTOMERS.length], ["Ativos", SUPERVISOR_CUSTOMERS.filter((item) => item.status === "Ativo").length], ["A renovar", SUPERVISOR_CUSTOMERS.filter((item) => item.status === "A renovar").length], ["Vidas", SUPERVISOR_CUSTOMERS.reduce((sum, item) => sum + item.lives, 0)], ["Produção", "R$ 13.170"]
+    ].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("");
+    if (el.supervisorCustomerRows) el.supervisorCustomerRows.innerHTML = rows.map((customer) => `
+      <tr><td class="select-col"><input type="checkbox" data-supervisor-select-client="${customer.id}" ${supervisorSelectedClientIds.has(customer.id) ? "checked" : ""}></td><td><div class="supervisor-client-name"><b title="${escapeHtml(customer.client)}">${escapeHtml(customer.client)}</b><span title="${escapeHtml(customer.phone)}">${escapeHtml(customer.phone)}</span></div></td><td title="${escapeHtml(customer.seller)}">${escapeHtml(customer.seller)}</td><td><span class="product-icons compact-products clickable-products supervisor-product-icons"><button class="product-icon-button" type="button" data-supervisor-product="${customer.id}" title="Abrir ${escapeHtml(customer.product)}">${productIconSvg(customer.product)}</button></span></td><td title="${escapeHtml(customer.status)}">${escapeHtml(customer.status)}</td><td>${customer.lives}</td><td>${escapeHtml(customer.value)}</td><td title="${escapeHtml(customer.renewal)}">${escapeHtml(customer.renewal)}</td><td title="${escapeHtml(customer.post)}">${escapeHtml(customer.post)}</td><td><div class="supervisor-client-actions"><button class="supervisor-row-action" type="button" data-supervisor-client-action="edit" data-client-id="${customer.id}" title="Editar cliente" aria-label="Editar cliente">✎</button><button class="supervisor-row-action" type="button" data-supervisor-client-action="product" data-client-id="${customer.id}" title="Novo produto" aria-label="Novo produto">＋</button><button class="supervisor-row-action" type="button" data-supervisor-client-action="post-sale" data-client-id="${customer.id}" title="Agendar pós-venda" aria-label="Agendar pós-venda">◷</button><button class="supervisor-row-action" type="button" data-supervisor-client-action="archive" data-client-id="${customer.id}" title="Arquivar cliente" aria-label="Arquivar cliente">□</button></div></td></tr>`).join("");
+    if (el.supervisorSelectAllClients) el.supervisorSelectAllClients.checked = rows.length > 0 && rows.every((customer) => supervisorSelectedClientIds.has(customer.id));
+  }
+
+  function openSupervisorArea() {
+    stopCrmRealtime();
+    if (el.supervisorScreen) el.supervisorScreen.hidden = false;
+    document.body.classList.add("supervisor-mode");
+    setSupervisorView("dashboard");
+    renderSupervisorMocks();
+    renderCompanyIdentity();
+  }
+
+  function closeSupervisorArea() {
+    restoreSupervisorSharedView();
+    document.body.classList.remove("supervisor-mode");
+    if (el.supervisorScreen) el.supervisorScreen.hidden = true;
+    setAuthLocked(true);
+    [el.supervisorDetailModal, el.supervisorClientModal, el.supervisorProductModal, el.supervisorProductFolderModal, el.supervisorPostSaleModal].forEach((modal) => {
+      if (modal?.open) modal.close();
+    });
+  }
+
+  function setSupervisorView(name) {
+    restoreSupervisorSharedView();
+    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", goals: "Metas", reports: "Relatórios", messages: "Mensagens", settings: "Configurações da Corretora" };
+    el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
+    el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
+    if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
+    if (name === "settings") renderCompanyIdentity();
+  }
+
+  function openSupervisorModal(title, subtitle, fields) {
+    if (!el.supervisorDetailModal) return;
+    el.supervisorModalTitle.textContent = title;
+    el.supervisorModalSubtitle.textContent = subtitle || "";
+    el.supervisorModalBody.innerHTML = fields.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("");
+    el.supervisorDetailModal.showModal();
+  }
+
+  function generateSupervisorAccessMessage() {
+    const name = String(el.supervisorBrokerName?.value || "").trim();
+    const token = String(el.supervisorBrokerToken?.value || "").trim();
+    if (!name || !token) {
+      el.supervisorGeneratedMessage.hidden = true;
+      el.supervisorAccessStatus.textContent = "Preencha o nome do corretor e o token personalizado.";
+      el.supervisorAccessStatus.classList.add("error");
+      el.supervisorAccessStatus.classList.remove("ok");
+      return;
+    }
+    const message = supervisorAccessMessage(name, token);
+    if (!el.supervisorGeneratedMessage) return;
+    el.supervisorGeneratedMessage.hidden = false;
+    el.supervisorGeneratedMessage.querySelector("p").textContent = message;
+    el.supervisorAccessStatus.textContent = "Acesso gerado. Revise e copie a mensagem.";
+    el.supervisorAccessStatus.classList.remove("error");
+    el.supervisorAccessStatus.classList.add("ok");
+  }
+
+  function supervisorAccessMessage(name, token) {
+    return `Olá, ${name}. Seu acesso à Lungo Corretores foi liberado.\n\nLink: https://crm.lungocorretores.com.br\nToken: ${token}\n\nAcesse, aceite os termos de uso e conecte seu WhatsApp pelo QR Code.`;
+  }
+
+  async function copySupervisorText(value, successMessage) {
+    if (!navigator.clipboard?.writeText) { toast("Cópia automática indisponível neste navegador."); return false; }
+    try { await navigator.clipboard.writeText(value); toast(successMessage); return true; }
+    catch { toast("Não foi possível copiar."); return false; }
+  }
+
+  async function copySupervisorMessage() {
+    const message = el.supervisorGeneratedMessage?.querySelector("p")?.textContent || "";
+    if (!message) return;
+    const copied = await copySupervisorText(message, "Mensagem copiada");
+    el.supervisorAccessStatus.textContent = copied ? "Mensagem copiada" : "Não foi possível copiar a mensagem.";
+    el.supervisorAccessStatus.classList.toggle("ok", copied);
+    el.supervisorAccessStatus.classList.toggle("error", !copied);
+  }
+
+  function openSupervisorClientEditor(customer = null) {
+    supervisorActiveClientId = customer?.id || "";
+    el.supervisorClientModalTitle.textContent = customer ? "Editar cliente" : "Novo cliente";
+    el.supervisorClientName.value = customer?.client || "";
+    el.supervisorClientSeller.value = customer?.seller || "Ana Souza";
+    el.supervisorClientPhone.value = customer?.phone || "";
+    el.supervisorClientEmail.value = customer?.email || "";
+    el.supervisorClientStatus.value = customer?.status || "Ativo";
+    el.supervisorClientNotes.value = customer?.notes || "";
+    el.supervisorClientModal.showModal();
+  }
+
+  function openSupervisorNewProduct(customer) {
+    supervisorActiveClientId = customer.id;
+    el.supervisorProductClientName.textContent = customer.client;
+    el.supervisorProductModal.showModal();
+  }
+
+  function openSupervisorProductFolder(customer) {
+    supervisorActiveClientId = customer.id;
+    el.supervisorFolderTitle.textContent = customer.product;
+    el.supervisorFolderClientName.textContent = `${customer.client} · ${customer.seller}`;
+    el.supervisorProductDetails.innerHTML = [["Produto", customer.product], ["Vidas", String(customer.lives)], ["Valor", customer.value], ["Data", customer.date], ["Renovação", customer.renewal], ["Observação", customer.notes]].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("");
+    el.supervisorDocumentList.innerHTML = `<div class="supervisor-document-row"><div><b>proposta-assinada.pdf</b><span>PDF · 1,2 MB</span></div><button class="tiny-btn" type="button" data-supervisor-remove-document>Remover</button></div><div class="supervisor-document-row"><div><b>documentos-cliente.pdf</b><span>PDF · 840 KB</span></div><button class="tiny-btn" type="button" data-supervisor-remove-document>Remover</button></div>`;
+    el.supervisorProductFolderModal.showModal();
+  }
+
+  function openSupervisorPostSale(customer) {
+    supervisorActiveClientId = customer.id;
+    el.supervisorPostSaleClientName.textContent = `${customer.client} · ${customer.seller}`;
+    el.supervisorPostSaleModal.showModal();
+  }
+
+  function sendSupervisorMessage() {
+    const message = String(el.supervisorMessageText?.value || "").trim();
+    if (!message) {
+      el.supervisorMessageStatus.textContent = "Digite uma mensagem antes de enviar.";
+      el.supervisorMessageStatus.classList.add("error");
+      return;
+    }
+    const recipient = el.supervisorMessageRecipient?.value || "Todos os corretores";
+    el.supervisorMessageHistory?.insertAdjacentHTML("afterbegin", `<article><b>${escapeHtml(recipient)}</b><span>${escapeHtml(message)}</span><small>Agora · envio simulado</small></article>`);
+    el.supervisorMessageText.value = "";
+    el.supervisorMessageStatus.textContent = "Notificação adicionada ao histórico fictício.";
+    el.supervisorMessageStatus.classList.remove("error");
+    el.supervisorMessageStatus.classList.add("ok");
   }
 
   function setWhatsappPending(pending) {
@@ -2780,6 +3280,11 @@
 
   function bindEvents() {
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
+    el.navItems.forEach((btn) => btn.addEventListener("click", () => {
+      const upgrade = btn.dataset.view === "vendedores";
+      if (el.defaultSoonPanel) el.defaultSoonPanel.hidden = upgrade;
+      if (el.teamUpgradePanel) el.teamUpgradePanel.hidden = !upgrade;
+    }));
     el.sidebarToggleBtn?.addEventListener("click", () => {
       const collapsed = !el.appShell.classList.contains("sidebar-collapsed");
       el.appShell.classList.toggle("sidebar-collapsed", collapsed);
@@ -2800,6 +3305,10 @@
     el.accessTokenInput?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") enterWithToken();
     });
+    el.contactLungoTeamPlanBtn?.addEventListener("click", () => {
+      const message = encodeURIComponent("Olá! Gostaria de conhecer o Plano Gestão de Equipes da Lungo Corretores.");
+      window.open(`https://wa.me/5555992102864?text=${message}`, "_blank", "noopener,noreferrer");
+    });
     el.corretorTabBtn?.addEventListener("click", () => setAuthRole("corretor"));
     el.supervisorTabBtn?.addEventListener("click", () => setAuthRole("supervisor"));
     el.supervisorLoginBtn?.addEventListener("click", mockSupervisorLogin);
@@ -2807,6 +3316,117 @@
       input?.addEventListener("keydown", (event) => {
         if (event.key === "Enter") mockSupervisorLogin();
       });
+    });
+    el.supervisorLogoutBtn?.addEventListener("click", closeSupervisorArea);
+    el.supervisorSidebarToggle?.addEventListener("click", () => {
+      const collapsed = !el.supervisorScreen.classList.contains("sidebar-collapsed");
+      el.supervisorScreen.classList.toggle("sidebar-collapsed", collapsed);
+      el.supervisorSidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+      el.supervisorSidebarToggle.setAttribute("aria-label", collapsed ? "Expandir menu" : "Recolher menu");
+      el.supervisorSidebarToggle.title = collapsed ? "Expandir menu" : "Recolher menu";
+      localStorage.setItem(SUPERVISOR_SIDEBAR_KEY, collapsed ? "1" : "0");
+    });
+    el.supervisorThemeBtn?.addEventListener("click", () => {
+      const next = el.root.dataset.theme === "dark" ? "light" : "dark";
+      el.root.dataset.theme = next;
+      localStorage.setItem(THEME_KEY, next);
+    });
+    el.supervisorNavItems.filter((button) => button.dataset.supervisorView).forEach((button) => button.addEventListener("click", () => setSupervisorView(button.dataset.supervisorView)));
+    el.supervisorNavItems.filter((button) => button.dataset.supervisorOperation).forEach((button) => button.addEventListener("click", () => setSupervisorOperation(button.dataset.supervisorOperation)));
+    document.querySelectorAll("[data-company-upload]").forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.companyUpload)?.click()));
+    el.companyLogoInput?.addEventListener("change", () => readCompanyImage(el.companyLogoInput.files?.[0], "logo"));
+    el.companyBannerInput?.addEventListener("change", () => readCompanyImage(el.companyBannerInput.files?.[0], "banner"));
+    el.companySettingsForm?.addEventListener("submit", (event) => { event.preventDefault(); saveCompanyIdentity(); });
+    el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
+    el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
+    el.supervisorClientSearch?.addEventListener("input", renderSupervisorCustomers);
+    el.supervisorClientStatusFilter?.addEventListener("change", renderSupervisorCustomers);
+    el.supervisorClientPeriodFilter?.addEventListener("change", renderSupervisorCustomers);
+    el.supervisorNewClientBtn?.addEventListener("click", () => openSupervisorClientEditor());
+    el.supervisorSelectAllClients?.addEventListener("change", () => {
+      filteredSupervisorCustomers().forEach((customer) => el.supervisorSelectAllClients.checked ? supervisorSelectedClientIds.add(customer.id) : supervisorSelectedClientIds.delete(customer.id));
+      renderSupervisorCustomers();
+    });
+    el.supervisorClientForm?.addEventListener("submit", () => toast(supervisorActiveClientId ? "Cliente atualizado visualmente." : "Novo cliente simulado."));
+    el.supervisorProductForm?.addEventListener("submit", () => toast("Novo produto cadastrado visualmente."));
+    el.supervisorPostSaleForm?.addEventListener("submit", () => toast("Pós-venda agendado visualmente."));
+    document.querySelectorAll("[data-close-supervisor-modal]").forEach((button) => button.addEventListener("click", () => {
+      const modal = document.getElementById(button.dataset.closeSupervisorModal);
+      if (modal?.open) modal.close();
+    }));
+    el.supervisorUploadPdfBtn?.addEventListener("click", () => el.supervisorPdfInput?.click());
+    el.supervisorSaveProductBtn?.addEventListener("click", () => {
+      if (el.supervisorProductFolderModal?.open) el.supervisorProductFolderModal.close();
+      toast("Produto salvo visualmente.");
+    });
+    el.supervisorDocumentList?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-supervisor-remove-document]");
+      if (!button) return;
+      button.closest(".supervisor-document-row")?.remove();
+      toast("Documento removido visualmente.");
+    });
+    el.supervisorPdfInput?.addEventListener("change", () => {
+      const file = el.supervisorPdfInput.files?.[0];
+      if (!file) return;
+      el.supervisorDocumentList?.insertAdjacentHTML("afterbegin", `<div class="supervisor-document-row"><div><b>${escapeHtml(file.name)}</b><span>PDF · anexo simulado</span></div><button class="tiny-btn" type="button" data-supervisor-remove-document>Remover</button></div>`);
+      toast("PDF adicionado visualmente.");
+      el.supervisorPdfInput.value = "";
+    });
+    el.supervisorGenerateReportBtn?.addEventListener("click", () => {
+      el.supervisorReportStatus.textContent = "Relatório demonstrativo gerado com sucesso.";
+      el.supervisorReportStatus.classList.add("ok");
+    });
+    el.supervisorSendMessageBtn?.addEventListener("click", sendSupervisorMessage);
+    el.supervisorImportBtn?.addEventListener("click", () => toast("Importação simulada. Nenhum arquivo foi enviado."));
+    el.supervisorExportBtn?.addEventListener("click", () => toast("Exportação simulada. Nenhum arquivo foi gerado."));
+    el.supervisorArchiveBtn?.addEventListener("click", () => {
+      if (!supervisorSelectedClientIds.size) { toast("Selecione ao menos um cliente."); return; }
+      toast(`${supervisorSelectedClientIds.size} cliente(s) arquivado(s) visualmente.`);
+      supervisorSelectedClientIds.clear();
+      renderSupervisorCustomers();
+    });
+    [el.supervisorModalCloseBtn, el.supervisorModalFooterCloseBtn].forEach((button) => button?.addEventListener("click", () => el.supervisorDetailModal?.close()));
+    el.supervisorScreen?.addEventListener("click", (event) => {
+      const dealButton = event.target.closest("[data-supervisor-deal]");
+      if (dealButton) {
+        const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
+        const stageLabels = { novos: "Novos", em_atendimento: "Em atendimento", cotacao: "Cotação Enviada", documentacao: "Documentação recebida", venda: "Venda cadastrada", boleto: "Boleto Gerado", fechamento: "Fechamento", perdida: "Venda Perdida" };
+        if (deal) openSupervisorModal(deal.client, "Ficha completa do lead", [["Nome", deal.client], ["Telefone", deal.phone || "—"], ["E-mail", deal.email || "—"], ["CNPJ ou PF", deal.personType || "PF"], ["Número CNPJ/CPF", deal.document || "—"], ["Qtd. de vidas", String(deal.lives || 1)], ["Valor do negócio", deal.value || "—"], ["Plano de interesse", deal.product || "—"], ["Cidade", deal.city || "—"], ["Vendedor responsável", deal.seller], ["Etapa atual", stageLabels[deal.stage] || deal.stage], ["Observações", deal.notes || "Sem observações."]]);
+        return;
+      }
+      const brokerButton = event.target.closest("[data-supervisor-broker-action]");
+      if (brokerButton) {
+        const broker = SUPERVISOR_BROKERS.find((item) => item.id === brokerButton.dataset.brokerId);
+        if (!broker) return;
+        const action = brokerButton.dataset.supervisorBrokerAction;
+        if (action === "copy") copySupervisorText(supervisorAccessMessage(broker.name, broker.token), "Acesso copiado.");
+        if (action === "edit") toast(`Edição visual de ${broker.name} em preparação.`);
+        if (action === "disable") toast(`${broker.name} foi desativado visualmente.`);
+        return;
+      }
+      const productButton = event.target.closest("[data-supervisor-product]");
+      if (productButton) {
+        const customer = SUPERVISOR_CUSTOMERS.find((item) => item.id === productButton.dataset.supervisorProduct);
+        if (customer) openSupervisorProductFolder(customer);
+        return;
+      }
+      const actionButton = event.target.closest("[data-supervisor-client-action]");
+      if (actionButton) {
+        const customer = SUPERVISOR_CUSTOMERS.find((item) => item.id === actionButton.dataset.clientId);
+        if (!customer) return;
+        const action = actionButton.dataset.supervisorClientAction;
+        if (action === "edit") openSupervisorClientEditor(customer);
+        if (action === "product") openSupervisorNewProduct(customer);
+        if (action === "post-sale") openSupervisorPostSale(customer);
+        if (action === "archive") toast(`${customer.client} foi arquivado visualmente.`);
+      }
+    });
+    el.supervisorScreen?.addEventListener("change", (event) => {
+      const checkbox = event.target.closest("[data-supervisor-select-client]");
+      if (!checkbox) return;
+      if (checkbox.checked) supervisorSelectedClientIds.add(checkbox.dataset.supervisorSelectClient);
+      else supervisorSelectedClientIds.delete(checkbox.dataset.supervisorSelectClient);
+      renderSupervisorCustomers();
     });
     el.openAdminBtn?.addEventListener("click", openAdminArea);
     el.adminBackToAccessBtn?.addEventListener("click", closeAdminArea);
@@ -3032,6 +3652,11 @@
     const theme = localStorage.getItem(THEME_KEY) || "dark";
     el.root.dataset.theme = theme;
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
+    const supervisorSidebarCollapsed = localStorage.getItem(SUPERVISOR_SIDEBAR_KEY) === "1";
+    el.supervisorScreen?.classList.toggle("sidebar-collapsed", supervisorSidebarCollapsed);
+    el.supervisorSidebarToggle?.setAttribute("aria-expanded", String(!supervisorSidebarCollapsed));
+    el.supervisorSidebarToggle?.setAttribute("aria-label", supervisorSidebarCollapsed ? "Expandir menu" : "Recolher menu");
+    if (el.supervisorSidebarToggle) el.supervisorSidebarToggle.title = supervisorSidebarCollapsed ? "Expandir menu" : "Recolher menu";
     fillStatusOptions();
     bindMoneyField(el.leadValorNegocio);
     bindMoneyField(el.clientValorFechado);
@@ -3039,6 +3664,7 @@
     updateTodayLabel();
     setInterval(updateTodayLabel, 60000);
     hardenAutocomplete();
+    renderCompanyIdentity();
     toggleCustomPeriodFields();
     toggleClientCustomPeriodFields();
     loadAccess();
