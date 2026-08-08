@@ -137,7 +137,8 @@
     { name: "Equipe 10", limit: "1 supervisor + 10 corretores", value: "R$ 2.490/mês", status: "Ativo" },
     { name: "Personalizado", limit: "Limite manual", value: "Sob consulta", status: "Ativo" }
   ];
-  let adminMasterLogged = sessionStorage.getItem(ADMIN_MASTER_MOCK_SESSION_KEY) === "1";
+  let adminMasterLogged = false;
+  let adminMasterKey = "";
   let adminMasterAccessType = "individual";
   let adminMasterGeneratedMessage = "";
   let adminData = null;
@@ -3382,6 +3383,54 @@
   function adminPaymentLabel(status) { return { paid: "Pago", pending: "Pendente", late: "Atrasado", cancelled: "Cancelado", reversed: "Estornado" }[status] || status; }
   function adminStatusClass(status) { return ({ paid: "active", due: "attention", pending: "attention", late: "inactive", cancelled: "inactive", suspended: "inactive", blocked: "inactive", reversed: "attention" }[status] || status); }
 
+  function adminRemotePlanId(subscription = {}) {
+    const code = String(subscription.plan_code || subscription.planCode || "").toLowerCase();
+    const name = String(subscription.plan_name || subscription.planName || "").toLowerCase();
+    if (code === "equipe" || name.includes("equipe")) return "team";
+    if (code === "corretora10" || name.includes("10")) return "broker10";
+    if (code === "corretora16" || name.includes("16")) return "broker16";
+    if (code === "corretora20" || name.includes("20")) return "broker20";
+    return "individual";
+  }
+
+  function adminRemoteStatus(status, fallback = "active") {
+    const value = String(status || fallback).toLowerCase();
+    return ({ ativa: "active", ativo: "active", active: "active", suspended: "suspended", suspensa: "suspended", inactive: "inactive", inativa: "inactive", cancelled: "cancelled", canceled: "cancelled", paid: "paid", pago: "paid", pending: "pending", pendente: "pending", overdue: "late", late: "late", atrasado: "late" })[value] || value;
+  }
+
+  async function loadAdminRemoteData() {
+    const [organizationsResult, accessesResult, financialResult, supervisorsResult] = await Promise.all([
+      window.LungoAdminApi.getOrganizations(adminMasterKey),
+      window.LungoAdminApi.getAccesses(adminMasterKey),
+      window.LungoAdminApi.getFinancial(adminMasterKey),
+      window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] }))
+    ]);
+    const organizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
+    const accesses = Array.isArray(accessesResult) ? accessesResult : accessesResult?.accesses || [];
+    const payments = financialResult?.payments || [];
+    const clients = organizations.map((organization) => {
+      const subscription = organization.subscription || {};
+      const organizationAccesses = accesses.filter((access) => String(access.organization_id || access.organizationId) === String(organization.id));
+      const supervisor = organizationAccesses.find((access) => (access.role || access.profile) === "supervisor");
+      return {
+        id: String(organization.id), name: organization.name || "Organização", responsible: supervisor?.name || "—",
+        document: organization.document_number || "—", email: supervisor?.email || "—", whatsapp: supervisor?.phone || "—",
+        type: organization.organization_type === "individual" ? "individual" : "team", planId: adminRemotePlanId(subscription),
+        extraAccesses: Number(subscription.extra_accesses || subscription.extraAccesses || 0), activeAccesses: organizationAccesses.filter((access) => adminRemoteStatus(access.status) === "active").length,
+        legacy: Boolean(subscription.legacy), saleDate: String(organization.created_at || "").slice(0, 10), nextDue: String(subscription.next_due_date || subscription.nextDueDate || organization.latest_payment?.due_date || "").slice(0, 10),
+        financialStatus: adminRemoteStatus(organization.latest_payment?.status || subscription.status, "pending"), accountStatus: adminRemoteStatus(organization.status),
+        dueMode: subscription.due_mode === "fixed_day" ? "fixed" : "30days", fixedDay: Number(subscription.fixed_due_day || 1), notes: "", history: []
+      };
+    });
+    const clientByName = (name) => clients.find((client) => client.name === name);
+    adminData = {
+      version: ADMIN_DATA_VERSION, remote: true, clients,
+      accesses: accesses.map((access) => ({ id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.active_token ? "Token ativo" : "Sem token ativo", status: adminRemoteStatus(access.status), createdAt: String(access.created_at || "").slice(0, 10), lastAccess: access.last_login_at || access.token_last_used_at || "Nunca", validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access })),
+      receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })),
+      supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
+    };
+  }
+
   function renderAdminDashboard() {
     const today = adminIsoDate(new Date());
     const month = today.slice(0, 7);
@@ -3396,14 +3445,14 @@
     const metrics = [["Total de clientes ativos", activeClients], ["Clientes inadimplentes", late.length], ["Total de acessos ativos", adminData.accesses.filter((item) => item.status === "active").length], ["Receita mensal recorrente", formatCurrency(recurring)], ["Valores recebidos no mês", formatCurrency(received)], ["Valores pendentes", formatCurrency(pending)], ["Próximos vencimentos", upcoming.length], ["Pagamentos atrasados", late.length], ["Novas vendas realizadas", sales.filter((item) => item.saleDate.startsWith(month)).length]];
     $("#adminMasterKpis").innerHTML = metrics.map(([label, value]) => `<article><span>${label}</span><b>${value}</b></article>`).join("");
     const listRow = (item, extra, action = "") => `<article><div><b>${escapeHtml(item.name)}</b><span>${extra}</span></div>${action}</article>`;
-    $("#adminUpcomingDue").innerHTML = upcoming.slice(0, 5).map((item) => { const client = adminClient(item.clientId); return listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${formatDate(item.dueDate)}`, adminMasterStatus(adminStatusClass(item.status), adminFinanceLabel(item.status))); }).join("") || "<p>Sem vencimentos próximos.</p>";
-    $("#adminLatePayments").innerHTML = late.slice(0, 5).map((item) => { const client = adminClient(item.clientId); const days = Math.max(0, Math.floor((new Date() - new Date(`${item.dueDate}T12:00:00`)) / 86400000)); return listRow(client, `${days} dias · ${formatCurrency(item.expected)} · ${getPlanDefinition(client.planId).name}`, `<button class="tiny-btn" data-admin-client-view="${client.id}">Ver</button>`); }).join("") || "<p>Sem pagamentos atrasados.</p>";
+    $("#adminUpcomingDue").innerHTML = upcoming.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${formatDate(item.dueDate)}`, adminMasterStatus(adminStatusClass(item.status), adminFinanceLabel(item.status))); }).join("") || "<p>Sem vencimentos próximos.</p>";
+    $("#adminLatePayments").innerHTML = late.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; const days = Math.max(0, Math.floor((new Date() - new Date(`${item.dueDate}T12:00:00`)) / 86400000)); return listRow(client, `${days} dias · ${formatCurrency(item.expected)} · ${getPlanDefinition(client.planId).name}`, `<button class="tiny-btn" data-admin-client-view="${client.id}">Ver</button>`); }).join("") || "<p>Sem pagamentos atrasados.</p>";
     $("#adminRecentSales").innerHTML = sales.slice(0, 5).map((client) => listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))} · ${formatDate(client.saleDate)} · ${escapeHtml(client.responsible)}`)).join("");
   }
 
   function adminClientActions(client) {
     const reactivate = client.accountStatus === "suspended" || client.accountStatus === "inactive";
-    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn" data-admin-client-action="edit" data-id="${client.id}">Editar</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn" data-admin-client-action="pending" data-id="${client.id}">Pendência</button><button class="tiny-btn" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button><button class="tiny-btn danger" data-admin-client-action="remove" data-id="${client.id}">Remover</button></div>`;
+    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button></div>`;
   }
 
   function renderAdminClients() {
@@ -3413,7 +3462,7 @@
 
   function renderAccessTokens() {
     const rows = $("#adminTokenRows"); if (!rows) return;
-    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><code>${escapeHtml(access.token)}</code></td><td>${adminMasterStatus(adminStatusClass(access.status), access.status === "active" ? "Ativo" : access.status === "blocked" ? "Bloqueado" : "Inválido")}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-token-action="copy" data-id="${access.id}">Copiar</button><button class="tiny-btn" data-token-action="renew" data-id="${access.id}">Renovar</button><button class="tiny-btn" data-token-action="invalidate" data-id="${access.id}">Invalidar</button><button class="tiny-btn" data-token-action="${access.status === "blocked" ? "reactivate" : "block"}" data-id="${access.id}">${access.status === "blocked" ? "Reativar" : "Bloquear"}</button><button class="tiny-btn danger" data-token-action="delete" data-id="${access.id}">Excluir</button></div></td></tr>`; }).join("");
+    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><code>${escapeHtml(access.token)}</code></td><td>${adminMasterStatus(adminStatusClass(access.status), access.status === "active" ? "Ativo" : access.status === "blocked" ? "Bloqueado" : "Inválido")}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-token-action="renew" data-id="${access.id}">Renovar token</button><button class="tiny-btn" data-token-action="invalidate" data-id="${access.id}">Invalidar</button><button class="tiny-btn" data-token-action="${access.status === "blocked" ? "reactivate" : "block"}" data-id="${access.id}">${access.status === "blocked" ? "Reativar" : "Bloquear"}</button></div></td></tr>`; }).join("");
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
     $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
@@ -3424,7 +3473,7 @@
     const filtered = adminData.receivables.filter((item) => { const client = adminClient(item.clientId); return (status === "all" || item.status === status) && (plan === "all" || client.planId === plan) && (!query || client.name.toLowerCase().includes(query)) && (period === "all" || item.dueDate.startsWith(month)); });
     const totals = { expected: filtered.reduce((s, i) => s + i.expected, 0), paid: filtered.reduce((s, i) => s + i.paid, 0), pending: filtered.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: filtered.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
     $("#adminReceivableKpis").innerHTML = [["Previsto", totals.expected], ["Recebido", totals.paid], ["Pendente", totals.pending], ["Atrasado", totals.late]].map(([label, value]) => `<article><span>${label}</span><b>${formatCurrency(value)}</b></article>`).join("");
-    $("#adminReceivableRows").innerHTML = filtered.map((item) => { const client = adminClient(item.clientId); return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${getPlanDefinition(client.planId).name}</td><td>${item.competence}</td><td>${formatDate(item.dueDate)}</td><td>${formatCurrency(item.expected)}</td><td>${formatCurrency(item.paid)}</td><td>${formatDate(item.paymentDate)}</td><td>${adminMasterStatus(adminStatusClass(item.status), adminPaymentLabel(item.status))}</td><td>${item.method}</td><td title="${escapeHtml(item.note)}">${escapeHtml(item.note || "—")}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar</button><button class="tiny-btn" data-receivable-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" data-receivable-action="pending" data-id="${item.id}">Pendente</button><button class="tiny-btn" data-receivable-action="late" data-id="${item.id}">Atrasado</button><button class="tiny-btn" data-receivable-action="reverse" data-id="${item.id}">Estornar</button><button class="tiny-btn" data-receivable-action="history" data-id="${item.id}">Histórico</button></div></td></tr>`; }).join("");
+    $("#adminReceivableRows").innerHTML = filtered.map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${getPlanDefinition(client.planId).name}</td><td>${item.competence}</td><td>${formatDate(item.dueDate)}</td><td>${formatCurrency(item.expected)}</td><td>${formatCurrency(item.paid)}</td><td>${formatDate(item.paymentDate)}</td><td>${adminMasterStatus(adminStatusClass(item.status), adminPaymentLabel(item.status))}</td><td>${item.method}</td><td title="${escapeHtml(item.note)}">${escapeHtml(item.note || "—")}</td><td><div class="admin-master-actions">${item.status !== "paid" ? `<button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar pagamento</button>` : ""}<button class="tiny-btn" data-receivable-action="history" data-id="${item.id}">Histórico</button></div></td></tr>`; }).join("");
   }
 
   function renderFinancialCalendar() {
@@ -3455,12 +3504,17 @@
     openAdminFormModal("Confirmar pagamento", client.name, `<form id="adminPaymentForm" class="admin-modal-form full" data-id="${receivable.id}"><label>Competência<input value="${receivable.competence}" readonly></label><label>Valor previsto<input value="${receivable.expected.toFixed(2)}" readonly></label><label>Valor recebido<input id="adminPaymentReceived" type="number" step="0.01" value="${receivable.expected.toFixed(2)}" required></label><label>Data do pagamento<input id="adminPaymentDate" type="date" value="${adminIsoDate(new Date())}" required></label><label>Forma de pagamento<select id="adminPaymentMethod"><option>Pix</option><option>Boleto</option><option>Cartão</option><option>Transferência</option></select></label><label>Próximo vencimento<select id="adminPaymentDueRule"><option value="keep">Manter regra atual</option><option value="30days">Mudar para 30 dias</option><option value="fixed">Mudar para dia fixo</option></select></label><label>Dia fixo<select id="adminPaymentFixedDay"><option>1</option><option>5</option><option>10</option><option>15</option><option>20</option><option>25</option></select></label><label class="full">Observação<textarea id="adminPaymentNote" rows="3"></textarea></label><button class="btn primary" type="submit">Confirmar pagamento</button></form>`);
   }
 
-  function confirmAdminPayment(event) {
-    event.preventDefault(); const receivable = adminData.receivables.find((item) => item.id === event.currentTarget.dataset.id), client = adminClient(receivable.clientId), paymentDate = $("#adminPaymentDate").value, rule = $("#adminPaymentDueRule").value;
-    receivable.status = "paid"; receivable.paid = Number($("#adminPaymentReceived").value); receivable.paymentDate = paymentDate; receivable.method = $("#adminPaymentMethod").value; receivable.note = $("#adminPaymentNote").value.trim();
-    if (rule !== "keep") { client.dueMode = rule; if (rule === "fixed") client.fixedDay = Number($("#adminPaymentFixedDay").value); }
-    const nextDue = calculateNextDueDate(paymentDate, client.dueMode, client.fixedDay); client.nextDue = nextDue; client.financialStatus = "paid";
-    adminData.sequence++; adminData.receivables.push({ id: `rec${adminData.sequence}`, clientId: client.id, competence: new Date(`${nextDue}T12:00:00`).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }), dueDate: nextDue, expected: calculateSubscriptionTotal(client.planId, client.extraAccesses), paid: 0, paymentDate: "", status: "pending", method: "—", note: "Próximo lançamento criado após pagamento." }); client.history.unshift({ date: adminIsoDate(new Date()), text: "Pagamento confirmado e próximo vencimento criado." }); saveAdminData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Pagamento confirmado e próximo lançamento criado.");
+  async function confirmAdminPayment(event) {
+    event.preventDefault();
+    const receivable = adminData.receivables.find((item) => item.id === event.currentTarget.dataset.id);
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await window.LungoAdminApi.confirmPayment(receivable.id, { paidAmount: Number($("#adminPaymentReceived").value), paidAt: $("#adminPaymentDate").value, paymentMethod: $("#adminPaymentMethod").value, notes: $("#adminPaymentNote").value.trim() }, adminMasterKey);
+      await loadAdminRemoteData();
+      $("#adminMasterModal").close(); renderAdminV2(); toast("Pagamento confirmado.");
+    } catch (error) { toast(error.message); }
+    finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function openPlanModal(client) {
@@ -3469,7 +3523,7 @@
 
   function updatePlanChangePreview(client) { const plan = getPlanDefinition($("#adminNewPlan")?.value || client.planId), extras = Number($("#adminNewPlanExtras")?.value || 0), limit = plan.brokerLimit + plan.managerLimit + extras, warning = client.activeAccesses > limit ? ` Atenção: existem ${client.activeAccesses - limit} acessos excedentes; bloqueie-os manualmente.` : ""; $("#adminPlanChangePreview").textContent = `Novo limite: ${limit} · Nova mensalidade: ${formatCurrency(calculateSubscriptionTotal(plan.id, extras))}.${warning}`; }
 
-  function savePlanChange(event) { event.preventDefault(); const client = adminClient(event.currentTarget.dataset.id), old = getPlanDefinition(client.planId).name, planId = $("#adminNewPlan").value, extras = Number($("#adminNewPlanExtras").value); client.planId = planId; client.extraAccesses = extras; client.history.unshift({ date: adminIsoDate(new Date()), text: `Plano alterado de ${old} para ${getPlanDefinition(planId).name}; ${extras} acesso(s) extra(s).` }); saveAdminData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada visualmente."); }
+  async function savePlanChange(event) { event.preventDefault(); const client = adminClient(event.currentTarget.dataset.id), planId = $("#adminNewPlan").value, extras = Number($("#adminNewPlanExtras").value); try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
 
   function adminMasterStatusLabel(status) {
     return { active: "Ativo", attention: "Atenção", inactive: "Inativo" }[status] || status;
@@ -3591,8 +3645,8 @@
     Object.entries(values).forEach(([id, value]) => { const field = document.getElementById(id); if (field) field.value = value; });
   }
 
-  function renderAdminMaster() {
-    loadAdminData();
+  async function renderAdminMaster() {
+    await loadAdminRemoteData();
     renderAdminV2();
     renderAdminMasterSettings();
   }
@@ -3604,13 +3658,13 @@
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
   }
 
-  function renderAdminMasterSession() {
+  async function renderAdminMasterSession() {
     const screen = $("#adminMasterScreen");
     if (!screen) return;
     screen.classList.toggle("admin-master-auth", !adminMasterLogged);
     $("#adminMasterLoginPanel").hidden = adminMasterLogged;
     $("#adminMasterWorkspace").hidden = !adminMasterLogged;
-    if (adminMasterLogged) { renderAdminMaster(); setAdminMasterView("dashboard"); }
+    if (adminMasterLogged) { await renderAdminMaster(); setAdminMasterView("dashboard"); }
   }
 
   function syncAdminMasterHash() {
@@ -3622,28 +3676,40 @@
     if (open) { stopCrmRealtime(); renderAdminMasterSession(); }
   }
 
-  function loginAdminMaster(event) {
+  async function loginAdminMaster(event) {
     event.preventDefault();
     const input = $("#adminMasterKeyInput");
     const status = $("#adminMasterLoginStatus");
-    if (input.value !== "admin123") {
-      status.textContent = "Chave administrativa inválida.";
-      status.classList.remove("ok");
-      return;
+    const key = input.value.trim();
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    if (!key) return;
+    status.textContent = "Validando chave administrativa...";
+    status.classList.remove("ok");
+    if (submit) submit.disabled = true;
+    try {
+      await window.LungoAdminApi.verifyAdminKey(key);
+      adminMasterKey = key;
+      adminMasterLogged = true;
+      input.value = "";
+      status.textContent = "Acesso liberado.";
+      status.classList.add("ok");
+      await renderAdminMasterSession();
+    } catch (error) {
+      adminMasterKey = "";
+      adminMasterLogged = false;
+      status.textContent = error.message || "Chave administrativa inválida.";
+      $("#adminMasterScreen")?.classList.add("admin-master-auth");
+      $("#adminMasterLoginPanel").hidden = false;
+      $("#adminMasterWorkspace").hidden = true;
+    } finally {
+      if (submit) submit.disabled = false;
     }
-    adminMasterLogged = true;
-    sessionStorage.setItem(ADMIN_MASTER_MOCK_SESSION_KEY, "1");
-    input.value = "";
-    status.textContent = "Acesso liberado.";
-    renderAdminMasterSession();
   }
 
   function logoutAdminMaster() {
     adminMasterLogged = false;
-    sessionStorage.removeItem(ADMIN_MASTER_MOCK_SESSION_KEY);
-    history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-    syncAdminMasterHash();
-    setAuthLocked(!state.token);
+    adminMasterKey = "";
+    renderAdminMasterSession();
     toast("Logout do Admin Master realizado.");
   }
 
@@ -3667,14 +3733,19 @@
     if ($("#adminSaleNextDue")) $("#adminSaleNextDue").value = paymentDate ? calculateNextDueDate(paymentDate, dueMode, fixedDay) : "";
   }
 
-  function registerAdminSale(event) {
+  async function registerAdminSale(event) {
     event.preventDefault(); if (!event.currentTarget.reportValidity()) return;
-    adminData.sequence++; const id = `cl${adminData.sequence}`, planId = $("#adminSalePlan").value, extras = Number($("#adminSaleExtras").value), paymentStatus = $("#adminSalePaymentStatus").value, paymentDate = $("#adminSalePaymentDate").value, dueMode = $("#adminSaleDueMode").value, fixedDay = Number($("#adminSaleFixedDay").value), nextDue = calculateNextDueDate(paymentDate, dueMode, fixedDay), total = calculateSubscriptionTotal(planId, extras), type = $("#adminSaleType").value;
-    const client = { id, name: $("#adminSaleClientName").value.trim(), responsible: $("#adminSaleResponsible").value.trim(), document: $("#adminSaleDocument").value.trim(), email: $("#adminSaleEmail").value.trim(), whatsapp: $("#adminSaleWhatsapp").value.trim(), type, planId, extraAccesses: extras, activeAccesses: 0, legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, nextDue, financialStatus: paymentStatus, accountStatus: "active", dueMode, fixedDay, notes: "Venda cadastrada no Admin Master.", history: [{ date: adminIsoDate(new Date()), text: `Venda criada no ${getPlanDefinition(planId).name}.` }] };
-    adminData.clients.push(client); adminData.sequence++; adminData.receivables.push({ id: `rec${adminData.sequence}`, clientId: id, competence: new Date(`${paymentDate}T12:00:00`).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }), dueDate: paymentDate, expected: total, paid: paymentStatus === "paid" ? total : 0, paymentDate: paymentStatus === "paid" ? paymentDate : "", status: paymentStatus, method: paymentStatus === "paid" ? "Pix" : "—", note: "Primeiro lançamento da assinatura." });
-    if (paymentStatus === "paid") { adminData.sequence++; adminData.receivables.push({ id: `rec${adminData.sequence}`, clientId: id, competence: new Date(`${nextDue}T12:00:00`).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }), dueDate: nextDue, expected: total, paid: 0, paymentDate: "", status: "pending", method: "—", note: "Próximo lançamento da assinatura." }); }
-    if (event.submitter?.value === "register-access") { const plan = getPlanDefinition(planId), profile = plan.managerLimit ? "Supervisor" : "Corretor"; adminData.sequence++; adminData.accesses.push({ id: `ac${adminData.sequence}`, clientId: id, user: client.responsible, profile, token: `LUNGO-${adminData.sequence}-${client.name.replace(/\W/g, "").slice(0, 5).toUpperCase()}`, status: "active", createdAt: adminIsoDate(new Date()), lastAccess: "Nunca", validUntil: adminDateOffset(365) }); client.activeAccesses = 1; client.history.unshift({ date: adminIsoDate(new Date()), text: "Acesso inicial gerado." }); }
-    saveAdminData(); renderAdminV2(); event.currentTarget.reset(); prepareAdminSaleForm(); $("#adminSaleStatus").textContent = "Venda registrada e painéis atualizados."; $("#adminSaleStatus").classList.add("ok"); toast("Nova venda registrada localmente.");
+    const form = event.currentTarget, submit = event.submitter, planId = $("#adminSalePlan").value, dueMode = $("#adminSaleDueMode").value, fixedDay = Number($("#adminSaleFixedDay").value);
+    const payload = { organizationName: $("#adminSaleClientName").value.trim(), responsibleName: $("#adminSaleResponsible").value.trim(), documentNumber: $("#adminSaleDocument").value.trim(), email: $("#adminSaleEmail").value.trim(), phone: $("#adminSaleWhatsapp").value.trim(), organizationType: $("#adminSaleType").value === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: Math.max(0, Number($("#adminSaleExtras").value) || 0), legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, firstPaymentDate: $("#adminSalePaymentDate").value, firstPaymentStatus: $("#adminSalePaymentStatus").value, dueMode: dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: dueMode === "fixed" ? fixedDay : null };
+    if (submit) submit.disabled = true;
+    $("#adminSaleStatus").textContent = "Registrando venda no staging...";
+    try {
+      const result = await window.LungoAdminApi.createSubscription(payload, adminMasterKey);
+      await loadAdminRemoteData(); renderAdminV2(); form.reset(); prepareAdminSaleForm();
+      $("#adminSaleStatus").textContent = "Venda registrada no backend."; $("#adminSaleStatus").classList.add("ok"); toast("Nova venda registrada.");
+      if (submit?.value === "register-access") { const organizationId = result?.organization?.id || result?.data?.organization?.id || result?.subscription?.organizationId; setAdminMasterView("tokens"); generateAdminToken(organizationId); }
+    } catch (error) { $("#adminSaleStatus").textContent = error.message; $("#adminSaleStatus").classList.remove("ok"); }
+    finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function openCalendarDay(date) {
@@ -3682,36 +3753,40 @@
     openAdminFormModal("Vencimentos do dia", formatDate(date), `<section class="admin-calendar-detail full">${entries.map((item) => { const client = adminClient(item.clientId); return `<article><div><b>${escapeHtml(client.name)}</b><span>${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${adminPaymentLabel(item.status)}</span></div><div><button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar pagamento</button><button class="tiny-btn" data-receivable-action="pending" data-id="${item.id}">Registrar pendência</button><button class="tiny-btn" data-admin-client-view="${client.id}">Ver assinatura</button></div></article>`; }).join("") || "<p>Nenhum vencimento neste dia.</p>"}</section>`);
   }
 
-  function handleAdminClientAction(button) {
+  async function handleAdminClientAction(button) {
     const client = adminClient(button.dataset.id), action = button.dataset.adminClientAction; if (!client) return;
     if (action === "view" || action === "edit") openAdminClientModal(client);
     if (action === "pay") { const item = adminData.receivables.find((entry) => entry.clientId === client.id && entry.status !== "paid"); if (item) openPaymentModal(item); else toast("Não há lançamento pendente para esta conta."); }
-    if (action === "pending") { client.financialStatus = "pending"; client.history.unshift({ date: adminIsoDate(new Date()), text: "Pendência financeira registrada." }); saveAdminData(); renderAdminV2(); toast("Pendência registrada."); }
-    if (action === "suspend" || action === "reactivate") { const suspended = action === "suspend"; client.accountStatus = suspended ? "suspended" : "active"; adminData.accesses.filter((item) => item.clientId === client.id).forEach((item) => { item.status = suspended ? "blocked" : "active"; }); client.history.unshift({ date: adminIsoDate(new Date()), text: suspended ? "Conta e acessos suspensos manualmente." : "Conta e acessos reativados." }); saveAdminData(); renderAdminV2(); toast(suspended ? "Conta suspensa visualmente." : "Conta reativada."); }
+    if (action === "pending") toast("Registre a pendência no lançamento financeiro correspondente.");
+    if (action === "suspend" || action === "reactivate") { try { await window.LungoAdminApi.changeOrganizationStatus(client.id, action, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast(action === "suspend" ? "Conta suspensa." : "Conta reativada."); } catch (error) { toast(error.message); } }
     if (action === "plan") openPlanModal(client);
     if (action === "tokens") { setAdminMasterView("tokens"); toast(`Acessos de ${client.name} disponíveis na tabela.`); }
-    if (action === "remove") { adminData.clients = adminData.clients.filter((item) => item.id !== client.id); adminData.accesses = adminData.accesses.filter((item) => item.clientId !== client.id); adminData.receivables = adminData.receivables.filter((item) => item.clientId !== client.id); saveAdminData(); renderAdminV2(); toast("Cliente removido dos dados mockados."); }
+    if (action === "remove") toast("O backend preserva organizações e histórico. Use Suspender ou Cancelar assinatura.");
   }
 
-  function handleTokenAction(button) {
+  async function handleTokenAction(button) {
     const access = adminData.accesses.find((item) => item.id === button.dataset.id); if (!access) return; const client = adminClient(access.clientId), action = button.dataset.tokenAction;
-    if (action === "copy") copyAdminMasterText(`${access.user}\nPerfil: ${access.profile}\nToken: ${access.token}`, "Acesso copiado.");
-    if (action === "renew") { access.token = `LUNGO-${Date.now().toString(36).toUpperCase()}`; access.validUntil = adminDateOffset(365); client.history.unshift({ date: adminIsoDate(new Date()), text: "Token renovado." }); }
-    if (action === "invalidate") access.status = "invalid";
-    if (action === "block") access.status = "blocked";
-    if (action === "reactivate") access.status = "active";
-    if (action === "delete") adminData.accesses = adminData.accesses.filter((item) => item.id !== access.id);
-    if (action !== "copy") { saveAdminData(); renderAdminV2(); toast("Acesso atualizado visualmente."); }
+    if (action === "copy") return toast("Por segurança, tokens existentes não são retornados pelo backend. Renove para gerar um novo token.");
+    try {
+      let result;
+      if (action === "renew") result = await window.LungoAdminApi.renewAccess(access.id, {}, adminMasterKey);
+      if (action === "invalidate") result = await window.LungoAdminApi.invalidateAccess(access.id, adminMasterKey);
+      if (action === "block" || action === "reactivate") result = await window.LungoAdminApi.changeAccess(access.id, action, adminMasterKey);
+      if (action === "delete") return toast("Exclusão não é permitida; bloqueie ou invalide o acesso.");
+      const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken;
+      await loadAdminRemoteData(); renderAdminV2();
+      if (token) { openAdminFormModal("Novo token", access.user, `<section class="admin-modal-history full"><p>Este token será exibido somente agora.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`); }
+      else toast("Acesso atualizado.");
+    } catch (error) { toast(error.message); }
   }
 
-  function generateAdminToken() {
-    openAdminFormModal("Gerar token", "Novo acesso da assinatura", `<form id="adminGenerateTokenForm" class="admin-modal-form full"><label>Cliente<select id="adminTokenClient">${adminData.clients.map((client) => `<option value="${client.id}">${escapeHtml(client.name)} — ${client.activeAccesses}/${adminPlanCapacity(client)}</option>`).join("")}</select></label><label>Usuário<input id="adminTokenUser" required></label><label>Perfil<select id="adminTokenProfile"><option>Corretor</option><option>Supervisor</option><option>Master</option></select></label><button class="btn primary" type="submit">Gerar token</button></form>`);
+  function generateAdminToken(selectedClientId = "") {
+    openAdminFormModal("Gerar token", "Novo acesso da assinatura", `<form id="adminGenerateTokenForm" class="admin-modal-form full"><label>Cliente<select id="adminTokenClient">${adminData.clients.map((client) => `<option value="${client.id}" ${String(client.id) === String(selectedClientId) ? "selected" : ""}>${escapeHtml(client.name)} — ${client.activeAccesses}/${adminPlanCapacity(client)}</option>`).join("")}</select></label><label>Usuário<input id="adminTokenUser" required></label><label>E-mail<input id="adminTokenEmail" type="email" required></label><label>Telefone<input id="adminTokenPhone" required></label><label>Perfil<select id="adminTokenProfile"><option value="broker">Corretor</option><option value="supervisor">Supervisor</option><option value="admin_master">Admin Master</option></select></label><label>Validade<input id="adminTokenExpiry" type="datetime-local"></label><button class="btn primary" type="submit">Gerar token</button></form>`);
   }
 
-  function submitAdminToken(event) {
-    event.preventDefault(); const client = adminClient($("#adminTokenClient").value), current = adminData.accesses.filter((item) => item.clientId === client.id && !["invalid"].includes(item.status)).length, capacity = adminPlanCapacity(client);
-    if (current >= capacity) { toast("Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano."); return; }
-    adminData.sequence++; adminData.accesses.push({ id: `ac${adminData.sequence}`, clientId: client.id, user: $("#adminTokenUser").value.trim(), profile: $("#adminTokenProfile").value, token: `LUNGO-${Date.now().toString(36).toUpperCase()}`, status: "active", createdAt: adminIsoDate(new Date()), lastAccess: "Nunca", validUntil: adminDateOffset(365) }); client.activeAccesses++; client.history.unshift({ date: adminIsoDate(new Date()), text: "Novo token gerado." }); saveAdminData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Token gerado visualmente.");
+  async function submitAdminToken(event) {
+    event.preventDefault(); const submit = event.currentTarget.querySelector('button[type="submit"]'); if (submit) submit.disabled = true;
+    try { const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><p>Este token será exibido somente agora.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); } finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function bindAdminMasterEvents() {
@@ -3749,7 +3824,9 @@
     [$("#adminReceivablePeriod"), $("#adminReceivableStatus"), $("#adminReceivablePlan")].forEach((field) => field?.addEventListener("change", renderReceivables));
     $("#adminReceivableClient")?.addEventListener("input", renderReceivables);
     $("#adminGenerateTokenBtn")?.addEventListener("click", generateAdminToken);
-    $("#adminMasterScreen")?.addEventListener("click", (event) => {
+    $("#adminMasterScreen")?.addEventListener("click", async (event) => {
+      const copyNewToken = event.target.closest("[data-copy-new-token]");
+      if (copyNewToken) { await copyAdminMasterText(copyNewToken.dataset.copyNewToken, "Token copiado."); return; }
       const clientView = event.target.closest("[data-admin-client-view]");
       if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
       const clientAction = event.target.closest("[data-admin-client-action]");
@@ -3760,8 +3837,7 @@
       if (receivableAction) {
         const item = adminData.receivables.find((entry) => entry.id === receivableAction.dataset.id), action = receivableAction.dataset.receivableAction;
         if (!item) return;
-        if (action === "pay" || action === "edit") openPaymentModal(item);
-        if (action === "pending" || action === "late" || action === "reverse") { item.status = action === "reverse" ? "reversed" : action; item.paid = 0; item.paymentDate = ""; const client = adminClient(item.clientId); client.financialStatus = action === "late" ? "late" : "pending"; client.history.unshift({ date: adminIsoDate(new Date()), text: `Lançamento marcado como ${adminPaymentLabel(item.status).toLowerCase()}.` }); saveAdminData(); renderAdminV2(); toast("Lançamento atualizado."); }
+        if (action === "pay") openPaymentModal(item);
         if (action === "history") openAdminClientModal(adminClient(item.clientId));
         return;
       }
