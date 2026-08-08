@@ -3666,9 +3666,26 @@
     status.classList.add("ok");
   }
 
-  async function copyAdminMasterText(text, success = "Mensagem copiada.") {
-    try { await navigator.clipboard.writeText(text); toast(success); }
-    catch (_) { toast("Não foi possível copiar automaticamente."); }
+  async function copyAdminMasterText(text, success = "Mensagem copiada.", button = null) {
+    let copied = false;
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); copied = true; }
+    } catch (_) { /* Usa a alternativa abaixo. */ }
+    if (!copied) {
+      const helper = document.createElement("textarea");
+      helper.value = text; helper.setAttribute("readonly", ""); helper.style.position = "fixed"; helper.style.opacity = "0";
+      document.body.appendChild(helper); helper.select();
+      try { copied = document.execCommand("copy"); } catch (_) { copied = false; }
+      helper.remove();
+    }
+    if (copied) {
+      toast(success);
+      if (button) { const original = button.textContent; button.textContent = "Copiado ✓"; button.classList.add("ok"); setTimeout(() => { if (button.isConnected) { button.textContent = original; button.classList.remove("ok"); } }, 1800); }
+    } else {
+      window.prompt("Copie o token abaixo:", text);
+      toast("Selecione e copie o token exibido.");
+    }
+    return copied;
   }
 
   function openAdminMasterModal(account) {
@@ -3809,8 +3826,7 @@
   async function handleTokenAction(button) {
     const access = adminData.accesses.find((item) => item.id === button.dataset.id); if (!access) return; const client = adminClient(access.clientId), action = button.dataset.tokenAction;
     if (action === "copy") {
-      try { await navigator.clipboard.writeText(access.token); toast("Token copiado."); }
-      catch { openAdminFormModal("Token de acesso", access.user, `<section class="admin-modal-history full"><code>${escapeHtml(access.token)}</code></section>`); }
+      await copyAdminMasterText(access.token, "Token copiado para a área de transferência.", button);
       return;
     }
     try {
@@ -3821,7 +3837,7 @@
       if (action === "delete") return toast("Exclusão não é permitida; bloqueie ou invalide o acesso.");
       const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken;
       await loadAdminRemoteData(); renderAdminV2();
-      if (token) { openAdminFormModal("Novo token", access.user, `<section class="admin-modal-history full"><p>O token também ficará disponível na tabela de acessos.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`); }
+      if (token) { openAdminFormModal("Novo token", access.user, `<section class="admin-modal-history full"><div class="auth-status ok">✓ Salvo automaticamente no Admin Master</div><p>Você poderá consultar e copiar este token novamente em Acessos e tokens.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`); }
       else toast("Acesso atualizado.");
     } catch (error) { toast(error.message); }
   }
@@ -3832,7 +3848,7 @@
 
   async function submitAdminToken(event) {
     event.preventDefault(); const submit = event.currentTarget.querySelector('button[type="submit"]'); if (submit) submit.disabled = true;
-    try { const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><p>O token também ficará disponível na tabela de acessos.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); } finally { if (submit?.isConnected) submit.disabled = false; }
+    try { const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado e salvo"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><div class="auth-status ok">✓ Salvo automaticamente no Admin Master</div><p>Não é necessário clicar em Salvar. O token permanecerá disponível na tabela Acessos e tokens.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; toast("Acesso criado e token salvo."); } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); } finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function bindAdminMasterEvents() {
@@ -3872,7 +3888,7 @@
     $("#adminGenerateTokenBtn")?.addEventListener("click", generateAdminToken);
     $("#adminMasterScreen")?.addEventListener("click", async (event) => {
       const copyNewToken = event.target.closest("[data-copy-new-token]");
-      if (copyNewToken) { await copyAdminMasterText(copyNewToken.dataset.copyNewToken, "Token copiado."); return; }
+      if (copyNewToken) { await copyAdminMasterText(copyNewToken.dataset.copyNewToken, "Token copiado para a área de transferência.", copyNewToken); return; }
       const clientView = event.target.closest("[data-admin-client-view]");
       if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
       const clientAction = event.target.closest("[data-admin-client-action]");
