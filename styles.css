@@ -2611,6 +2611,165 @@ body.admin-mode .admin-screen {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* Admin Master — composição mobile compacta com navegação apenas por ícones */
+@media (max-width: 600px) {
+  body.admin-master-mode .admin-master-screen,
+  body.admin-master-mode .admin-master-screen.sidebar-collapsed {
+    grid-template-columns: 52px minmax(0, 1fr);
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .admin-master-sidebar,
+  .admin-master-screen.sidebar-collapsed .admin-master-sidebar {
+    width: 52px;
+    height: 100dvh;
+    padding: 7px 6px;
+    gap: 8px;
+    justify-items: center;
+  }
+
+  .admin-master-brand,
+  .admin-master-screen.sidebar-collapsed .admin-master-brand {
+    width: 40px;
+    min-height: 40px;
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+  }
+
+  .admin-master-brand img {
+    display: block !important;
+    width: 32px;
+    height: 32px;
+  }
+
+  .admin-master-brand div,
+  .admin-master-brand .admin-master-icon-btn,
+  .admin-master-nav-item b,
+  .admin-master-logout b {
+    display: none !important;
+  }
+
+  .admin-master-nav,
+  .admin-master-screen.sidebar-collapsed .admin-master-nav {
+    width: 40px;
+    gap: 5px;
+    overflow-x: hidden;
+  }
+
+  .admin-master-nav-item,
+  .admin-master-logout,
+  .admin-master-screen.sidebar-collapsed .admin-master-nav-item,
+  .admin-master-screen.sidebar-collapsed .admin-master-logout {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface);
+  }
+
+  .admin-master-nav-item span,
+  .admin-master-logout span {
+    width: 22px;
+  }
+
+  .admin-master-icon-btn svg,
+  .admin-master-nav-item svg,
+  .admin-master-logout svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .admin-master-nav-item.active {
+    border-color: color-mix(in srgb, var(--primary) 65%, var(--border));
+    box-shadow: inset 3px 0 0 var(--primary);
+    background: var(--surface-3);
+  }
+
+  .admin-master-main,
+  .admin-master-workspace {
+    width: 100%;
+    min-width: 0;
+    height: 100dvh;
+  }
+
+  .admin-master-workspace { grid-template-rows: 50px minmax(0, 1fr); }
+  .admin-master-topbar { min-width: 0; padding: 7px 9px; gap: 7px; }
+  .admin-master-topbar > div { min-width: 0; }
+  .admin-master-topbar h1 { max-width: 100%; font-size: 14px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-master-topbar p { display: none; }
+  .admin-master-topbar .btn { min-height: 30px; padding: 0 8px; font-size: 9px; flex: 0 0 auto; }
+
+  .admin-master-content { padding: 7px; overflow: hidden; }
+  .admin-master-view { padding: 0; overscroll-behavior: contain; }
+  .admin-master-view.active { gap: 7px; }
+
+  .admin-master-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .admin-master-kpis article { min-width: 0; padding: 8px; overflow: hidden; }
+  .admin-master-kpis span, .admin-master-kpis small { font-size: 8px; line-height: 1.25; overflow-wrap: anywhere; }
+  .admin-master-kpis b { font-size: 14px; line-height: 1.2; overflow-wrap: anywhere; }
+
+  .admin-master-panel { width: 100%; min-width: 0; padding: 8px; overflow: hidden; }
+  .admin-master-panel > header { align-items: flex-start; gap: 7px; margin-bottom: 7px; }
+  .admin-master-panel > header > div { min-width: 0; }
+  .admin-master-panel h2 { font-size: 12px; line-height: 1.25; overflow-wrap: anywhere; }
+  .admin-master-panel h3 { font-size: 9px; }
+  .admin-master-panel header p { font-size: 8px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+  .admin-master-panel .btn, .admin-master-form-actions .btn, .admin-calendar-controls .btn { min-height: 30px; padding: 0 8px; font-size: 9px; }
+
+  .admin-master-dashboard-grid { grid-template-columns: 1fr; gap: 7px; }
+  .admin-master-compact-list { max-height: none; }
+  .admin-master-compact-list article { min-width: 0; align-items: flex-start; }
+  .admin-master-compact-list article div { min-width: 0; }
+  .admin-master-compact-list article b, .admin-master-compact-list article span { max-width: 100%; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .admin-master-form-grid, .admin-modal-form { grid-template-columns: 1fr; gap: 7px; }
+  .admin-master-form-grid label, .admin-modal-form label { min-width: 0; }
+  .admin-master-login-card input, .admin-master-form-grid input, .admin-master-form-grid select,
+  .admin-master-form-grid textarea, .admin-modal-form input, .admin-modal-form select, .admin-modal-form textarea {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 11px;
+  }
+
+  .admin-master-form-actions, .admin-calendar-controls, .admin-finance-filters { gap: 5px; }
+  .admin-finance-filters > * { flex: 1 1 125px; min-width: 0 !important; max-width: 100%; font-size: 10px; }
+  .admin-finance-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .admin-finance-kpis article { min-width: 0; padding: 7px; overflow: hidden; }
+  .admin-finance-kpis span { font-size: 8px; overflow-wrap: anywhere; }
+  .admin-finance-kpis b { font-size: 11px; overflow-wrap: anywhere; }
+
+  .admin-master-table-wrap { width: 100%; max-width: 100%; max-height: calc(100dvh - 150px); overflow: auto; -webkit-overflow-scrolling: touch; }
+  .admin-master-table { min-width: 700px; font-size: 9px; }
+  .admin-master-table.wide { min-width: 940px; }
+  .admin-clients-table { min-width: 1220px; }
+  .admin-master-table th, .admin-master-table td { padding: 6px 5px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  .admin-master-table th { font-size: 8px; }
+  .admin-master-actions { flex-wrap: nowrap; }
+  .tiny-btn { min-height: 27px; padding: 0 7px; font-size: 9px; }
+
+  .admin-calendar-panel { overflow-x: auto; }
+  .admin-calendar-week, .admin-financial-calendar { min-width: 510px; }
+  .admin-calendar-day { min-height: 58px; padding: 4px; }
+  .admin-calendar-day > b { font-size: 9px; }
+  .admin-calendar-day span, .admin-calendar-day strong { font-size: 7px; }
+
+  .admin-master-modal { width: calc(100vw - 14px); max-width: calc(100vw - 14px); margin: auto; }
+  .admin-master-modal .modal-card { max-height: calc(100dvh - 14px); }
+  .admin-master-modal-body { max-height: calc(100dvh - 130px); grid-template-columns: 1fr; padding: 9px; gap: 6px; }
+  .admin-master-modal-body article, .admin-modal-history { min-width: 0; overflow: hidden; }
+  .admin-master-modal-body b, .admin-master-modal-body code, .admin-modal-history p { overflow-wrap: anywhere; word-break: break-word; }
+  .admin-calendar-detail article { align-items: flex-start; flex-direction: column; }
+
+  .toast { max-width: calc(100vw - 70px); left: auto; right: 8px; font-size: 10px; overflow-wrap: anywhere; }
+}
 .terms-alert {
   display: grid;
   gap: 4px;

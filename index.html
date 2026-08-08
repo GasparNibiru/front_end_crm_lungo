@@ -6,7 +6,7 @@
   <title>Lungo Corretores</title>
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=admin-mobile-1">
   <script src="config.js?v=20260808-8"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
@@ -65,15 +65,15 @@
     <aside class="admin-master-sidebar">
       <div class="admin-master-brand"><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><div><b>Lungo</b><span>Admin Master</span></div><button id="adminMasterSidebarToggle" class="admin-master-icon-btn" type="button" aria-label="Recolher menu"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7M20 5v14"/></svg></button></div>
       <nav class="admin-master-nav">
-        <button class="admin-master-nav-item active" data-admin-master-view="dashboard" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6V11h-6zM4 20h6v-3H4zM14 7h6V4h-6z"/></svg></span><b>Dashboard</b></button>
-        <button class="admin-master-nav-item" data-admin-master-view="clients" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M17 8h4M19 6v4"/></svg></span><b>Clientes e assinaturas</b></button>
-        <button class="admin-master-nav-item" data-admin-master-view="new-sale" type="button"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><b>Nova venda</b></button>
-        <button class="admin-master-nav-item" data-admin-master-view="tokens" type="button"><span><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M15 8l2 2M17 6l2 2"/></svg></span><b>Acessos e tokens</b></button>
-        <button class="admin-master-nav-item" data-admin-master-view="calendar" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3v6M16 3v6M4 11h16"/></svg></span><b>Calendário financeiro</b></button>
-        <button class="admin-master-nav-item" data-admin-master-view="receivables" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4zM7 10h10M7 14h6"/></svg></span><b>Recebimentos</b></button>
-        <button class="admin-master-nav-item" data-admin-master-view="settings" type="button"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6l-.3-2.6h-4L10.4 6A7 7 0 0 0 9 7L6.6 6l-2 3.4 2 1.5a7 7 0 0 0 0 2L4.6 14.5l2 3.4L9 17a7 7 0 0 0 1.4.9l.3 2.6h4l.3-2.6A7 7 0 0 0 16.5 17l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></span><b>Configurações</b></button>
+        <button class="admin-master-nav-item active" data-admin-master-view="dashboard" type="button" aria-label="Dashboard" title="Dashboard"><span><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6V11h-6zM4 20h6v-3H4zM14 7h6V4h-6z"/></svg></span><b>Dashboard</b></button>
+        <button class="admin-master-nav-item" data-admin-master-view="clients" type="button" aria-label="Clientes e assinaturas" title="Clientes e assinaturas"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M17 8h4M19 6v4"/></svg></span><b>Clientes e assinaturas</b></button>
+        <button class="admin-master-nav-item" data-admin-master-view="new-sale" type="button" aria-label="Nova venda" title="Nova venda"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><b>Nova venda</b></button>
+        <button class="admin-master-nav-item" data-admin-master-view="tokens" type="button" aria-label="Acessos e tokens" title="Acessos e tokens"><span><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M15 8l2 2M17 6l2 2"/></svg></span><b>Acessos e tokens</b></button>
+        <button class="admin-master-nav-item" data-admin-master-view="calendar" type="button" aria-label="Calendário financeiro" title="Calendário financeiro"><span><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3v6M16 3v6M4 11h16"/></svg></span><b>Calendário financeiro</b></button>
+        <button class="admin-master-nav-item" data-admin-master-view="receivables" type="button" aria-label="Recebimentos" title="Recebimentos"><span><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4zM7 10h10M7 14h6"/></svg></span><b>Recebimentos</b></button>
+        <button class="admin-master-nav-item" data-admin-master-view="settings" type="button" aria-label="Configurações" title="Configurações"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6l-.3-2.6h-4L10.4 6A7 7 0 0 0 9 7L6.6 6l-2 3.4 2 1.5a7 7 0 0 0 0 2L4.6 14.5l2 3.4L9 17a7 7 0 0 0 1.4.9l.3 2.6h4l.3-2.6A7 7 0 0 0 16.5 17l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></span><b>Configurações</b></button>
       </nav>
-      <button id="adminMasterLogoutBtn" class="admin-master-logout" type="button"><span><svg viewBox="0 0 24 24"><path d="M10 6H6v12h4M14 8l4 4-4 4M8 12h10"/></svg></span><b>Sair</b></button>
+      <button id="adminMasterLogoutBtn" class="admin-master-logout" type="button" aria-label="Sair" title="Sair"><span><svg viewBox="0 0 24 24"><path d="M10 6H6v12h4M14 8l4 4-4 4M8 12h10"/></svg></span><b>Sair</b></button>
     </aside>
     <main class="admin-master-main">
       <section id="adminMasterLoginPanel" class="admin-master-login-panel"><form id="adminMasterLoginForm" class="admin-master-login-card"><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><div><h1>Admin Master</h1><p>Acesso interno da plataforma.</p></div><label><span>Chave Admin</span><input id="adminMasterKeyInput" type="password" autocomplete="new-password" required></label><button class="btn primary" type="submit">Entrar</button><div id="adminMasterLoginStatus" class="auth-status">Informe a chave administrativa.</div></form></section>
