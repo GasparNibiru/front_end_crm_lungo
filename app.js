@@ -3465,7 +3465,7 @@
     const clientByName = (name) => clients.find((client) => client.name === name);
     adminData = {
       version: ADMIN_DATA_VERSION, remote: true, clients,
-      accesses: accesses.map((access) => ({ id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.active_token ? "Token ativo" : "Sem token ativo", status: adminRemoteStatus(access.status), createdAt: String(access.created_at || "").slice(0, 10), lastAccess: access.last_login_at || access.token_last_used_at || "Nunca", validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access })),
+      accesses: accesses.map((access) => ({ id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status: adminRemoteStatus(access.status), createdAt: String(access.created_at || "").slice(0, 10), lastAccess: access.last_login_at || access.token_last_used_at || "Nunca", validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access })),
       receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })),
       supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
     };
@@ -3502,7 +3502,7 @@
 
   function renderAccessTokens() {
     const rows = $("#adminTokenRows"); if (!rows) return;
-    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><code>${escapeHtml(access.token)}</code></td><td>${adminMasterStatus(adminStatusClass(access.status), access.status === "active" ? "Ativo" : access.status === "blocked" ? "Bloqueado" : "Inválido")}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-token-action="renew" data-id="${access.id}">Renovar token</button><button class="tiny-btn" data-token-action="invalidate" data-id="${access.id}">Invalidar</button><button class="tiny-btn" data-token-action="${access.status === "blocked" ? "reactivate" : "block"}" data-id="${access.id}">${access.status === "blocked" ? "Reativar" : "Bloquear"}</button></div></td></tr>`; }).join("");
+    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><code>${escapeHtml(access.token)}</code>${canCopy ? ` <button class="tiny-btn" data-token-action="copy" data-id="${access.id}">Copiar</button>` : ""}</td><td>${adminMasterStatus(adminStatusClass(access.status), access.status === "active" ? "Ativo" : access.status === "blocked" ? "Bloqueado" : "Inválido")}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-token-action="renew" data-id="${access.id}">Redefinir token</button><button class="tiny-btn" data-token-action="invalidate" data-id="${access.id}">Invalidar</button><button class="tiny-btn" data-token-action="${access.status === "blocked" ? "reactivate" : "block"}" data-id="${access.id}">${access.status === "blocked" ? "Reativar" : "Bloquear"}</button></div></td></tr>`; }).join("");
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
     $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
@@ -3808,7 +3808,11 @@
 
   async function handleTokenAction(button) {
     const access = adminData.accesses.find((item) => item.id === button.dataset.id); if (!access) return; const client = adminClient(access.clientId), action = button.dataset.tokenAction;
-    if (action === "copy") return toast("Por segurança, tokens existentes não são retornados pelo backend. Renove para gerar um novo token.");
+    if (action === "copy") {
+      try { await navigator.clipboard.writeText(access.token); toast("Token copiado."); }
+      catch { openAdminFormModal("Token de acesso", access.user, `<section class="admin-modal-history full"><code>${escapeHtml(access.token)}</code></section>`); }
+      return;
+    }
     try {
       let result;
       if (action === "renew") result = await window.LungoAdminApi.renewAccess(access.id, {}, adminMasterKey);
@@ -3817,7 +3821,7 @@
       if (action === "delete") return toast("Exclusão não é permitida; bloqueie ou invalide o acesso.");
       const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken;
       await loadAdminRemoteData(); renderAdminV2();
-      if (token) { openAdminFormModal("Novo token", access.user, `<section class="admin-modal-history full"><p>Este token será exibido somente agora.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`); }
+      if (token) { openAdminFormModal("Novo token", access.user, `<section class="admin-modal-history full"><p>O token também ficará disponível na tabela de acessos.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`); }
       else toast("Acesso atualizado.");
     } catch (error) { toast(error.message); }
   }
@@ -3828,7 +3832,7 @@
 
   async function submitAdminToken(event) {
     event.preventDefault(); const submit = event.currentTarget.querySelector('button[type="submit"]'); if (submit) submit.disabled = true;
-    try { const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><p>Este token será exibido somente agora.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); } finally { if (submit?.isConnected) submit.disabled = false; }
+    try { const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><p>O token também ficará disponível na tabela de acessos.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); } finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function bindAdminMasterEvents() {
