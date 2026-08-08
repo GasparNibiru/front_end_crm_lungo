@@ -1533,11 +1533,15 @@
   async function validateTokenAccess(token) {
     const value = String(token || "").trim();
     if (!value) throw new Error("Informe o token de acesso.");
-    const data = await api("/api/onboarding/check-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: value })
-    });
+    let data;
+    try {
+      const verified = await api("/api/access/auth/verify", { method: "POST", headers: { "Content-Type": "application/json", "x-access-token": value }, body: "{}" });
+      if (verified.user?.role !== "broker") throw new Error("Este token não pertence a um Corretor.");
+      data = { client: { nome: verified.user.name, instanceName: verified.client?.instanceName || "" }, instanceName: verified.client?.instanceName || "", accessUser: verified.user };
+    } catch (realAccessError) {
+      if (/não pertence a um Corretor/i.test(realAccessError.message || "")) throw realAccessError;
+      data = await api("/api/onboarding/check-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: value }) });
+    }
     state.token = value;
     state.clientName = data.client?.nome || data.nome || state.clientName || "";
     state.instanceName = data.instanceName || data.client?.instanceName || data.instance || state.instanceName || "";
