@@ -3506,8 +3506,10 @@
 
   async function confirmAdminPayment(event) {
     event.preventDefault();
-    const receivable = adminData.receivables.find((item) => item.id === event.currentTarget.dataset.id);
-    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    const form = event.target.closest("form");
+    const receivable = adminData.receivables.find((item) => item.id === form?.dataset.id);
+    const submit = form?.querySelector('button[type="submit"]');
+    if (!receivable) { toast("Recebimento não encontrado. Atualize a tela e tente novamente."); return; }
     if (submit) submit.disabled = true;
     try {
       await window.LungoAdminApi.confirmPayment(receivable.id, { paidAmount: Number($("#adminPaymentReceived").value), paidAt: $("#adminPaymentDate").value, paymentMethod: $("#adminPaymentMethod").value, notes: $("#adminPaymentNote").value.trim() }, adminMasterKey);
@@ -3523,7 +3525,7 @@
 
   function updatePlanChangePreview(client) { const plan = getPlanDefinition($("#adminNewPlan")?.value || client.planId), extras = Number($("#adminNewPlanExtras")?.value || 0), limit = plan.brokerLimit + plan.managerLimit + extras, warning = client.activeAccesses > limit ? ` Atenção: existem ${client.activeAccesses - limit} acessos excedentes; bloqueie-os manualmente.` : ""; $("#adminPlanChangePreview").textContent = `Novo limite: ${limit} · Nova mensalidade: ${formatCurrency(calculateSubscriptionTotal(plan.id, extras))}.${warning}`; }
 
-  async function savePlanChange(event) { event.preventDefault(); const client = adminClient(event.currentTarget.dataset.id), planId = $("#adminNewPlan").value, extras = Number($("#adminNewPlanExtras").value); try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
+  async function savePlanChange(event) { event.preventDefault(); const form = event.target.closest("form"), client = adminClient(form?.dataset.id), planId = $("#adminNewPlan").value, extras = Number($("#adminNewPlanExtras").value); if (!client) { toast("Organização não encontrada. Atualize a tela e tente novamente."); return; } try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
 
   function adminMasterStatusLabel(status) {
     return { active: "Ativo", attention: "Atenção", inactive: "Inativo" }[status] || status;
