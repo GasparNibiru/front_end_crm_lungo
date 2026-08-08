@@ -14,6 +14,19 @@
   const COMPANY_GOALS_KEY = "companyGoals";
   const COMPANY_MESSAGE_KEY = "companyMessage";
   const COMPANY_THEME_KEY = "companyTheme";
+  const ADMIN_MASTER_MOCK_SESSION_KEY = "lungo-admin-master-mock-session-v1";
+  const ADMIN_MASTER_SIDEBAR_KEY = "lungo-admin-master-sidebar-v1";
+  const ADMIN_MASTER_SETTINGS_KEY = "lungo-admin-master-settings-v1";
+  const ADMIN_DATA_KEY = "lungoAdminDataV2";
+  const ADMIN_DATA_VERSION = 2;
+  const ADMIN_EXTRA_ACCESS_PRICE = 15.90;
+  const ADMIN_PLAN_DEFINITIONS = [
+    { id: "individual", name: "Plano Individual", price: 25.90, brokerLimit: 1, managerLimit: 0, description: "1 acesso para corretor" },
+    { id: "team", name: "Plano Equipe", price: 49.90, brokerLimit: 2, managerLimit: 1, description: "1 supervisor + 2 corretores" },
+    { id: "broker10", name: "Plano Corretora 10", price: 149.90, brokerLimit: 10, managerLimit: 1, description: "1 master ou supervisor + 10 corretores" },
+    { id: "broker16", name: "Plano Corretora 16", price: 199.90, brokerLimit: 16, managerLimit: 1, description: "1 supervisor + 16 corretores" },
+    { id: "broker20", name: "Plano Corretora 20", price: 239.90, brokerLimit: 20, managerLimit: 1, description: "1 supervisor + 20 corretores" }
+  ];
 
   const STATUSES = [
     { value: "novo", label: "Novos" },
@@ -108,6 +121,27 @@
   let pendingCompanyBanner = "";
   const supervisorSharedViewState = new Map();
   let supervisorMountedView = null;
+
+  const ADMIN_MASTER_ACCOUNTS = [
+    { id: "am1", name: "Alvorada Benefícios", type: "Supervisor", responsible: "Camila Torres", login: "camila@alvorada.com.br", contact: "(11) 99910-2020", credential: "ALV-2026", status: "active", plan: "Equipe 10", limit: 10, used: 8, due: "10/09/2026", last: "Hoje, 10:22", revenue: 2490, legacy: "Não", payment: "Em dia", lastPayment: "10/08/2026", sellers: "Ana Souza, Bruno Lima, Carla Mendes, Diego Alves, Elisa Rocha, Felipe Costa, Giovana Reis e Hugo Martins", notes: "Equipe em expansão e acompanhamento mensal." },
+    { id: "am2", name: "Pedro Martins", type: "Individual", responsible: "Pedro Martins", login: "PEDRO-LUNGO", contact: "(21) 98820-7744", credential: "PEDRO-LUNGO", status: "active", plan: "Individual", limit: 1, used: 1, due: "12/09/2026", last: "Hoje, 09:48", revenue: 249, legacy: "Não", payment: "Em dia", lastPayment: "12/08/2026", notes: "Conta individual ativa." },
+    { id: "am3", name: "Norte Vida Corretora", type: "Supervisor", responsible: "Rafael Braga", login: "rafael@nortevida.com.br", contact: "(85) 99771-3300", credential: "NV-TEMP-26", status: "attention", plan: "Equipe 6", limit: 6, used: 6, due: "05/09/2026", last: "Ontem, 17:31", revenue: 1690, legacy: "Não", payment: "Vence em breve", lastPayment: "05/08/2026", sellers: "Marina Lopes, Júlio Freitas, Renata Luz, Caio Nunes, Bia Melo e Luiz Prado", notes: "Limite totalmente utilizado." },
+    { id: "am4", name: "Juliana Freire", type: "Individual", responsible: "Juliana Freire", login: "JULIANA-LEGACY", contact: "(31) 99105-4432", credential: "JULIANA-LEGACY", status: "inactive", plan: "Individual", limit: 1, used: 0, due: "28/08/2026", last: "24/07/2026", revenue: 199, legacy: "Sim", payment: "Atrasado", lastPayment: "28/06/2026", notes: "Aguardar retorno comercial." },
+    { id: "am5", name: "Horizonte Seguros", type: "Supervisor", responsible: "Lívia Ramos", login: "livia@horizonte.com.br", contact: "(41) 99662-1188", credential: "HOR-ADMIN", status: "active", plan: "Equipe 4", limit: 4, used: 3, due: "18/09/2026", last: "Hoje, 08:17", revenue: 1190, legacy: "Sim", payment: "Em dia", lastPayment: "18/08/2026", sellers: "Paulo Reis, Davi Rocha e Sara Leal", notes: "Cliente legacy migrado para gestão de equipe." },
+    { id: "am6", name: "Marcelo Antunes", type: "Individual", responsible: "Marcelo Antunes", login: "MARCELO-2026", contact: "(51) 98710-6090", credential: "MARCELO-2026", status: "attention", plan: "Individual", limit: 1, used: 1, due: "06/09/2026", last: "Ontem, 15:02", revenue: 249, legacy: "Não", payment: "Vence em breve", lastPayment: "06/08/2026", notes: "Renovação comercial pendente." }
+  ];
+  const ADMIN_MASTER_PLANS = [
+    { name: "Individual", limit: "1 acesso", value: "R$ 249/mês", status: "Ativo" },
+    { name: "Equipe 4", limit: "1 supervisor + 4 corretores", value: "R$ 1.190/mês", status: "Ativo" },
+    { name: "Equipe 6", limit: "1 supervisor + 6 corretores", value: "R$ 1.690/mês", status: "Ativo" },
+    { name: "Equipe 10", limit: "1 supervisor + 10 corretores", value: "R$ 2.490/mês", status: "Ativo" },
+    { name: "Personalizado", limit: "Limite manual", value: "Sob consulta", status: "Ativo" }
+  ];
+  let adminMasterLogged = sessionStorage.getItem(ADMIN_MASTER_MOCK_SESSION_KEY) === "1";
+  let adminMasterAccessType = "individual";
+  let adminMasterGeneratedMessage = "";
+  let adminData = null;
+  let adminCalendarDate = new Date();
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -3278,6 +3312,493 @@
     toast("Logout realizado.");
   }
 
+  function getPlanDefinition(planId) {
+    return ADMIN_PLAN_DEFINITIONS.find((plan) => plan.id === planId) || ADMIN_PLAN_DEFINITIONS[0];
+  }
+
+  function calculateSubscriptionTotal(planId, extraAccesses = 0) {
+    return getPlanDefinition(planId).price + Math.max(0, Number(extraAccesses) || 0) * ADMIN_EXTRA_ACCESS_PRICE;
+  }
+
+  function formatCurrency(value) {
+    return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function adminIsoDate(date) {
+    const safe = new Date(date);
+    return `${safe.getFullYear()}-${String(safe.getMonth() + 1).padStart(2, "0")}-${String(safe.getDate()).padStart(2, "0")}`;
+  }
+
+  function adminDateOffset(days, base = new Date()) {
+    const date = new Date(base);
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() + days);
+    return adminIsoDate(date);
+  }
+
+  function calculateNextDueDate(paymentDate, dueMode, fixedDay) {
+    const source = new Date(`${paymentDate}T12:00:00`);
+    if (Number.isNaN(source.getTime())) return "";
+    if (dueMode === "30days") { source.setDate(source.getDate() + 30); return adminIsoDate(source); }
+    const day = Number(fixedDay) || 1;
+    let target = new Date(source.getFullYear(), source.getMonth(), day, 12);
+    if (target <= source) target = new Date(source.getFullYear(), source.getMonth() + 1, day, 12);
+    return adminIsoDate(target);
+  }
+
+  function seedAdminData() {
+    const clients = [
+      { id: "cl1", name: "Pedro Martins", responsible: "Pedro Martins", document: "123.456.789-00", email: "pedro@exemplo.com", whatsapp: "(11) 99910-1010", type: "individual", planId: "individual", extraAccesses: 0, activeAccesses: 1, legacy: false, saleDate: adminDateOffset(-40), nextDue: adminDateOffset(5), financialStatus: "due", accountStatus: "active", dueMode: "30days", fixedDay: 10, notes: "Corretor individual em dia.", history: [{ date: adminDateOffset(-40), text: "Venda criada no Plano Individual." }] },
+      { id: "cl2", name: "Equipe Conquista", responsible: "Marina Lopes", document: "12.345.678/0001-11", email: "marina@conquista.com", whatsapp: "(21) 98820-2020", type: "team", planId: "team", extraAccesses: 0, activeAccesses: 3, legacy: false, saleDate: adminDateOffset(-32), nextDue: adminDateOffset(9), financialStatus: "pending", accountStatus: "attention", dueMode: "fixed", fixedDay: 10, notes: "Equipe com dois corretores e uma supervisora.", history: [{ date: adminDateOffset(-32), text: "Venda criada no Plano Equipe." }] },
+      { id: "cl3", name: "Alvorada Benefícios", responsible: "Camila Torres", document: "22.456.789/0001-20", email: "camila@alvorada.com", whatsapp: "(31) 99770-3030", type: "team", planId: "broker10", extraAccesses: 0, activeAccesses: 9, legacy: false, saleDate: adminDateOffset(-70), nextDue: adminDateOffset(15), financialStatus: "paid", accountStatus: "active", dueMode: "fixed", fixedDay: 20, notes: "Corretora com dez vagas contratadas.", history: [{ date: adminDateOffset(-70), text: "Venda criada no Plano Corretora 10." }] },
+      { id: "cl4", name: "Horizonte Seguros", responsible: "Lívia Ramos", document: "33.567.890/0001-33", email: "livia@horizonte.com", whatsapp: "(41) 99660-4040", type: "team", planId: "broker16", extraAccesses: 3, activeAccesses: 18, legacy: true, saleDate: adminDateOffset(-90), nextDue: adminDateOffset(-8), financialStatus: "late", accountStatus: "suspended", dueMode: "fixed", fixedDay: 25, notes: "Conta suspensa manualmente por inadimplência.", history: [{ date: adminDateOffset(-90), text: "Venda criada com três acessos extras." }, { date: adminDateOffset(-3), text: "Conta suspensa por inadimplência." }] },
+      { id: "cl5", name: "Norte Vida Corretora", responsible: "Rafael Braga", document: "44.678.901/0001-44", email: "rafael@nortevida.com", whatsapp: "(85) 99550-5050", type: "team", planId: "broker20", extraAccesses: 2, activeAccesses: 20, legacy: false, saleDate: adminDateOffset(-12), nextDue: adminDateOffset(18), financialStatus: "paid", accountStatus: "active", dueMode: "30days", fixedDay: 5, notes: "Cliente novo com acessos adicionais.", history: [{ date: adminDateOffset(-12), text: "Venda criada no Plano Corretora 20." }, { date: adminDateOffset(-12), text: "Dois acessos extras adicionados." }] }
+    ];
+    const receivables = clients.map((client, index) => ({ id: `rec${index + 1}`, clientId: client.id, competence: new Date().toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }), dueDate: client.nextDue, expected: calculateSubscriptionTotal(client.planId, client.extraAccesses), paid: client.financialStatus === "paid" ? calculateSubscriptionTotal(client.planId, client.extraAccesses) : 0, paymentDate: client.financialStatus === "paid" ? adminDateOffset(-2) : "", status: client.financialStatus === "paid" ? "paid" : client.financialStatus === "late" ? "late" : "pending", method: client.financialStatus === "paid" ? "Pix" : "—", note: client.financialStatus === "late" ? "Cobrança em acompanhamento." : "" }));
+    const accesses = [
+      { id: "ac1", clientId: "cl1", user: "Pedro Martins", profile: "Corretor", token: "PEDRO-LUNGO", status: "active", createdAt: adminDateOffset(-40), lastAccess: "Hoje, 09:42", validUntil: adminDateOffset(325) },
+      { id: "ac2", clientId: "cl2", user: "Marina Lopes", profile: "Supervisor", token: "MARINA-SUP", status: "active", createdAt: adminDateOffset(-32), lastAccess: "Hoje, 08:20", validUntil: adminDateOffset(333) },
+      { id: "ac3", clientId: "cl2", user: "Carlos Reis", profile: "Corretor", token: "CARLOS-EQ", status: "active", createdAt: adminDateOffset(-31), lastAccess: "Ontem, 17:10", validUntil: adminDateOffset(334) },
+      { id: "ac4", clientId: "cl2", user: "Bianca Luz", profile: "Corretor", token: "BIANCA-EQ", status: "active", createdAt: adminDateOffset(-30), lastAccess: "Hoje, 10:01", validUntil: adminDateOffset(335) },
+      { id: "ac5", clientId: "cl4", user: "Lívia Ramos", profile: "Supervisor", token: "LIVIA-HOR", status: "blocked", createdAt: adminDateOffset(-90), lastAccess: "Há 8 dias", validUntil: adminDateOffset(275) }
+    ];
+    return { version: ADMIN_DATA_VERSION, clients, receivables, accesses, settings: {}, sequence: 100 };
+  }
+
+  function saveAdminData() {
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(adminData));
+  }
+
+  function loadAdminData() {
+    try { adminData = JSON.parse(localStorage.getItem(ADMIN_DATA_KEY) || "null"); } catch (_) { adminData = null; }
+    if (!adminData || adminData.version !== ADMIN_DATA_VERSION) { adminData = seedAdminData(); saveAdminData(); }
+    return adminData;
+  }
+
+  function adminClient(id) { return adminData?.clients.find((client) => client.id === id); }
+  function adminPlanCapacity(client) { const plan = getPlanDefinition(client.planId); return plan.brokerLimit + plan.managerLimit + Number(client.extraAccesses || 0); }
+  function adminFinanceLabel(status) { return { paid: "Em dia", due: "Próximo do vencimento", pending: "Pendente", late: "Atrasado", cancelled: "Cancelado" }[status] || status; }
+  function adminAccountLabel(status) { return { active: "Ativo", attention: "Atenção", suspended: "Suspenso", inactive: "Inativo" }[status] || status; }
+  function adminPaymentLabel(status) { return { paid: "Pago", pending: "Pendente", late: "Atrasado", cancelled: "Cancelado", reversed: "Estornado" }[status] || status; }
+  function adminStatusClass(status) { return ({ paid: "active", due: "attention", pending: "attention", late: "inactive", cancelled: "inactive", suspended: "inactive", blocked: "inactive", reversed: "attention" }[status] || status); }
+
+  function renderAdminDashboard() {
+    const today = adminIsoDate(new Date());
+    const month = today.slice(0, 7);
+    const currentReceivables = adminData.receivables.filter((item) => item.dueDate.startsWith(month));
+    const activeClients = adminData.clients.filter((item) => item.accountStatus === "active").length;
+    const late = adminData.receivables.filter((item) => item.status === "late");
+    const received = currentReceivables.filter((item) => item.status === "paid").reduce((sum, item) => sum + item.paid, 0);
+    const pending = currentReceivables.filter((item) => item.status !== "paid").reduce((sum, item) => sum + item.expected, 0);
+    const recurring = adminData.clients.filter((item) => item.accountStatus !== "inactive").reduce((sum, item) => sum + calculateSubscriptionTotal(item.planId, item.extraAccesses), 0);
+    const upcoming = adminData.receivables.filter((item) => item.status !== "paid" && item.dueDate >= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    const sales = [...adminData.clients].sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+    const metrics = [["Total de clientes ativos", activeClients], ["Clientes inadimplentes", late.length], ["Total de acessos ativos", adminData.accesses.filter((item) => item.status === "active").length], ["Receita mensal recorrente", formatCurrency(recurring)], ["Valores recebidos no mês", formatCurrency(received)], ["Valores pendentes", formatCurrency(pending)], ["Próximos vencimentos", upcoming.length], ["Pagamentos atrasados", late.length], ["Novas vendas realizadas", sales.filter((item) => item.saleDate.startsWith(month)).length]];
+    $("#adminMasterKpis").innerHTML = metrics.map(([label, value]) => `<article><span>${label}</span><b>${value}</b></article>`).join("");
+    const listRow = (item, extra, action = "") => `<article><div><b>${escapeHtml(item.name)}</b><span>${extra}</span></div>${action}</article>`;
+    $("#adminUpcomingDue").innerHTML = upcoming.slice(0, 5).map((item) => { const client = adminClient(item.clientId); return listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${formatDate(item.dueDate)}`, adminMasterStatus(adminStatusClass(item.status), adminFinanceLabel(item.status))); }).join("") || "<p>Sem vencimentos próximos.</p>";
+    $("#adminLatePayments").innerHTML = late.slice(0, 5).map((item) => { const client = adminClient(item.clientId); const days = Math.max(0, Math.floor((new Date() - new Date(`${item.dueDate}T12:00:00`)) / 86400000)); return listRow(client, `${days} dias · ${formatCurrency(item.expected)} · ${getPlanDefinition(client.planId).name}`, `<button class="tiny-btn" data-admin-client-view="${client.id}">Ver</button>`); }).join("") || "<p>Sem pagamentos atrasados.</p>";
+    $("#adminRecentSales").innerHTML = sales.slice(0, 5).map((client) => listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))} · ${formatDate(client.saleDate)} · ${escapeHtml(client.responsible)}`)).join("");
+  }
+
+  function adminClientActions(client) {
+    const reactivate = client.accountStatus === "suspended" || client.accountStatus === "inactive";
+    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn" data-admin-client-action="edit" data-id="${client.id}">Editar</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn" data-admin-client-action="pending" data-id="${client.id}">Pendência</button><button class="tiny-btn" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button><button class="tiny-btn danger" data-admin-client-action="remove" data-id="${client.id}">Remover</button></div>`;
+  }
+
+  function renderAdminClients() {
+    const rows = $("#adminClientRows"); if (!rows) return;
+    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus))}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
+  }
+
+  function renderAccessTokens() {
+    const rows = $("#adminTokenRows"); if (!rows) return;
+    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><code>${escapeHtml(access.token)}</code></td><td>${adminMasterStatus(adminStatusClass(access.status), access.status === "active" ? "Ativo" : access.status === "blocked" ? "Bloqueado" : "Inválido")}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-token-action="copy" data-id="${access.id}">Copiar</button><button class="tiny-btn" data-token-action="renew" data-id="${access.id}">Renovar</button><button class="tiny-btn" data-token-action="invalidate" data-id="${access.id}">Invalidar</button><button class="tiny-btn" data-token-action="${access.status === "blocked" ? "reactivate" : "block"}" data-id="${access.id}">${access.status === "blocked" ? "Reativar" : "Bloquear"}</button><button class="tiny-btn danger" data-token-action="delete" data-id="${access.id}">Excluir</button></div></td></tr>`; }).join("");
+    const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
+    $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
+    $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
+  }
+
+  function renderReceivables() {
+    const status = $("#adminReceivableStatus")?.value || "all", plan = $("#adminReceivablePlan")?.value || "all", query = ($("#adminReceivableClient")?.value || "").toLowerCase(), period = $("#adminReceivablePeriod")?.value || "all", month = adminIsoDate(new Date()).slice(0, 7);
+    const filtered = adminData.receivables.filter((item) => { const client = adminClient(item.clientId); return (status === "all" || item.status === status) && (plan === "all" || client.planId === plan) && (!query || client.name.toLowerCase().includes(query)) && (period === "all" || item.dueDate.startsWith(month)); });
+    const totals = { expected: filtered.reduce((s, i) => s + i.expected, 0), paid: filtered.reduce((s, i) => s + i.paid, 0), pending: filtered.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: filtered.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
+    $("#adminReceivableKpis").innerHTML = [["Previsto", totals.expected], ["Recebido", totals.paid], ["Pendente", totals.pending], ["Atrasado", totals.late]].map(([label, value]) => `<article><span>${label}</span><b>${formatCurrency(value)}</b></article>`).join("");
+    $("#adminReceivableRows").innerHTML = filtered.map((item) => { const client = adminClient(item.clientId); return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${getPlanDefinition(client.planId).name}</td><td>${item.competence}</td><td>${formatDate(item.dueDate)}</td><td>${formatCurrency(item.expected)}</td><td>${formatCurrency(item.paid)}</td><td>${formatDate(item.paymentDate)}</td><td>${adminMasterStatus(adminStatusClass(item.status), adminPaymentLabel(item.status))}</td><td>${item.method}</td><td title="${escapeHtml(item.note)}">${escapeHtml(item.note || "—")}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar</button><button class="tiny-btn" data-receivable-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" data-receivable-action="pending" data-id="${item.id}">Pendente</button><button class="tiny-btn" data-receivable-action="late" data-id="${item.id}">Atrasado</button><button class="tiny-btn" data-receivable-action="reverse" data-id="${item.id}">Estornar</button><button class="tiny-btn" data-receivable-action="history" data-id="${item.id}">Histórico</button></div></td></tr>`; }).join("");
+  }
+
+  function renderFinancialCalendar() {
+    const year = adminCalendarDate.getFullYear(), monthIndex = adminCalendarDate.getMonth(), prefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+    const entries = adminData.receivables.filter((item) => item.dueDate.startsWith(prefix));
+    $("#adminCalendarTitle").textContent = new Date(year, monthIndex, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const sums = { expected: entries.reduce((s, i) => s + i.expected, 0), paid: entries.reduce((s, i) => s + i.paid, 0), pending: entries.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: entries.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
+    $("#adminCalendarSummary").innerHTML = [["Previsto no mês", sums.expected], ["Recebido", sums.paid], ["Pendente", sums.pending], ["Atrasado", sums.late]].map(([label, value]) => `<article><span>${label}</span><b>${formatCurrency(value)}</b></article>`).join("");
+    const firstDay = new Date(year, monthIndex, 1).getDay(), days = new Date(year, monthIndex + 1, 0).getDate(); let html = "";
+    for (let blank = 0; blank < firstDay; blank++) html += `<div class="admin-calendar-day empty"></div>`;
+    for (let day = 1; day <= days; day++) { const date = `${prefix}-${String(day).padStart(2, "0")}`, dayEntries = entries.filter((item) => item.dueDate === date), total = dayEntries.reduce((s, i) => s + i.expected, 0), status = dayEntries.some((i) => i.status === "late") ? "late" : dayEntries.some((i) => i.status === "pending") ? "pending" : dayEntries.length && dayEntries.every((i) => i.status === "paid") ? "paid" : "future"; html += `<button class="admin-calendar-day ${status}" type="button" data-calendar-date="${date}"><b>${day}</b>${dayEntries.length ? `<span>${dayEntries.length} venc.</span><strong>${formatCurrency(total)}</strong>` : ""}</button>`; }
+    $("#adminFinancialCalendar").innerHTML = html;
+  }
+
+  function renderAdminV2() { renderAdminDashboard(); renderAdminClients(); renderAccessTokens(); renderReceivables(); renderFinancialCalendar(); }
+
+  function openAdminClientModal(client) {
+    const plan = getPlanDefinition(client.planId), financial = adminData.receivables.filter((item) => item.clientId === client.id), tokens = adminData.accesses.filter((item) => item.clientId === client.id);
+    $("#adminMasterModalTitle").textContent = client.name; $("#adminMasterModalSubtitle").textContent = `${plan.name} · ${adminAccountLabel(client.accountStatus)}`;
+    $("#adminMasterModalBody").innerHTML = `<article><span>Responsável</span><b>${escapeHtml(client.responsible)}</b></article><article><span>CPF/CNPJ</span><b>${escapeHtml(client.document)}</b></article><article><span>Contato</span><b>${escapeHtml(client.email)} · ${escapeHtml(client.whatsapp)}</b></article><article><span>Assinatura</span><b>${plan.name} · ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</b></article><article><span>Acessos</span><b>${client.activeAccesses} ativos de ${adminPlanCapacity(client)}</b></article><article><span>Tokens</span><b>${tokens.map((item) => item.token).join(", ") || "Nenhum"}</b></article><article class="full"><span>Observações internas</span><b>${escapeHtml(client.notes || "—")}</b></article><section class="admin-modal-history full"><h3>Histórico financeiro</h3>${financial.map((item) => `<p><b>${item.competence}</b> · venc. ${formatDate(item.dueDate)} · ${formatCurrency(item.expected)} · ${adminPaymentLabel(item.status)} · ${escapeHtml(item.note || "Sem observação")}</p>`).join("")}</section><section class="admin-modal-history full"><h3>Histórico de alterações</h3>${client.history.map((item) => `<p><b>${formatDate(item.date)}</b> · ${escapeHtml(item.text)}</p>`).join("")}</section>`;
+    $("#adminMasterModal").showModal();
+  }
+
+  function openAdminFormModal(title, subtitle, html) { $("#adminMasterModalTitle").textContent = title; $("#adminMasterModalSubtitle").textContent = subtitle; $("#adminMasterModalBody").innerHTML = html; $("#adminMasterModal").showModal(); }
+
+  function openPaymentModal(receivable) {
+    const client = adminClient(receivable.clientId);
+    openAdminFormModal("Confirmar pagamento", client.name, `<form id="adminPaymentForm" class="admin-modal-form full" data-id="${receivable.id}"><label>Competência<input value="${receivable.competence}" readonly></label><label>Valor previsto<input value="${receivable.expected.toFixed(2)}" readonly></label><label>Valor recebido<input id="adminPaymentReceived" type="number" step="0.01" value="${receivable.expected.toFixed(2)}" required></label><label>Data do pagamento<input id="adminPaymentDate" type="date" value="${adminIsoDate(new Date())}" required></label><label>Forma de pagamento<select id="adminPaymentMethod"><option>Pix</option><option>Boleto</option><option>Cartão</option><option>Transferência</option></select></label><label>Próximo vencimento<select id="adminPaymentDueRule"><option value="keep">Manter regra atual</option><option value="30days">Mudar para 30 dias</option><option value="fixed">Mudar para dia fixo</option></select></label><label>Dia fixo<select id="adminPaymentFixedDay"><option>1</option><option>5</option><option>10</option><option>15</option><option>20</option><option>25</option></select></label><label class="full">Observação<textarea id="adminPaymentNote" rows="3"></textarea></label><button class="btn primary" type="submit">Confirmar pagamento</button></form>`);
+  }
+
+  function confirmAdminPayment(event) {
+    event.preventDefault(); const receivable = adminData.receivables.find((item) => item.id === event.currentTarget.dataset.id), client = adminClient(receivable.clientId), paymentDate = $("#adminPaymentDate").value, rule = $("#adminPaymentDueRule").value;
+    receivable.status = "paid"; receivable.paid = Number($("#adminPaymentReceived").value); receivable.paymentDate = paymentDate; receivable.method = $("#adminPaymentMethod").value; receivable.note = $("#adminPaymentNote").value.trim();
+    if (rule !== "keep") { client.dueMode = rule; if (rule === "fixed") client.fixedDay = Number($("#adminPaymentFixedDay").value); }
+    const nextDue = calculateNextDueDate(paymentDate, client.dueMode, client.fixedDay); client.nextDue = nextDue; client.financialStatus = "paid";
+    adminData.sequence++; adminData.receivables.push({ id: `rec${adminData.sequence}`, clientId: client.id, competence: new Date(`${nextDue}T12:00:00`).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }), dueDate: nextDue, expected: calculateSubscriptionTotal(client.planId, client.extraAccesses), paid: 0, paymentDate: "", status: "pending", method: "—", note: "Próximo lançamento criado após pagamento." }); client.history.unshift({ date: adminIsoDate(new Date()), text: "Pagamento confirmado e próximo vencimento criado." }); saveAdminData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Pagamento confirmado e próximo lançamento criado.");
+  }
+
+  function openPlanModal(client) {
+    openAdminFormModal("Upgrade ou downgrade", client.name, `<form id="adminPlanChangeForm" class="admin-modal-form full" data-id="${client.id}"><p>Plano atual: <b>${getPlanDefinition(client.planId).name}</b> · ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><label>Novo plano<select id="adminNewPlan">${ADMIN_PLAN_DEFINITIONS.map((plan) => `<option value="${plan.id}" ${plan.id === client.planId ? "selected" : ""}>${plan.name} — ${formatCurrency(plan.price)}</option>`).join("")}</select></label><label>Acessos extras<input id="adminNewPlanExtras" type="number" min="0" value="${client.extraAccesses}"></label><div id="adminPlanChangePreview" class="auth-status"></div><button class="btn primary" type="submit">Salvar mudança</button></form>`); updatePlanChangePreview(client);
+  }
+
+  function updatePlanChangePreview(client) { const plan = getPlanDefinition($("#adminNewPlan")?.value || client.planId), extras = Number($("#adminNewPlanExtras")?.value || 0), limit = plan.brokerLimit + plan.managerLimit + extras, warning = client.activeAccesses > limit ? ` Atenção: existem ${client.activeAccesses - limit} acessos excedentes; bloqueie-os manualmente.` : ""; $("#adminPlanChangePreview").textContent = `Novo limite: ${limit} · Nova mensalidade: ${formatCurrency(calculateSubscriptionTotal(plan.id, extras))}.${warning}`; }
+
+  function savePlanChange(event) { event.preventDefault(); const client = adminClient(event.currentTarget.dataset.id), old = getPlanDefinition(client.planId).name, planId = $("#adminNewPlan").value, extras = Number($("#adminNewPlanExtras").value); client.planId = planId; client.extraAccesses = extras; client.history.unshift({ date: adminIsoDate(new Date()), text: `Plano alterado de ${old} para ${getPlanDefinition(planId).name}; ${extras} acesso(s) extra(s).` }); saveAdminData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada visualmente."); }
+
+  function adminMasterStatusLabel(status) {
+    return { active: "Ativo", attention: "Atenção", inactive: "Inativo" }[status] || status;
+  }
+
+  function adminMasterStatus(status, label) {
+    return `<span class="admin-master-status ${escapeHtml(status)}">${escapeHtml(label || adminMasterStatusLabel(status))}</span>`;
+  }
+
+  function adminMasterActionButtons(account) {
+    const enableAction = account.status === "inactive" ? "reactivate" : "disable";
+    const enableLabel = account.status === "inactive" ? "Reativar" : "Desativar";
+    return `<div class="admin-master-actions">
+      <button class="tiny-btn" type="button" data-admin-master-action="view" data-admin-master-id="${account.id}" title="Ver conta">Ver</button>
+      <button class="tiny-btn" type="button" data-admin-master-action="edit" data-admin-master-id="${account.id}" title="Editar conta">Editar</button>
+      <button class="tiny-btn" type="button" data-admin-master-action="copy" data-admin-master-id="${account.id}" title="Copiar acesso">Copiar</button>
+      <button class="tiny-btn" type="button" data-admin-master-action="${enableAction}" data-admin-master-id="${account.id}" title="${enableLabel} conta">${enableLabel}</button>
+      <button class="tiny-btn danger" type="button" data-admin-master-action="remove" data-admin-master-id="${account.id}" title="Remover conta">Remover</button>
+    </div>`;
+  }
+
+  function renderAdminMasterDashboard() {
+    const supervisors = ADMIN_MASTER_ACCOUNTS.filter((item) => item.type === "Supervisor");
+    const individuals = ADMIN_MASTER_ACCOUNTS.filter((item) => item.type === "Individual");
+    const active = ADMIN_MASTER_ACCOUNTS.filter((item) => item.status === "active").length;
+    const attention = ADMIN_MASTER_ACCOUNTS.filter((item) => item.status === "attention").length;
+    const inactive = ADMIN_MASTER_ACCOUNTS.filter((item) => item.status === "inactive").length;
+    const contracted = ADMIN_MASTER_ACCOUNTS.reduce((total, item) => total + item.limit, 0);
+    const used = ADMIN_MASTER_ACCOUNTS.reduce((total, item) => total + item.used, 0);
+    const revenue = ADMIN_MASTER_ACCOUNTS.reduce((total, item) => total + item.revenue, 0);
+    const metrics = [
+      ["Total de contas", ADMIN_MASTER_ACCOUNTS.length], ["Supervisores ativos", supervisors.filter((item) => item.status === "active").length],
+      ["Corretores individuais", individuals.length], ["Corretores de equipes", supervisors.reduce((total, item) => total + item.used, 0)],
+      ["Acessos ativos", active], ["Acessos em atenção", attention], ["Acessos inativos", inactive],
+      ["Vagas contratadas", contracted], ["Vagas utilizadas", used], ["Receita mensal estimada", formatMoney(revenue)]
+    ];
+    const kpis = $("#adminMasterKpis");
+    if (kpis) kpis.innerHTML = metrics.map(([label, value]) => `<article><span>${label}</span><b>${value}</b></article>`).join("");
+    const recent = $("#adminMasterRecentRows");
+    if (recent) recent.innerHTML = ADMIN_MASTER_ACCOUNTS.slice(0, 5).map((item) => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${item.type}</td><td>${adminMasterStatus(item.status)}</td><td>${item.plan}</td><td>${item.limit}</td><td>${item.used}</td><td>${item.last}</td></tr>`).join("");
+  }
+
+  function renderAdminMasterTables() {
+    const accessRows = $("#adminMasterAccessRows");
+    if (accessRows) accessRows.innerHTML = ADMIN_MASTER_ACCOUNTS.map((item) => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${item.type}</td><td>${escapeHtml(item.responsible)}</td><td>${adminMasterStatus(item.status)}</td><td>${item.plan}</td><td>${item.limit}</td><td>${item.used}</td><td>${item.due}</td><td>${item.last}</td><td>${adminMasterActionButtons(item)}</td></tr>`).join("");
+    const supervisorRows = $("#adminMasterSupervisorRows");
+    if (supervisorRows) supervisorRows.innerHTML = ADMIN_MASTER_ACCOUNTS.filter((item) => item.type === "Supervisor").map((item) => `<tr class="admin-master-clickable-row" data-admin-master-open="${item.id}" title="Ver detalhes da corretora"><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.responsible)}</td><td>${escapeHtml(item.login)}</td><td>${item.limit}</td><td>${item.used}</td><td>${Math.max(0, item.limit - item.used)}</td><td>${adminMasterStatus(item.status)}</td><td>${item.last}</td><td>${formatMoney(item.revenue)}</td><td><button class="tiny-btn" type="button" data-admin-master-action="view" data-admin-master-id="${item.id}">Ver</button></td></tr>`).join("");
+    const individualRows = $("#adminMasterIndividualRows");
+    if (individualRows) individualRows.innerHTML = ADMIN_MASTER_ACCOUNTS.filter((item) => item.type === "Individual").map((item) => `<tr><td><b>${escapeHtml(item.name)}</b></td><td><code>${escapeHtml(item.credential)}</code></td><td>${adminMasterStatus(item.status)}</td><td>${escapeHtml(item.contact)}</td><td>${item.last}</td><td>${item.plan}</td><td>${item.legacy}</td><td>${formatMoney(item.revenue)}</td><td>${adminMasterActionButtons(item)}</td></tr>`).join("");
+    const financeRows = $("#adminMasterFinanceRows");
+    const paymentClass = { "Em dia": "paid", "Vence em breve": "due", "Atrasado": "late", "Cancelado": "cancelled" };
+    if (financeRows) financeRows.innerHTML = ADMIN_MASTER_ACCOUNTS.map((item) => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${item.type}</td><td>${item.plan}</td><td>${formatMoney(item.revenue)}</td><td>${item.due}</td><td>${adminMasterStatus(paymentClass[item.payment] || "", item.payment)}</td><td>${item.legacy}</td><td>${item.lastPayment}</td><td><button class="tiny-btn" type="button" data-admin-master-finance="${item.id}">Ver cobrança</button></td></tr>`).join("");
+  }
+
+  function renderAdminMasterPlans() {
+    const target = $("#adminMasterPlanCards");
+    if (!target) return;
+    target.innerHTML = ADMIN_MASTER_PLANS.map((plan, index) => `<article><h2>${plan.name}</h2><b>${plan.limit}</b><span>${plan.value}</span>${adminMasterStatus("active", plan.status)}<button class="tiny-btn" type="button" data-admin-master-plan="${index}">Editar</button></article>`).join("");
+  }
+
+  function renderAdminMasterAccessFields() {
+    const individual = $("#adminIndividualFields");
+    const supervisor = $("#adminSupervisorFields");
+    if (!individual || !supervisor) return;
+    individual.innerHTML = `<label><span>Nome</span><input id="adminNewIndividualName" required></label><label><span>WhatsApp</span><input id="adminNewIndividualWhatsapp" required></label><label><span>E-mail</span><input id="adminNewIndividualEmail" type="email" required></label><label><span>Token personalizado</span><input id="adminNewIndividualToken" required></label><label><span>Plano</span><select id="adminNewIndividualPlan"><option>Individual</option></select></label><label><span>Valor mensal</span><input id="adminNewIndividualValue" value="R$ 249,00"></label><label><span>Legacy</span><select id="adminNewIndividualLegacy"><option>Não</option><option>Sim</option></select></label><label><span>Status</span><select id="adminNewIndividualStatus"><option value="active">Ativo</option><option value="attention">Atenção</option><option value="inactive">Inativo</option></select></label><label class="full"><span>Observação interna</span><textarea id="adminNewIndividualNotes" rows="3"></textarea></label>`;
+    supervisor.innerHTML = `<label><span>Nome da corretora</span><input id="adminNewCompanyName" required></label><label><span>Nome do supervisor</span><input id="adminNewSupervisorName" required></label><label><span>WhatsApp</span><input id="adminNewSupervisorWhatsapp" required></label><label><span>E-mail</span><input id="adminNewSupervisorEmail" type="email" required></label><label><span>Login</span><input id="adminNewSupervisorLogin" required></label><label><span>Senha ou token provisório</span><input id="adminNewSupervisorPassword" required></label><label><span>Limite de corretores</span><select id="adminNewSupervisorLimit"><option value="4">4</option><option value="6">6</option><option value="10">10</option><option value="personalizado">Personalizado</option></select></label><label><span>Plano</span><select id="adminNewSupervisorPlan"><option>Equipe 4</option><option>Equipe 6</option><option>Equipe 10</option><option>Personalizado</option></select></label><label><span>Valor mensal</span><input id="adminNewSupervisorValue" value="R$ 1.190,00"></label><label><span>Legacy</span><select id="adminNewSupervisorLegacy"><option>Não</option><option>Sim</option></select></label><label><span>Status</span><select id="adminNewSupervisorStatus"><option value="active">Ativo</option><option value="attention">Atenção</option><option value="inactive">Inativo</option></select></label><label class="full"><span>Observação interna</span><textarea id="adminNewSupervisorNotes" rows="3"></textarea></label>`;
+  }
+
+  function setAdminMasterAccessType(type) {
+    adminMasterAccessType = type;
+    $("#adminAccessIndividualTab")?.classList.toggle("active", type === "individual");
+    $("#adminAccessSupervisorTab")?.classList.toggle("active", type === "supervisor");
+    if ($("#adminIndividualFields")) $("#adminIndividualFields").hidden = type !== "individual";
+    if ($("#adminSupervisorFields")) $("#adminSupervisorFields").hidden = type !== "supervisor";
+    $$("#adminIndividualFields input, #adminIndividualFields select, #adminIndividualFields textarea").forEach((field) => { field.disabled = type !== "individual"; });
+    $$("#adminSupervisorFields input, #adminSupervisorFields select, #adminSupervisorFields textarea").forEach((field) => { field.disabled = type !== "supervisor"; });
+  }
+
+  function generateAdminMasterAccess(event) {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    if (adminMasterAccessType === "individual") {
+      const name = $("#adminNewIndividualName").value.trim();
+      const token = $("#adminNewIndividualToken").value.trim();
+      adminMasterGeneratedMessage = `Olá, ${name}. Seu acesso à Lungo Corretores foi liberado.\n\nLink: https://crm.lungocorretores.com.br\nToken: ${token}\n\nAcesse, aceite os termos e conecte seu WhatsApp pelo QR Code.`;
+    } else {
+      const supervisor = $("#adminNewSupervisorName").value.trim();
+      const login = $("#adminNewSupervisorLogin").value.trim();
+      const password = $("#adminNewSupervisorPassword").value.trim();
+      const limit = $("#adminNewSupervisorLimit").value;
+      adminMasterGeneratedMessage = `Olá, ${supervisor}. Seu acesso de supervisão da Lungo Corretores foi liberado.\n\nLink: https://crm.lungocorretores.com.br\nTipo de acesso: Supervisor\nLogin: ${login}\nSenha provisória: ${password}\n\nVocê poderá cadastrar até ${limit} corretores na sua equipe.`;
+    }
+    const box = $("#adminGeneratedAccess");
+    box.hidden = false;
+    box.querySelector("pre").textContent = adminMasterGeneratedMessage;
+    const status = $("#adminAccessStatus");
+    status.textContent = "Acesso gerado visualmente. Nenhum dado foi enviado.";
+    status.classList.add("ok");
+  }
+
+  async function copyAdminMasterText(text, success = "Mensagem copiada.") {
+    try { await navigator.clipboard.writeText(text); toast(success); }
+    catch (_) { toast("Não foi possível copiar automaticamente."); }
+  }
+
+  function openAdminMasterModal(account) {
+    if (!account) return;
+    $("#adminMasterModalTitle").textContent = account.name;
+    $("#adminMasterModalSubtitle").textContent = `${account.type} · ${adminMasterStatusLabel(account.status)}`;
+    const fields = [["Responsável", account.responsible], ["Login / token", account.login], ["WhatsApp", account.contact], ["Plano", account.plan], ["Limite contratado", account.limit], ["Vagas utilizadas", account.used], ["Vagas disponíveis", Math.max(0, account.limit - account.used)], ["Vencimento", account.due], ["Último acesso", account.last], ["Valor mensal", formatMoney(account.revenue)], ["Legacy", account.legacy], ["Vendedores vinculados", account.sellers || "Conta individual"], ["Métricas resumidas", `${account.used} de ${account.limit} acessos em uso`], ["Observações", account.notes]];
+    $("#adminMasterModalBody").innerHTML = fields.map(([label, value]) => `<article><span>${label}</span><b>${escapeHtml(String(value))}</b></article>`).join("");
+    $("#adminMasterModal")?.showModal();
+  }
+
+  function renderAdminMasterSettings() {
+    let settings = {};
+    try { settings = JSON.parse(localStorage.getItem(ADMIN_MASTER_SETTINGS_KEY) || "{}"); } catch (_) { settings = {}; }
+    const values = { adminPlatformName: settings.platformName || "Lungo Corretores", adminBrokerDomain: settings.brokerDomain || "https://crm.lungocorretores.com.br", adminMasterDomain: settings.adminDomain || "https://admin.lungocorretores.com.br", adminCommercialWhatsapp: settings.commercialWhatsapp || "5555992102864", adminDueWarningDays: settings.dueWarningDays || 5, adminDefaultMessage: settings.defaultMessage || "Olá! Seu acesso à Lungo Corretores foi liberado.", adminChargeText: settings.chargeText || "Olá! Identificamos uma mensalidade pendente. Podemos ajudar?", adminInternalNotice: settings.internalNotice || "" };
+    Object.entries(values).forEach(([id, value]) => { const field = document.getElementById(id); if (field) field.value = value; });
+  }
+
+  function renderAdminMaster() {
+    loadAdminData();
+    renderAdminV2();
+    renderAdminMasterSettings();
+  }
+
+  function setAdminMasterView(view) {
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", settings: "Configurações" };
+    $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
+    $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
+    if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
+  }
+
+  function renderAdminMasterSession() {
+    const screen = $("#adminMasterScreen");
+    if (!screen) return;
+    screen.classList.toggle("admin-master-auth", !adminMasterLogged);
+    $("#adminMasterLoginPanel").hidden = adminMasterLogged;
+    $("#adminMasterWorkspace").hidden = !adminMasterLogged;
+    if (adminMasterLogged) { renderAdminMaster(); setAdminMasterView("dashboard"); }
+  }
+
+  function syncAdminMasterHash() {
+    const screen = $("#adminMasterScreen");
+    if (!screen) return;
+    const open = window.location.hash.toLowerCase() === "#admin";
+    el.body.classList.toggle("admin-master-mode", open);
+    screen.hidden = !open;
+    if (open) { stopCrmRealtime(); renderAdminMasterSession(); }
+  }
+
+  function loginAdminMaster(event) {
+    event.preventDefault();
+    const input = $("#adminMasterKeyInput");
+    const status = $("#adminMasterLoginStatus");
+    if (input.value !== "admin123") {
+      status.textContent = "Chave administrativa inválida.";
+      status.classList.remove("ok");
+      return;
+    }
+    adminMasterLogged = true;
+    sessionStorage.setItem(ADMIN_MASTER_MOCK_SESSION_KEY, "1");
+    input.value = "";
+    status.textContent = "Acesso liberado.";
+    renderAdminMasterSession();
+  }
+
+  function logoutAdminMaster() {
+    adminMasterLogged = false;
+    sessionStorage.removeItem(ADMIN_MASTER_MOCK_SESSION_KEY);
+    history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    syncAdminMasterHash();
+    setAuthLocked(!state.token);
+    toast("Logout do Admin Master realizado.");
+  }
+
+  function prepareAdminSaleForm() {
+    const planSelect = $("#adminSalePlan");
+    if (!planSelect) return;
+    planSelect.innerHTML = ADMIN_PLAN_DEFINITIONS.map((plan) => `<option value="${plan.id}">${plan.name} — ${formatCurrency(plan.price)}</option>`).join("");
+    const today = adminIsoDate(new Date());
+    $("#adminSaleDate").value = today; $("#adminSalePaymentDate").value = today;
+    updateAdminSaleCalculation();
+    const filter = $("#adminReceivablePlan");
+    if (filter && filter.options.length === 1) ADMIN_PLAN_DEFINITIONS.forEach((plan) => filter.insertAdjacentHTML("beforeend", `<option value="${plan.id}">${plan.name}</option>`));
+  }
+
+  function updateAdminSaleCalculation() {
+    const plan = getPlanDefinition($("#adminSalePlan")?.value), extras = Math.max(0, Number($("#adminSaleExtras")?.value) || 0), paymentDate = $("#adminSalePaymentDate")?.value, dueMode = $("#adminSaleDueMode")?.value || "30days", fixedDay = $("#adminSaleFixedDay")?.value;
+    if ($("#adminSaleBaseValue")) $("#adminSaleBaseValue").value = formatCurrency(plan.price);
+    if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(extras * ADMIN_EXTRA_ACCESS_PRICE);
+    if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id, extras));
+    if ($("#adminSaleFixedDayField")) $("#adminSaleFixedDayField").hidden = dueMode !== "fixed";
+    if ($("#adminSaleNextDue")) $("#adminSaleNextDue").value = paymentDate ? calculateNextDueDate(paymentDate, dueMode, fixedDay) : "";
+  }
+
+  function registerAdminSale(event) {
+    event.preventDefault(); if (!event.currentTarget.reportValidity()) return;
+    adminData.sequence++; const id = `cl${adminData.sequence}`, planId = $("#adminSalePlan").value, extras = Number($("#adminSaleExtras").value), paymentStatus = $("#adminSalePaymentStatus").value, paymentDate = $("#adminSalePaymentDate").value, dueMode = $("#adminSaleDueMode").value, fixedDay = Number($("#adminSaleFixedDay").value), nextDue = calculateNextDueDate(paymentDate, dueMode, fixedDay), total = calculateSubscriptionTotal(planId, extras), type = $("#adminSaleType").value;
+    const client = { id, name: $("#adminSaleClientName").value.trim(), responsible: $("#adminSaleResponsible").value.trim(), document: $("#adminSaleDocument").value.trim(), email: $("#adminSaleEmail").value.trim(), whatsapp: $("#adminSaleWhatsapp").value.trim(), type, planId, extraAccesses: extras, activeAccesses: 0, legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, nextDue, financialStatus: paymentStatus, accountStatus: "active", dueMode, fixedDay, notes: "Venda cadastrada no Admin Master.", history: [{ date: adminIsoDate(new Date()), text: `Venda criada no ${getPlanDefinition(planId).name}.` }] };
+    adminData.clients.push(client); adminData.sequence++; adminData.receivables.push({ id: `rec${adminData.sequence}`, clientId: id, competence: new Date(`${paymentDate}T12:00:00`).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }), dueDate: paymentDate, expected: total, paid: paymentStatus === "paid" ? total : 0, paymentDate: paymentStatus === "paid" ? paymentDate : "", status: paymentStatus, method: paymentStatus === "paid" ? "Pix" : "—", note: "Primeiro lançamento da assinatura." });
+    if (paymentStatus === "paid") { adminData.sequence++; adminData.receivables.push({ id: `rec${adminData.sequence}`, clientId: id, competence: new Date(`${nextDue}T12:00:00`).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }), dueDate: nextDue, expected: total, paid: 0, paymentDate: "", status: "pending", method: "—", note: "Próximo lançamento da assinatura." }); }
+    if (event.submitter?.value === "register-access") { const plan = getPlanDefinition(planId), profile = plan.managerLimit ? "Supervisor" : "Corretor"; adminData.sequence++; adminData.accesses.push({ id: `ac${adminData.sequence}`, clientId: id, user: client.responsible, profile, token: `LUNGO-${adminData.sequence}-${client.name.replace(/\W/g, "").slice(0, 5).toUpperCase()}`, status: "active", createdAt: adminIsoDate(new Date()), lastAccess: "Nunca", validUntil: adminDateOffset(365) }); client.activeAccesses = 1; client.history.unshift({ date: adminIsoDate(new Date()), text: "Acesso inicial gerado." }); }
+    saveAdminData(); renderAdminV2(); event.currentTarget.reset(); prepareAdminSaleForm(); $("#adminSaleStatus").textContent = "Venda registrada e painéis atualizados."; $("#adminSaleStatus").classList.add("ok"); toast("Nova venda registrada localmente.");
+  }
+
+  function openCalendarDay(date) {
+    const entries = adminData.receivables.filter((item) => item.dueDate === date);
+    openAdminFormModal("Vencimentos do dia", formatDate(date), `<section class="admin-calendar-detail full">${entries.map((item) => { const client = adminClient(item.clientId); return `<article><div><b>${escapeHtml(client.name)}</b><span>${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${adminPaymentLabel(item.status)}</span></div><div><button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar pagamento</button><button class="tiny-btn" data-receivable-action="pending" data-id="${item.id}">Registrar pendência</button><button class="tiny-btn" data-admin-client-view="${client.id}">Ver assinatura</button></div></article>`; }).join("") || "<p>Nenhum vencimento neste dia.</p>"}</section>`);
+  }
+
+  function handleAdminClientAction(button) {
+    const client = adminClient(button.dataset.id), action = button.dataset.adminClientAction; if (!client) return;
+    if (action === "view" || action === "edit") openAdminClientModal(client);
+    if (action === "pay") { const item = adminData.receivables.find((entry) => entry.clientId === client.id && entry.status !== "paid"); if (item) openPaymentModal(item); else toast("Não há lançamento pendente para esta conta."); }
+    if (action === "pending") { client.financialStatus = "pending"; client.history.unshift({ date: adminIsoDate(new Date()), text: "Pendência financeira registrada." }); saveAdminData(); renderAdminV2(); toast("Pendência registrada."); }
+    if (action === "suspend" || action === "reactivate") { const suspended = action === "suspend"; client.accountStatus = suspended ? "suspended" : "active"; adminData.accesses.filter((item) => item.clientId === client.id).forEach((item) => { item.status = suspended ? "blocked" : "active"; }); client.history.unshift({ date: adminIsoDate(new Date()), text: suspended ? "Conta e acessos suspensos manualmente." : "Conta e acessos reativados." }); saveAdminData(); renderAdminV2(); toast(suspended ? "Conta suspensa visualmente." : "Conta reativada."); }
+    if (action === "plan") openPlanModal(client);
+    if (action === "tokens") { setAdminMasterView("tokens"); toast(`Acessos de ${client.name} disponíveis na tabela.`); }
+    if (action === "remove") { adminData.clients = adminData.clients.filter((item) => item.id !== client.id); adminData.accesses = adminData.accesses.filter((item) => item.clientId !== client.id); adminData.receivables = adminData.receivables.filter((item) => item.clientId !== client.id); saveAdminData(); renderAdminV2(); toast("Cliente removido dos dados mockados."); }
+  }
+
+  function handleTokenAction(button) {
+    const access = adminData.accesses.find((item) => item.id === button.dataset.id); if (!access) return; const client = adminClient(access.clientId), action = button.dataset.tokenAction;
+    if (action === "copy") copyAdminMasterText(`${access.user}\nPerfil: ${access.profile}\nToken: ${access.token}`, "Acesso copiado.");
+    if (action === "renew") { access.token = `LUNGO-${Date.now().toString(36).toUpperCase()}`; access.validUntil = adminDateOffset(365); client.history.unshift({ date: adminIsoDate(new Date()), text: "Token renovado." }); }
+    if (action === "invalidate") access.status = "invalid";
+    if (action === "block") access.status = "blocked";
+    if (action === "reactivate") access.status = "active";
+    if (action === "delete") adminData.accesses = adminData.accesses.filter((item) => item.id !== access.id);
+    if (action !== "copy") { saveAdminData(); renderAdminV2(); toast("Acesso atualizado visualmente."); }
+  }
+
+  function generateAdminToken() {
+    openAdminFormModal("Gerar token", "Novo acesso da assinatura", `<form id="adminGenerateTokenForm" class="admin-modal-form full"><label>Cliente<select id="adminTokenClient">${adminData.clients.map((client) => `<option value="${client.id}">${escapeHtml(client.name)} — ${client.activeAccesses}/${adminPlanCapacity(client)}</option>`).join("")}</select></label><label>Usuário<input id="adminTokenUser" required></label><label>Perfil<select id="adminTokenProfile"><option>Corretor</option><option>Supervisor</option><option>Master</option></select></label><button class="btn primary" type="submit">Gerar token</button></form>`);
+  }
+
+  function submitAdminToken(event) {
+    event.preventDefault(); const client = adminClient($("#adminTokenClient").value), current = adminData.accesses.filter((item) => item.clientId === client.id && !["invalid"].includes(item.status)).length, capacity = adminPlanCapacity(client);
+    if (current >= capacity) { toast("Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano."); return; }
+    adminData.sequence++; adminData.accesses.push({ id: `ac${adminData.sequence}`, clientId: client.id, user: $("#adminTokenUser").value.trim(), profile: $("#adminTokenProfile").value, token: `LUNGO-${Date.now().toString(36).toUpperCase()}`, status: "active", createdAt: adminIsoDate(new Date()), lastAccess: "Nunca", validUntil: adminDateOffset(365) }); client.activeAccesses++; client.history.unshift({ date: adminIsoDate(new Date()), text: "Novo token gerado." }); saveAdminData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Token gerado visualmente.");
+  }
+
+  function bindAdminMasterEvents() {
+    $("#adminMasterLoginForm")?.addEventListener("submit", loginAdminMaster);
+    $("#adminMasterLogoutBtn")?.addEventListener("click", logoutAdminMaster);
+    $("#adminMasterSidebarToggle")?.addEventListener("click", () => {
+      const screen = $("#adminMasterScreen");
+      const collapsed = !screen.classList.contains("sidebar-collapsed");
+      screen.classList.toggle("sidebar-collapsed", collapsed);
+      localStorage.setItem(ADMIN_MASTER_SIDEBAR_KEY, collapsed ? "1" : "0");
+    });
+    $("#adminMasterThemeBtn")?.addEventListener("click", () => {
+      const next = el.root.dataset.theme === "dark" ? "light" : "dark";
+      el.root.dataset.theme = next;
+      localStorage.setItem(THEME_KEY, next);
+    });
+    $$(".admin-master-nav-item").forEach((button) => button.addEventListener("click", () => setAdminMasterView(button.dataset.adminMasterView)));
+    $("#adminAccessIndividualTab")?.addEventListener("click", () => setAdminMasterAccessType("individual"));
+    $("#adminAccessSupervisorTab")?.addEventListener("click", () => setAdminMasterAccessType("supervisor"));
+    $("#adminMasterAccessForm")?.addEventListener("submit", generateAdminMasterAccess);
+    $("#adminCopyAccessBtn")?.addEventListener("click", () => adminMasterGeneratedMessage && copyAdminMasterText(adminMasterGeneratedMessage));
+    $("#adminMasterSettingsForm")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const settings = { platformName: $("#adminPlatformName").value.trim(), brokerDomain: $("#adminBrokerDomain").value.trim(), adminDomain: $("#adminMasterDomain").value.trim(), commercialWhatsapp: $("#adminCommercialWhatsapp").value.trim(), dueWarningDays: Number($("#adminDueWarningDays").value), defaultMessage: $("#adminDefaultMessage").value.trim(), chargeText: $("#adminChargeText").value.trim(), internalNotice: $("#adminInternalNotice").value.trim() };
+      localStorage.setItem(ADMIN_MASTER_SETTINGS_KEY, JSON.stringify(settings));
+      $("#adminSettingsStatus").textContent = "Configurações salvas localmente.";
+      $("#adminSettingsStatus").classList.add("ok");
+    });
+    $("#adminNewSaleForm")?.addEventListener("submit", registerAdminSale);
+    [$("#adminSalePlan"), $("#adminSaleExtras"), $("#adminSalePaymentDate"), $("#adminSaleDueMode"), $("#adminSaleFixedDay")].forEach((field) => field?.addEventListener("input", updateAdminSaleCalculation));
+    $("#adminCancelSale")?.addEventListener("click", () => { $("#adminNewSaleForm").reset(); prepareAdminSaleForm(); });
+    $("#adminCalendarPrev")?.addEventListener("click", () => { adminCalendarDate.setMonth(adminCalendarDate.getMonth() - 1); renderFinancialCalendar(); });
+    $("#adminCalendarNext")?.addEventListener("click", () => { adminCalendarDate.setMonth(adminCalendarDate.getMonth() + 1); renderFinancialCalendar(); });
+    $("#adminCalendarToday")?.addEventListener("click", () => { adminCalendarDate = new Date(); renderFinancialCalendar(); });
+    [$("#adminReceivablePeriod"), $("#adminReceivableStatus"), $("#adminReceivablePlan")].forEach((field) => field?.addEventListener("change", renderReceivables));
+    $("#adminReceivableClient")?.addEventListener("input", renderReceivables);
+    $("#adminGenerateTokenBtn")?.addEventListener("click", generateAdminToken);
+    $("#adminMasterScreen")?.addEventListener("click", (event) => {
+      const clientView = event.target.closest("[data-admin-client-view]");
+      if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
+      const clientAction = event.target.closest("[data-admin-client-action]");
+      if (clientAction) { handleAdminClientAction(clientAction); return; }
+      const tokenAction = event.target.closest("[data-token-action]");
+      if (tokenAction) { handleTokenAction(tokenAction); return; }
+      const receivableAction = event.target.closest("[data-receivable-action]");
+      if (receivableAction) {
+        const item = adminData.receivables.find((entry) => entry.id === receivableAction.dataset.id), action = receivableAction.dataset.receivableAction;
+        if (!item) return;
+        if (action === "pay" || action === "edit") openPaymentModal(item);
+        if (action === "pending" || action === "late" || action === "reverse") { item.status = action === "reverse" ? "reversed" : action; item.paid = 0; item.paymentDate = ""; const client = adminClient(item.clientId); client.financialStatus = action === "late" ? "late" : "pending"; client.history.unshift({ date: adminIsoDate(new Date()), text: `Lançamento marcado como ${adminPaymentLabel(item.status).toLowerCase()}.` }); saveAdminData(); renderAdminV2(); toast("Lançamento atualizado."); }
+        if (action === "history") openAdminClientModal(adminClient(item.clientId));
+        return;
+      }
+      const calendarDay = event.target.closest("[data-calendar-date]");
+      if (calendarDay) { openCalendarDay(calendarDay.dataset.calendarDate); return; }
+      const actionButton = event.target.closest("[data-admin-master-action]");
+      if (actionButton) {
+        event.stopPropagation();
+        const account = ADMIN_MASTER_ACCOUNTS.find((item) => item.id === actionButton.dataset.adminMasterId);
+        if (!account) return;
+        const action = actionButton.dataset.adminMasterAction;
+        if (action === "view") openAdminMasterModal(account);
+        if (action === "edit") toast(`Edição visual de ${account.name}.`);
+        if (action === "copy") copyAdminMasterText(`${account.type}: ${account.login}\nCredencial provisória: ${account.credential}`, "Acesso copiado.");
+        if (action === "disable" || action === "reactivate") { account.status = action === "disable" ? "inactive" : "active"; renderAdminMaster(); toast(`${account.name} ${action === "disable" ? "desativado" : "reativado"} visualmente.`); }
+        if (action === "remove") { const index = ADMIN_MASTER_ACCOUNTS.indexOf(account); ADMIN_MASTER_ACCOUNTS.splice(index, 1); renderAdminMaster(); toast(`${account.name} removido visualmente.`); }
+        return;
+      }
+      const row = event.target.closest("[data-admin-master-open]");
+      if (row) openAdminMasterModal(ADMIN_MASTER_ACCOUNTS.find((item) => item.id === row.dataset.adminMasterOpen));
+      const plan = event.target.closest("[data-admin-master-plan]");
+      if (plan) toast(`Edição visual do plano ${ADMIN_MASTER_PLANS[Number(plan.dataset.adminMasterPlan)]?.name}.`);
+      const finance = event.target.closest("[data-admin-master-finance]");
+      if (finance) toast("Detalhe financeiro mock aberto visualmente.");
+    });
+    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); });
+    $("#adminMasterModalBody")?.addEventListener("input", (event) => { if (["adminNewPlan", "adminNewPlanExtras"].includes(event.target.id)) updatePlanChangePreview(adminClient($("#adminPlanChangeForm")?.dataset.id)); });
+    $("#adminMasterModalBody")?.addEventListener("click", (event) => {
+      const clientView = event.target.closest("[data-admin-client-view]"); if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
+      const button = event.target.closest("[data-receivable-action]"); if (!button) return; const item = adminData.receivables.find((entry) => entry.id === button.dataset.id); if (!item) return;
+      if (button.dataset.receivableAction === "pay") openPaymentModal(item);
+      if (button.dataset.receivableAction === "pending") { item.status = "pending"; adminClient(item.clientId).financialStatus = "pending"; saveAdminData(); renderAdminV2(); $("#adminMasterModal").close(); toast("Pendência registrada."); }
+    });
+    [$("#adminMasterModalClose"), $("#adminMasterModalFooterClose")].forEach((button) => button?.addEventListener("click", () => $("#adminMasterModal")?.close()));
+    window.addEventListener("hashchange", syncAdminMasterHash);
+  }
+
   function bindEvents() {
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
     el.navItems.forEach((btn) => btn.addEventListener("click", () => {
@@ -3649,6 +4170,7 @@
   }
 
   function init() {
+    const isAdminMasterRoute = window.location.hash.toLowerCase() === "#admin";
     const theme = localStorage.getItem(THEME_KEY) || "dark";
     el.root.dataset.theme = theme;
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -3657,6 +4179,12 @@
     el.supervisorSidebarToggle?.setAttribute("aria-expanded", String(!supervisorSidebarCollapsed));
     el.supervisorSidebarToggle?.setAttribute("aria-label", supervisorSidebarCollapsed ? "Expandir menu" : "Recolher menu");
     if (el.supervisorSidebarToggle) el.supervisorSidebarToggle.title = supervisorSidebarCollapsed ? "Expandir menu" : "Recolher menu";
+    const adminMasterScreen = $("#adminMasterScreen");
+    adminMasterScreen?.classList.toggle("sidebar-collapsed", localStorage.getItem(ADMIN_MASTER_SIDEBAR_KEY) === "1");
+    renderAdminMasterAccessFields();
+    setAdminMasterAccessType("individual");
+    loadAdminData();
+    prepareAdminSaleForm();
     fillStatusOptions();
     bindMoneyField(el.leadValorNegocio);
     bindMoneyField(el.clientValorFechado);
@@ -3669,9 +4197,11 @@
     toggleClientCustomPeriodFields();
     loadAccess();
     bindEvents();
+    bindAdminMasterEvents();
     setMode("list");
     renderCrm();
-    bootAccess();
+    if (!isAdminMasterRoute) bootAccess();
+    syncAdminMasterHash();
   }
 
   init();
