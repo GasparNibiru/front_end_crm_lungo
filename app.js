@@ -1311,21 +1311,23 @@
   }
 
   async function loadSupervisorRemoteData() {
-    const [dashboardResult, brokersResult, clientsResult, leadsResult] = await Promise.all([
+    const [dashboardResult, brokersResult, clientsResult, leadsResult, operationalClientsResult] = await Promise.all([
       window.LungoSupervisorApi.getDashboard(supervisorAccessToken),
       window.LungoSupervisorApi.getBrokers(supervisorAccessToken),
       window.LungoSupervisorApi.getClients(supervisorAccessToken),
-      window.LungoSupervisorApi.getLeads(supervisorAccessToken)
+      window.LungoSupervisorApi.getLeads(supervisorAccessToken),
+      window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
     SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.tokenActive ? "Ativo" : "Sem token", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: broker.lastLoginAt ? new Date(broker.lastLoginAt).toLocaleString("pt-BR") : "Nunca", tokenActive: broker.tokenActive })));
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
     const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `client-${client.id}`, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" }));
+    const operationalCustomers = (operationalClientsResult.clients || []).map((client) => ({ id: `operational-${client.id}`, client: client.nome || "Cliente", seller: client.brokerName || "Corretor", phone: client.telefone || "—", email: client.email || "", product: client.produto || "Cliente", status: ({ ativo: "Ativo", a_renovar: "A renovar", renovado: "Renovado" })[client.status] || "Ativo", lives: Number(client.qtdVidas || 0), value: client.valorFechado ? formatMoney(client.valorFechado) : "—", date: client.dataContratacao || String(client.createdAt || "").slice(0, 10), renewal: client.dataRenovacao || "—", post: client.posVenda ? "Agendado" : "Pendente", notes: client.observacao || "" }));
     const pipelineCustomers = SUPERVISOR_DEALS.map((deal) => ({ id: `lead-${deal.id}`, leadId: deal.id, client: deal.client, seller: deal.seller, phone: deal.phone, email: deal.email, product: deal.product, status: "Ativo", lives: deal.lives, value: deal.value, date: "—", renewal: "—", post: deal.stage === "fechamento" ? "Pendente" : "Em negociação", notes: deal.notes }));
     const customerKey = (item) => String(item.email || item.phone || item.client || item.id).replace(/\D/g, "") || String(item.email || item.client || item.id).trim().toLowerCase();
     const consolidatedCustomers = new Map();
-    [...registeredCustomers, ...pipelineCustomers].forEach((customer) => consolidatedCustomers.set(customerKey(customer), { ...(consolidatedCustomers.get(customerKey(customer)) || {}), ...customer }));
+    [...registeredCustomers, ...pipelineCustomers, ...operationalCustomers].forEach((customer) => consolidatedCustomers.set(customerKey(customer), { ...(consolidatedCustomers.get(customerKey(customer)) || {}), ...customer }));
     SUPERVISOR_CUSTOMERS.splice(0, SUPERVISOR_CUSTOMERS.length, ...consolidatedCustomers.values());
   }
 

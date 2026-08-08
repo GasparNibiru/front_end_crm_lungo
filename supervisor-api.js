@@ -18,5 +18,6 @@
   const renewBrokerToken = (id, payload, token) => request(`/api/supervisor/brokers/${encodeURIComponent(id)}/token/renew`, { method: "POST", token, body: payload });
   const getClients = (token) => request("/api/supervisor/clients", { token });
   const getLeads = (token) => request("/api/supervisor/leads", { token });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads });
+  const getOperationalClients = (token) => request("/api/supervisor/operational-clients", { token });
+  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients });
 })();
