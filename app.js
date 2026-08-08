@@ -1601,7 +1601,7 @@
       setAuthStatus(state.connected ? "Acesso liberado." : "Token validado. Conecte o WhatsApp pelo QR Code.", "ok");
       if (state.connected) {
         setView("crm");
-        if (isLeadSyncEnabled()) { loadCrm(true); startCrmRealtime(); }
+        loadCrm(true); startCrmRealtime();
       } else {
         setView("connect");
         if (!status?.qrCodeBase64 && !status?.qrCode) connectWhatsApp();
@@ -1666,8 +1666,7 @@
       stopCrmRealtime();
     }
     if (name === "crm") {
-      if (isLeadSyncEnabled()) { loadCrm(true); startCrmRealtime(); }
-      else { state.leads = []; renderCrm(); stopCrmRealtime(); }
+      loadCrm(true); startCrmRealtime();
     }
     else stopCrmRealtime();
     if (name === "clients") loadClients();
@@ -1779,7 +1778,7 @@
   function renderList() {
     const leads = filteredLeads();
     if (!leads.length) {
-      const msg = isLeadSyncEnabled() ? "Nenhum lead encontrado." : "Clique em Sincronizar conversas para carregar as conversas do WhatsApp.";
+      const msg = "Nenhum lead encontrado. Use Novo lead ou Sincronizar conversas para adicionar contatos.";
       el.crmRows.innerHTML = `<tr><td colspan="9"><div class="empty-state">${msg}</div></td></tr>`;
       renderLeadSelectionState();
       return;
@@ -1854,7 +1853,6 @@
   async function loadCrm(silent = false) {
     try {
       if (!state.token) return;
-      if (!isLeadSyncEnabled()) { state.leads = []; renderCrm(); return; }
       const data = await api(`/api/crm/auto-leads?token=${tokenQuery()}&limit=500&includeArchived=true&_=${Date.now()}`);
       state.leads = (data.leads || []).map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).filter((lead) => normalizeStatus(lead.status) !== "lixeira" && isUsableLead(lead));
       if (data.client) {
@@ -1872,7 +1870,7 @@
   function startCrmRealtime() {
     stopCrmRealtime();
     state.crmRealtimeTimer = setInterval(async () => {
-      if (!state.token || !isLeadSyncEnabled()) return;
+      if (!state.token) return;
       await loadCrm(true);
       if (el.views.clients?.classList.contains("active")) await loadClients(true);
     }, 12000);
