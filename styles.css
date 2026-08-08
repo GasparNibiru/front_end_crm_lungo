@@ -2794,3 +2794,241 @@ body.admin-mode .admin-screen {
 .terms-accept input { margin-top: 2px; accent-color: var(--primary); }
 .terms-accept span { font-size: 13px; color: var(--text); }
 .terms-card footer .btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+/* Supervisor e Corretor — navegação mobile lateral, compacta e somente por ícones */
+@media (max-width: 600px) {
+  /* Corretor */
+  body:not(.admin-master-mode):not(.supervisor-mode) .app,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed {
+    width: 100vw;
+    min-height: 100dvh;
+    height: 100dvh;
+    grid-template-columns: 52px minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  body:not(.admin-master-mode):not(.supervisor-mode) .sidebar,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .sidebar {
+    position: static;
+    width: 52px;
+    height: 100dvh;
+    padding: 7px 6px;
+    gap: 8px;
+    align-items: center;
+    border-right: 1px solid var(--border);
+    border-bottom: 0;
+    overflow: hidden;
+  }
+
+  body:not(.admin-master-mode):not(.supervisor-mode) .brand-row,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .brand-row {
+    width: 40px;
+    min-height: 40px;
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+  }
+
+  body:not(.admin-master-mode):not(.supervisor-mode) .brand,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .brand { justify-content: center; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .brand img,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .brand img { display: block; width: 32px; height: 32px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .brand-text,
+  body:not(.admin-master-mode):not(.supervisor-mode) .sidebar-toggle,
+  body:not(.admin-master-mode):not(.supervisor-mode) .sidebar-meta,
+  body:not(.admin-master-mode):not(.supervisor-mode) .soon-badge { display: none !important; }
+
+  body:not(.admin-master-mode):not(.supervisor-mode) .nav,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .nav {
+    width: 40px;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 5px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  body:not(.admin-master-mode):not(.supervisor-mode) .nav::-webkit-scrollbar { display: none; }
+
+  body:not(.admin-master-mode):not(.supervisor-mode) .nav-item,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .nav-item {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface);
+  }
+  body:not(.admin-master-mode):not(.supervisor-mode) .nav-item.active {
+    border-color: color-mix(in srgb, var(--primary) 65%, var(--border));
+    background: var(--surface-3);
+    box-shadow: inset 3px 0 0 var(--primary);
+  }
+  body:not(.admin-master-mode):not(.supervisor-mode) .nav-ico { width: 21px; height: 21px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .nav-ico svg { width: 18px; height: 18px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .nav-label,
+  body:not(.admin-master-mode):not(.supervisor-mode) .logout-btn .nav-label {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+  body:not(.admin-master-mode):not(.supervisor-mode) .sidebar-bottom { width: 40px; margin-top: auto; gap: 5px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .logout-btn,
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .logout-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    grid-template-columns: 1fr;
+    justify-content: center;
+    border-radius: 5px;
+  }
+
+  body:not(.admin-master-mode):not(.supervisor-mode) .workspace {
+    width: 100%;
+    min-width: 0;
+    min-height: 100dvh;
+    height: 100dvh;
+    grid-template-rows: 50px minmax(0, 1fr);
+    overflow: hidden;
+  }
+  body:not(.admin-master-mode):not(.supervisor-mode) .topbar { min-width: 0; padding: 7px 9px; gap: 6px; flex-direction: row; align-items: center; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .title-block { min-width: 0; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .title-block h1 { max-width: 100%; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .title-block p { display: none; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .top-actions { width: auto; min-width: 0; margin-left: auto; flex-wrap: nowrap; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .top-actions .token-wrap,
+  body:not(.admin-master-mode):not(.supervisor-mode) .top-actions > label { display: none; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .top-actions .btn,
+  body:not(.admin-master-mode):not(.supervisor-mode) .top-actions button { min-height: 30px; padding: 0 7px; font-size: 9px; }
+
+  body:not(.admin-master-mode):not(.supervisor-mode) .content { min-width: 0; padding: 7px; overflow: hidden; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .view { min-width: 0; min-height: 0; height: 100%; padding: 7px; overflow: auto; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .crm-layout { min-width: 0; height: 100%; grid-template-rows: auto auto minmax(0, 1fr); gap: 6px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .toolbar { min-width: 0; padding: 7px; gap: 5px; overflow-x: auto; flex-wrap: nowrap; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .toolbar > * { flex: 0 0 auto; min-width: 0; font-size: 9px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .toolbar .search { width: 128px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .metrics-bar { min-width: 640px; height: auto; grid-template-columns: repeat(9, minmax(64px, 1fr)); gap: 4px; overflow: visible; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .metric { min-width: 0; padding: 5px; overflow: hidden; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .metric span { font-size: 7px; overflow-wrap: anywhere; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .metric b { font-size: 12px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .table-wrap { width: 100%; max-width: 100%; overflow: auto; -webkit-overflow-scrolling: touch; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .crm-table { min-width: 760px; table-layout: auto; font-size: 9px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .crm-table th,
+  body:not(.admin-master-mode):not(.supervisor-mode) .crm-table td { padding: 6px 5px; max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .kanban-scroll { width: 100%; overflow: auto; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .kanban-board { min-width: 1880px; gap: 6px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .panel,
+  body:not(.admin-master-mode):not(.supervisor-mode) .card { min-width: 0; padding: 8px; overflow: hidden; }
+
+  /* Supervisor */
+  body.supervisor-mode .supervisor-screen,
+  body.supervisor-mode .supervisor-screen.sidebar-collapsed {
+    width: 100vw;
+    height: 100dvh;
+    grid-template-columns: 52px minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .supervisor-sidebar,
+  .supervisor-screen.sidebar-collapsed .supervisor-sidebar {
+    width: 52px;
+    height: 100dvh;
+    padding: 7px 6px;
+    gap: 8px;
+    align-items: center;
+  }
+  .supervisor-brand,
+  .supervisor-screen.sidebar-collapsed .supervisor-brand {
+    width: 40px;
+    min-height: 40px;
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+  }
+  .supervisor-brand img,
+  .supervisor-screen.sidebar-collapsed .supervisor-brand img { display: block; width: 32px; height: 32px; }
+  .supervisor-brand-text, .supervisor-icon-btn, .supervisor-nav-group-title,
+  .supervisor-nav-item b, .supervisor-logout b { display: none !important; }
+  .supervisor-nav,
+  .supervisor-screen.sidebar-collapsed .supervisor-nav { width: 40px; gap: 5px; scrollbar-width: none; }
+  .supervisor-nav::-webkit-scrollbar { display: none; }
+  .supervisor-nav-item, .supervisor-logout,
+  .supervisor-screen.sidebar-collapsed .supervisor-nav-item,
+  .supervisor-screen.sidebar-collapsed .supervisor-logout {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface);
+  }
+  .supervisor-nav-item.active { border-color: color-mix(in srgb, var(--primary) 65%, var(--border)); background: var(--surface-3); }
+  .supervisor-nav-item span, .supervisor-logout span,
+  .supervisor-screen.sidebar-collapsed .supervisor-nav-item span,
+  .supervisor-screen.sidebar-collapsed .supervisor-logout span { width: 21px; }
+  .supervisor-nav-item span svg, .supervisor-logout span svg { width: 18px; height: 18px; }
+
+  .supervisor-nav-item b, .supervisor-logout b {
+    display: block !important;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  .supervisor-main { width: 100%; min-width: 0; height: 100dvh; grid-template-rows: 50px minmax(0, 1fr); }
+  .supervisor-topbar { min-width: 0; padding: 7px 9px; gap: 6px; align-items: center; }
+  .supervisor-topbar > div:first-child { min-width: 0; }
+  .supervisor-topbar h1 { max-width: 100%; font-size: 14px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .supervisor-topbar p { display: none; }
+  .supervisor-top-actions { min-width: 0; flex-wrap: nowrap; gap: 5px; }
+  .supervisor-top-actions label, .supervisor-top-actions select { display: none; }
+  .supervisor-top-actions .btn, .supervisor-top-actions button { min-height: 30px; padding: 0 7px; font-size: 9px; }
+  .supervisor-content { min-width: 0; padding: 7px; overflow: hidden; }
+  .supervisor-view { min-width: 0; padding: 0; }
+  .supervisor-view.active { gap: 7px; }
+  .supervisor-kpis, .supervisor-goal-summary, .supervisor-client-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .supervisor-kpis article, .supervisor-goal-summary article, .supervisor-client-metrics article { min-width: 0; padding: 8px; overflow: hidden; }
+  .supervisor-kpis span, .supervisor-goal-summary span, .supervisor-client-metrics span { font-size: 8px; overflow-wrap: anywhere; }
+  .supervisor-kpis b, .supervisor-goal-summary b, .supervisor-client-metrics b { font-size: 14px; overflow-wrap: anywhere; }
+  .supervisor-card { min-width: 0; padding: 8px; overflow: hidden; }
+  .supervisor-card h2 { font-size: 12px; overflow-wrap: anywhere; }
+  .supervisor-card p { font-size: 8px; line-height: 1.35; overflow-wrap: anywhere; }
+  .supervisor-table-wrap { width: 100%; max-width: 100%; max-height: calc(100dvh - 190px); overflow: auto; -webkit-overflow-scrolling: touch; }
+  .supervisor-table { min-width: 700px; font-size: 9px; }
+  .supervisor-table th, .supervisor-table td { padding: 6px 5px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  .supervisor-table th { font-size: 8px; }
+  .supervisor-funnel { min-width: 1540px; gap: 6px; }
+  #supervisor-view-funnel { overflow: auto; -webkit-overflow-scrolling: touch; }
+  .supervisor-access-form, .company-settings-grid, .supervisor-report-layout, .supervisor-message-layout { grid-template-columns: 1fr; gap: 7px; }
+  .supervisor-access-form input, .supervisor-access-form select,
+  .company-settings-grid input, .company-settings-grid select, .company-settings-grid textarea { min-width: 0; max-width: 100%; font-size: 11px; }
+  .supervisor-detail-modal, .supervisor-client-modal, .supervisor-product-modal,
+  .supervisor-product-folder-modal, .supervisor-post-sale-modal { width: calc(100vw - 14px); max-width: calc(100vw - 14px); }
+
+  /* Proteção comum contra vazamento de conteúdo */
+  body.supervisor-mode .supervisor-content *,
+  body:not(.admin-master-mode):not(.supervisor-mode) .content * { min-width: 0; }
+  body.supervisor-mode code, body.supervisor-mode pre,
+  body:not(.admin-master-mode):not(.supervisor-mode) code,
+  body:not(.admin-master-mode):not(.supervisor-mode) pre { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
+  body.supervisor-mode .toast,
+  body:not(.admin-master-mode):not(.supervisor-mode) .toast { max-width: calc(100vw - 70px); left: auto; right: 8px; font-size: 10px; overflow-wrap: anywhere; }
+}
