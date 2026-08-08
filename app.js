@@ -115,6 +115,9 @@
     { id: "c-d9", leadId: "d9", client: "Marina Prado", seller: "Ana Souza", phone: "(11) 99991-1020", email: "marina@exemplo.com", product: "Saúde", status: "Ativo", lives: 3, value: "R$ 3.480", date: "10/08/2026", renewal: "10/08/2027", post: "Em dia", notes: "Originado do fechamento d9." },
     { id: "c-d10", leadId: "d10", client: "Otávio Ramos", seller: "Diego Alves", phone: "(41) 99777-1212", email: "otavio@exemplo.com", product: "Auto", status: "Ativo", lives: 1, value: "R$ 2.640", date: "08/08/2026", renewal: "08/08/2027", post: "Contato agendado", notes: "Originado do fechamento d10." }
   ];
+  let supervisorAccessToken = "";
+  let supervisorDashboard = null;
+  let supervisorOrganizationName = "";
   const supervisorSelectedClientIds = new Set();
   let supervisorActiveClientId = "";
   let pendingCompanyLogo = "";
@@ -159,7 +162,6 @@
     corretorAuthPanel: $("#corretorAuthPanel"),
     supervisorAuthPanel: $("#supervisorAuthPanel"),
     supervisorEmailInput: $("#supervisorEmailInput"),
-    supervisorPasswordInput: $("#supervisorPasswordInput"),
     supervisorLoginBtn: $("#supervisorLoginBtn"),
     supervisorStatus: $("#supervisorStatus"),
     supervisorScreen: $("#supervisorScreen"),
@@ -182,7 +184,8 @@
     supervisorSelectAllClients: $("#supervisorSelectAllClients"),
     supervisorGoalRows: $("#supervisorGoalRows"),
     supervisorBrokerName: $("#supervisorBrokerName"),
-    supervisorBrokerToken: $("#supervisorBrokerToken"),
+    supervisorBrokerEmail: $("#supervisorBrokerEmail"),
+    supervisorBrokerPhone: $("#supervisorBrokerPhone"),
     supervisorGenerateMessageBtn: $("#supervisorGenerateMessageBtn"),
     supervisorGeneratedMessage: $("#supervisorGeneratedMessage"),
     supervisorCopyMessageBtn: $("#supervisorCopyMessageBtn"),
@@ -1307,13 +1310,32 @@
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
   }
 
-  function mockSupervisorLogin() {
-    if (el.supervisorStatus) {
-      el.supervisorStatus.textContent = "Acesso supervisor em preparação.";
-      el.supervisorStatus.classList.remove("error");
-      el.supervisorStatus.classList.add("ok");
-    }
-    openSupervisorArea();
+  async function loadSupervisorRemoteData() {
+    const [dashboardResult, brokersResult, clientsResult] = await Promise.all([
+      window.LungoSupervisorApi.getDashboard(supervisorAccessToken),
+      window.LungoSupervisorApi.getBrokers(supervisorAccessToken),
+      window.LungoSupervisorApi.getClients(supervisorAccessToken)
+    ]);
+    supervisorDashboard = dashboardResult.dashboard || {};
+    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.tokenActive ? "Ativo" : "Sem token", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: broker.lastLoginAt ? new Date(broker.lastLoginAt).toLocaleString("pt-BR") : "Nunca", tokenActive: broker.tokenActive })));
+    SUPERVISOR_CUSTOMERS.splice(0, SUPERVISOR_CUSTOMERS.length, ...(clientsResult.clients || []).map((client) => ({ id: client.id, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" })));
+  }
+
+  async function supervisorLogin() {
+    const token = String(el.supervisorEmailInput?.value || "").trim();
+    if (!token) { el.supervisorStatus.textContent = "Informe o token de Supervisor."; el.supervisorStatus.classList.add("error"); return; }
+    el.supervisorLoginBtn.disabled = true; el.supervisorStatus.textContent = "Validando acesso..."; el.supervisorStatus.classList.remove("error", "ok");
+    try {
+      const auth = await window.LungoSupervisorApi.verify(token);
+      if (auth.user?.role !== "supervisor") throw new Error("Este token não pertence a um Supervisor.");
+      supervisorAccessToken = token;
+      await loadSupervisorRemoteData();
+      el.supervisorEmailInput.value = "";
+      el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
+      supervisorOrganizationName = auth.user.organization?.name || "Corretora";
+      openSupervisorArea();
+    } catch (error) { supervisorAccessToken = ""; el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); }
+    finally { el.supervisorLoginBtn.disabled = false; }
   }
 
   function supervisorInitials(name) {
@@ -1321,6 +1343,14 @@
   }
 
   function renderSupervisorMocks() {
+    const dashboardCards = $$("#supervisor-view-dashboard .supervisor-kpis article");
+    const dashboardValues = [
+      [String((supervisorDashboard?.brokers || 0) + 1), `${supervisorDashboard?.brokers || 0} corretores + Supervisor`],
+      [String(supervisorDashboard?.sales || 0), "vendas neste mês"],
+      [formatCurrency(supervisorDashboard?.revenue || 0), "produção da organização"],
+      [String(supervisorDashboard?.clients || 0), "clientes ativos"]
+    ];
+    dashboardCards.forEach((card, index) => { if (dashboardValues[index]) { card.querySelector("b").textContent = dashboardValues[index][0]; card.querySelector("small").textContent = dashboardValues[index][1]; } });
     const brokerRows = SUPERVISOR_BROKERS.map((broker) => `
       <div class="supervisor-broker-row">
         <div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}</b></div>
@@ -1331,7 +1361,7 @@
       </div>`).join("");
     if (el.supervisorBrokerList) el.supervisorBrokerList.innerHTML = brokerRows;
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td><code>${escapeHtml(broker.token)}</code></td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td>${broker.sales}</td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}">Copiar acesso</button><button class="tiny-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}">Editar</button><button class="tiny-btn" type="button" data-supervisor-broker-action="disable" data-broker-id="${broker.id}">Desativar</button></div></td></tr>`).join("");
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td>${broker.tokenActive ? "Sim" : "Não"}</td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}">Renovar token</button><button class="tiny-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}">${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}</button></div></td></tr>`).join("");
 
     const stages = [
       ["novos", "Novos", "Novos"], ["em_atendimento", "Em atendimento", "Em atendimento"], ["cotacao", "Cotação", "Cotação Enviada"], ["documentacao", "Doc. recebida", "Documentação recebida"],
@@ -1371,9 +1401,15 @@
     setSupervisorView("dashboard");
     renderSupervisorMocks();
     renderCompanyIdentity();
+    if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = supervisorOrganizationName || "Corretora";
+    const topOrganization = document.querySelector(".supervisor-top-actions strong");
+    if (topOrganization) topOrganization.textContent = supervisorOrganizationName || "Corretora";
   }
 
   function closeSupervisorArea() {
+    supervisorAccessToken = "";
+    supervisorDashboard = null;
+    supervisorOrganizationName = "";
     restoreSupervisorSharedView();
     document.body.classList.remove("supervisor-mode");
     if (el.supervisorScreen) el.supervisorScreen.hidden = true;
@@ -1400,23 +1436,27 @@
     el.supervisorDetailModal.showModal();
   }
 
-  function generateSupervisorAccessMessage() {
+  async function generateSupervisorAccessMessage() {
     const name = String(el.supervisorBrokerName?.value || "").trim();
-    const token = String(el.supervisorBrokerToken?.value || "").trim();
-    if (!name || !token) {
+    const email = String(el.supervisorBrokerEmail?.value || "").trim();
+    const phone = String(el.supervisorBrokerPhone?.value || "").trim();
+    if (!name || !email) {
       el.supervisorGeneratedMessage.hidden = true;
-      el.supervisorAccessStatus.textContent = "Preencha o nome do corretor e o token personalizado.";
+      el.supervisorAccessStatus.textContent = "Preencha o nome e um e-mail válido.";
       el.supervisorAccessStatus.classList.add("error");
       el.supervisorAccessStatus.classList.remove("ok");
       return;
     }
-    const message = supervisorAccessMessage(name, token);
-    if (!el.supervisorGeneratedMessage) return;
-    el.supervisorGeneratedMessage.hidden = false;
-    el.supervisorGeneratedMessage.querySelector("p").textContent = message;
-    el.supervisorAccessStatus.textContent = "Acesso gerado. Revise e copie a mensagem.";
-    el.supervisorAccessStatus.classList.remove("error");
-    el.supervisorAccessStatus.classList.add("ok");
+    el.supervisorGenerateMessageBtn.disabled = true; el.supervisorAccessStatus.textContent = "Criando acesso...";
+    try {
+      const result = await window.LungoSupervisorApi.createBroker({ name, email, phone: phone || null, expiresAt: null }, supervisorAccessToken);
+      const message = supervisorAccessMessage(name, result.token);
+      el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector("p").textContent = message;
+      el.supervisorAccessStatus.textContent = "Acesso criado. Salve o token agora."; el.supervisorAccessStatus.classList.remove("error"); el.supervisorAccessStatus.classList.add("ok");
+      el.supervisorBrokerName.value = ""; el.supervisorBrokerEmail.value = ""; el.supervisorBrokerPhone.value = "";
+      await loadSupervisorRemoteData(); renderSupervisorMocks();
+    } catch (error) { el.supervisorGeneratedMessage.hidden = true; el.supervisorAccessStatus.textContent = error.message; el.supervisorAccessStatus.classList.add("error"); el.supervisorAccessStatus.classList.remove("ok"); }
+    finally { el.supervisorGenerateMessageBtn.disabled = false; }
   }
 
   function supervisorAccessMessage(name, token) {
@@ -3910,10 +3950,10 @@
     });
     el.corretorTabBtn?.addEventListener("click", () => setAuthRole("corretor"));
     el.supervisorTabBtn?.addEventListener("click", () => setAuthRole("supervisor"));
-    el.supervisorLoginBtn?.addEventListener("click", mockSupervisorLogin);
-    [el.supervisorEmailInput, el.supervisorPasswordInput].forEach((input) => {
+    el.supervisorLoginBtn?.addEventListener("click", supervisorLogin);
+    [el.supervisorEmailInput].forEach((input) => {
       input?.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") mockSupervisorLogin();
+        if (event.key === "Enter") supervisorLogin();
       });
     });
     el.supervisorLogoutBtn?.addEventListener("click", closeSupervisorArea);
@@ -3985,7 +4025,7 @@
       renderSupervisorCustomers();
     });
     [el.supervisorModalCloseBtn, el.supervisorModalFooterCloseBtn].forEach((button) => button?.addEventListener("click", () => el.supervisorDetailModal?.close()));
-    el.supervisorScreen?.addEventListener("click", (event) => {
+    el.supervisorScreen?.addEventListener("click", async (event) => {
       const dealButton = event.target.closest("[data-supervisor-deal]");
       if (dealButton) {
         const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
@@ -3998,9 +4038,14 @@
         const broker = SUPERVISOR_BROKERS.find((item) => item.id === brokerButton.dataset.brokerId);
         if (!broker) return;
         const action = brokerButton.dataset.supervisorBrokerAction;
-        if (action === "copy") copySupervisorText(supervisorAccessMessage(broker.name, broker.token), "Acesso copiado.");
-        if (action === "edit") toast(`Edição visual de ${broker.name} em preparação.`);
-        if (action === "disable") toast(`${broker.name} foi desativado visualmente.`);
+        try {
+          let result;
+          if (action === "renew") result = await window.LungoSupervisorApi.renewBrokerToken(broker.id, {}, supervisorAccessToken);
+          if (action === "disable") result = await window.LungoSupervisorApi.changeBroker(broker.id, "block", supervisorAccessToken);
+          if (action === "reactivate") result = await window.LungoSupervisorApi.changeBroker(broker.id, "reactivate", supervisorAccessToken);
+          if (result?.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector("p").textContent = supervisorAccessMessage(broker.name, result.token); setSupervisorView("brokers"); toast("Novo token gerado. Salve-o agora."); }
+          await loadSupervisorRemoteData(); renderSupervisorMocks();
+        } catch (error) { toast(error.message); }
         return;
       }
       const productButton = event.target.closest("[data-supervisor-product]");

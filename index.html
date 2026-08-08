@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js" defer></script>
+  <script src="supervisor-api.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body class="auth-locked">
@@ -49,15 +50,11 @@
       <div id="supervisorAuthPanel" class="auth-panel" role="tabpanel" aria-labelledby="supervisorTabBtn" hidden>
         <div class="auth-form">
           <label>
-            <span>E-mail</span>
-            <input id="supervisorEmailInput" type="email" placeholder="Digite seu e-mail" autocomplete="off">
-          </label>
-          <label>
-            <span>Senha</span>
-            <input id="supervisorPasswordInput" type="password" placeholder="Digite sua senha" autocomplete="new-password">
+            <span>Token do supervisor</span>
+            <input id="supervisorEmailInput" type="password" placeholder="Cole o token gerado pelo Admin" autocomplete="new-password">
           </label>
           <button id="supervisorLoginBtn" class="btn primary auth-login-btn" type="button">Entrar como supervisor</button>
-          <div id="supervisorStatus" class="auth-status" aria-live="polite">Informe seu e-mail e senha.</div>
+          <div id="supervisorStatus" class="auth-status" aria-live="polite">Informe o token de Supervisor.</div>
         </div>
       </div>
     </div>
@@ -137,8 +134,8 @@
         </section>
 
         <section id="supervisor-view-brokers" class="supervisor-view">
-          <article class="supervisor-card supervisor-access-card"><header><div><h2>Gerar acesso do corretor</h2><p>Cadastre os dados e gere uma mensagem pronta para envio. Simulação visual.</p></div></header><div class="supervisor-access-form"><label><span>Nome do corretor</span><input id="supervisorBrokerName" type="text" placeholder="Ex.: Maria Silva"></label><label><span>Token personalizado</span><input id="supervisorBrokerToken" type="text" placeholder="Ex.: MARIA-LUNGO-2026"></label><button id="supervisorGenerateMessageBtn" class="btn primary" type="button">Gerar acesso</button></div><div id="supervisorAccessStatus" class="auth-status" aria-live="polite">Preencha nome e token para gerar o acesso.</div><div id="supervisorGeneratedMessage" class="supervisor-message-ready" hidden><div><span>Mensagem pronta</span><p></p></div><button id="supervisorCopyMessageBtn" class="btn" type="button">Copiar mensagem</button></div></article>
-          <article class="supervisor-card supervisor-grow"><header><div><h2>Corretores cadastrados</h2><p>Equipe fictícia para pré-visualização.</p></div></header><div class="supervisor-table-wrap supervisor-brokers-table-wrap"><table class="supervisor-table supervisor-brokers-table"><thead><tr><th>Corretor</th><th>Token</th><th>Status</th><th>Último login</th><th>Vendas</th><th>Ações</th></tr></thead><tbody id="supervisorBrokerRows"></tbody></table></div></article>
+          <article class="supervisor-card supervisor-access-card"><header><div><h2>Gerar acesso do corretor</h2><p>O acesso será vinculado à sua organização e respeitará o limite contratado.</p></div></header><div class="supervisor-access-form"><label><span>Nome do corretor</span><input id="supervisorBrokerName" type="text" placeholder="Ex.: Maria Silva"></label><label><span>E-mail</span><input id="supervisorBrokerEmail" type="email" placeholder="maria@empresa.com"></label><label><span>Telefone</span><input id="supervisorBrokerPhone" type="text" placeholder="(11) 99999-9999"></label><button id="supervisorGenerateMessageBtn" class="btn primary" type="button">Gerar acesso</button></div><div id="supervisorAccessStatus" class="auth-status" aria-live="polite">Preencha os dados para gerar o acesso.</div><div id="supervisorGeneratedMessage" class="supervisor-message-ready" hidden><div><span>Token exibido uma única vez</span><p></p></div><button id="supervisorCopyMessageBtn" class="btn" type="button">Copiar mensagem</button></div></article>
+          <article class="supervisor-card supervisor-grow"><header><div><h2>Corretores cadastrados</h2><p>Equipe vinculada à sua organização.</p></div></header><div class="supervisor-table-wrap supervisor-brokers-table-wrap"><table class="supervisor-table supervisor-brokers-table"><thead><tr><th>Corretor</th><th>E-mail</th><th>Status</th><th>Último login</th><th>Token ativo</th><th>Ações</th></tr></thead><tbody id="supervisorBrokerRows"></tbody></table></div></article>
         </section>
 
         <section id="supervisor-view-funnel" class="supervisor-view">
