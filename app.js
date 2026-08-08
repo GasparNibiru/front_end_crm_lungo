@@ -1319,9 +1319,14 @@
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
     SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.tokenActive ? "Ativo" : "Sem token", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: broker.lastLoginAt ? new Date(broker.lastLoginAt).toLocaleString("pt-BR") : "Nunca", tokenActive: broker.tokenActive })));
-    SUPERVISOR_CUSTOMERS.splice(0, SUPERVISOR_CUSTOMERS.length, ...(clientsResult.clients || []).map((client) => ({ id: client.id, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" })));
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
+    const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `client-${client.id}`, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" }));
+    const pipelineCustomers = SUPERVISOR_DEALS.map((deal) => ({ id: `lead-${deal.id}`, leadId: deal.id, client: deal.client, seller: deal.seller, phone: deal.phone, email: deal.email, product: deal.product, status: "Ativo", lives: deal.lives, value: deal.value, date: "—", renewal: "—", post: deal.stage === "fechamento" ? "Pendente" : "Em negociação", notes: deal.notes }));
+    const customerKey = (item) => String(item.email || item.phone || item.client || item.id).replace(/\D/g, "") || String(item.email || item.client || item.id).trim().toLowerCase();
+    const consolidatedCustomers = new Map();
+    [...registeredCustomers, ...pipelineCustomers].forEach((customer) => consolidatedCustomers.set(customerKey(customer), { ...(consolidatedCustomers.get(customerKey(customer)) || {}), ...customer }));
+    SUPERVISOR_CUSTOMERS.splice(0, SUPERVISOR_CUSTOMERS.length, ...consolidatedCustomers.values());
   }
 
   async function supervisorLogin() {
@@ -1332,6 +1337,9 @@
       const auth = await window.LungoSupervisorApi.verify(token);
       if (auth.user?.role !== "supervisor") throw new Error("Este token não pertence a um Supervisor.");
       supervisorAccessToken = token;
+      state.token = token;
+      state.clientName = auth.user.name || "Supervisor";
+      state.instanceName = auth.client?.instanceName || "";
       await loadSupervisorRemoteData();
       el.supervisorEmailInput.value = "";
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
@@ -1413,6 +1421,8 @@
     supervisorAccessToken = "";
     supervisorDashboard = null;
     supervisorOrganizationName = "";
+    state.token = ""; state.clientName = ""; state.instanceName = ""; state.connected = false; state.leads = [];
+    localStorage.removeItem(STORAGE_KEY);
     restoreSupervisorSharedView();
     document.body.classList.remove("supervisor-mode");
     if (el.supervisorScreen) el.supervisorScreen.hidden = true;
