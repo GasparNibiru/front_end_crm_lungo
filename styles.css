@@ -65,7 +65,7 @@ button { cursor: pointer; }
 }
 
 .brand { display: flex; align-items: center; gap: 10px; min-height: 42px; }
-.brand img { width: 38px; height: 38px; object-fit: contain; }
+.brand img { width: 44px; height: 44px; object-fit: contain; }
 .brand strong { display: block; font-size: 15px; letter-spacing: .01em; }
 .brand span { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
 
@@ -1998,8 +1998,8 @@ body.admin-master-mode .admin-master-screen { height: 100vh; display: grid; grid
 body.admin-master-mode .admin-master-screen.admin-master-auth { grid-template-columns: 1fr; }
 .admin-master-auth .admin-master-sidebar { display: none; }
 .admin-master-sidebar { min-width: 0; height: 100vh; padding: 12px; border-right: 1px solid var(--border); background: var(--bg-soft); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; overflow: hidden; }
-.admin-master-brand { min-height: 44px; display: grid; grid-template-columns: 42px minmax(0, 1fr) 30px; gap: 8px; align-items: center; }
-.admin-master-brand img { width: 42px; height: 42px; object-fit: contain; }
+.admin-master-brand { min-height: 48px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 30px; gap: 8px; align-items: center; }
+.admin-master-brand img { width: 48px; height: 48px; object-fit: contain; }
 .admin-master-brand b, .admin-master-brand span { display: block; }
 .admin-master-brand span { color: var(--muted); font-size: 10px; }
 .admin-master-icon-btn { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
@@ -2119,8 +2119,8 @@ body.supervisor-mode .auth-screen,
 body.supervisor-mode .app { display: none !important; }
 body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-template-columns: 238px minmax(0, 1fr); background: linear-gradient(90deg, rgba(14,165,165,.08), transparent 350px), var(--bg); transition: grid-template-columns .18s ease; }
 .supervisor-sidebar { width: 100%; min-width: 0; height: 100vh; padding: 12px; background: var(--bg-soft); border-right: 1px solid var(--border); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; overflow: hidden; }
-.supervisor-brand { min-height: 44px; display: grid; grid-template-columns: 42px minmax(0, 1fr) 32px; gap: 9px; align-items: center; }
-.supervisor-brand img { width: 42px; height: 42px; object-fit: contain; }
+.supervisor-brand { min-height: 48px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 32px; gap: 9px; align-items: center; }
+.supervisor-brand img { width: 48px; height: 48px; object-fit: contain; }
 .supervisor-brand-text b, .supervisor-brand-text span { display: block; }
 .supervisor-brand-text b { font-size: 15px; }
 .supervisor-brand-text span { margin-top: 2px; color: var(--muted); font-size: 11px; }
@@ -2218,7 +2218,19 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .supervisor-report-preview { min-width: 0; min-height: 0; height: 100%; display: grid; place-items: center; overflow: hidden; padding: 2px; }
 .supervisor-report-sheet { aspect-ratio: 210 / 297; height: min(100%, 790px); width: auto; max-width: 100%; padding: 24px 26px 18px; background: #fff; color: #17202b; box-shadow: 0 12px 36px rgba(0,0,0,.26); display: flex; flex-direction: column; overflow: hidden; }
 .supervisor-report-sheet header { display: flex; align-items: center; gap: 14px; }
-.supervisor-report-sheet header img { width: 46px; height: 46px; object-fit: contain; }
+.supervisor-report-sheet header img { width: 56px; height: 56px; object-fit: contain; }
+.broker-report-layout { height: 100%; min-height: 0; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; overflow: hidden; }
+.broker-report-actions { align-self: start; padding: 16px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); display: grid; gap: 12px; }
+.broker-report-actions h2, .broker-report-actions p { margin: 0; }
+.broker-report-actions p { color: var(--muted); line-height: 1.5; }
+.broker-report-preview { min-width: 0; min-height: 0; display: grid; place-items: center; overflow: auto; padding: 3px; }
+.broker-report-sheet { height: min(100%, 790px); }
+
+@media print {
+  body * { visibility: hidden !important; }
+  #brokerReportSheet, #brokerReportSheet * { visibility: visible !important; }
+  #brokerReportSheet { position: fixed; inset: 0; width: 210mm; height: 297mm; max-width: none; box-shadow: none; margin: 0; }
+}
 .supervisor-report-sheet header b, .supervisor-report-sheet header span, .supervisor-report-sheet header small { display: block; }
 .supervisor-report-sheet header b { font-size: 18px; }
 .supervisor-report-sheet header span, .supervisor-report-sheet small { color: #607080; }
@@ -2362,6 +2374,9 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
   .supervisor-report-sheet { width: min(100%, 560px); height: auto; }
   .supervisor-client-metrics { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
   .company-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .broker-report-layout { height: auto; grid-template-columns: 1fr; overflow: auto; }
+  .broker-report-preview { overflow: visible; }
+  .broker-report-sheet { width: min(100%, 560px); height: auto; }
 }
 
 /* Ajustes de legibilidade mobile — metas, funis, clientes e KPIs */
@@ -2816,8 +2831,8 @@ body.admin-mode .admin-screen {
 
   .admin-master-brand img {
     display: block !important;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
   }
 
   .admin-master-brand div,
@@ -3006,7 +3021,7 @@ body.admin-mode .admin-screen {
   body:not(.admin-master-mode):not(.supervisor-mode) .brand,
   body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .brand { justify-content: center; }
   body:not(.admin-master-mode):not(.supervisor-mode) .brand img,
-  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .brand img { display: block; width: 32px; height: 32px; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .app.sidebar-collapsed .brand img { display: block; width: 36px; height: 36px; }
   body:not(.admin-master-mode):not(.supervisor-mode) .brand-text,
   body:not(.admin-master-mode):not(.supervisor-mode) .sidebar-toggle,
   body:not(.admin-master-mode):not(.supervisor-mode) .sidebar-meta,
@@ -3129,7 +3144,7 @@ body.admin-mode .admin-screen {
     place-items: center;
   }
   .supervisor-brand img,
-  .supervisor-screen.sidebar-collapsed .supervisor-brand img { display: block; width: 32px; height: 32px; }
+  .supervisor-screen.sidebar-collapsed .supervisor-brand img { display: block; width: 36px; height: 36px; }
   .supervisor-brand-text, .supervisor-icon-btn, .supervisor-nav-group-title,
   .supervisor-nav-item b, .supervisor-logout b { display: none !important; }
   .supervisor-nav,

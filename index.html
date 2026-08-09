@@ -6,13 +6,13 @@
   <title>Lungo Corretores</title>
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <link rel="stylesheet" href="styles.css?v=all-mobile-2">
+  <link rel="stylesheet" href="styles.css?v=reports-1">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260808-9" defer></script>
   <script src="supervisor-api.js?v=20260808-9" defer></script>
-  <script src="app.js?v=20260808-9" defer></script>
+  <script src="app.js?v=20260808-10" defer></script>
 </head>
 <body class="auth-locked">
   <section id="authScreen" class="auth-screen" aria-label="Acesso Lungo Corretores">
@@ -255,7 +255,7 @@
           <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg></span>
           <span class="nav-label">Treinamentos</span>
         </button>
-        <button class="nav-item soon-item" data-view="relatorios" type="button">
+        <button class="nav-item" data-view="relatorios" type="button">
           <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-7"/></svg></span>
           <span class="nav-label">Relatórios</span>
         </button>
@@ -432,6 +432,29 @@
                 <div id="baseSalesChart" class="bar-chart"></div>
               </section>
             </aside>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-reports" class="view">
+        <div class="broker-report-layout">
+          <aside class="broker-report-actions">
+            <h2>Meu relatório comercial</h2>
+            <p>Resumo gerado exclusivamente com seus leads, clientes e vendas.</p>
+            <button id="brokerRefreshReportBtn" class="btn primary" type="button">Atualizar relatório</button>
+            <button id="brokerPrintReportBtn" class="btn" type="button">Imprimir / salvar PDF</button>
+            <div id="brokerReportStatus" class="auth-status">Abra a aba para atualizar os dados.</div>
+          </aside>
+          <div class="broker-report-preview">
+            <article id="brokerReportSheet" class="supervisor-report-sheet broker-report-sheet">
+              <header><img id="brokerReportLogo" src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><div><b>Relatório Comercial</b><span id="brokerReportCompany">Lungo</span><small id="brokerReportOwner">Corretor</small></div></header>
+              <div class="report-rule"></div>
+              <div id="brokerReportNumbers" class="report-numbers"></div>
+              <h3>Resumo do funil</h3><div id="brokerReportFunnel" class="report-funnel"></div>
+              <h3>Clientes recentes</h3>
+              <table class="report-table"><thead><tr><th>Cliente</th><th>Produto</th><th>Status</th><th>Valor</th><th>Contratação</th></tr></thead><tbody id="brokerReportClientRows"></tbody></table>
+              <footer><span>Dados exclusivos do corretor autenticado</span><span id="brokerReportFooter">1/1</span></footer>
+            </article>
           </div>
         </div>
       </section>

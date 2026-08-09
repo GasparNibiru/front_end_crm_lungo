@@ -261,6 +261,16 @@
     brokerBannerCompanyName: $("#brokerBannerCompanyName"),
     brokerWeeklyMessage: $("#brokerWeeklyMessage"),
     brokerMonthlyGoal: $("#brokerMonthlyGoal"),
+    brokerReportLogo: $("#brokerReportLogo"),
+    brokerReportCompany: $("#brokerReportCompany"),
+    brokerReportOwner: $("#brokerReportOwner"),
+    brokerReportNumbers: $("#brokerReportNumbers"),
+    brokerReportFunnel: $("#brokerReportFunnel"),
+    brokerReportClientRows: $("#brokerReportClientRows"),
+    brokerReportFooter: $("#brokerReportFooter"),
+    brokerReportStatus: $("#brokerReportStatus"),
+    brokerRefreshReportBtn: $("#brokerRefreshReportBtn"),
+    brokerPrintReportBtn: $("#brokerPrintReportBtn"),
     defaultSoonPanel: $("#defaultSoonPanel"),
     teamUpgradePanel: $("#teamUpgradePanel"),
     contactLungoTeamPlanBtn: $("#contactLungoTeamPlanBtn"),
@@ -293,6 +303,7 @@
       broadcast: $("#view-broadcast"),
       instance: $("#view-instance"),
       clients: $("#view-clients"),
+      relatorios: $("#view-reports"),
       soon: $("#view-soon")
     },
     viewTitle: $("#viewTitle"),
@@ -1110,6 +1121,13 @@
     document.body.classList.toggle("auth-locked", Boolean(locked));
   }
 
+  function formatLastAccess(value) {
+    if (!value || value === "Nunca") return "Nunca";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Nunca";
+    return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+
   function setAuthRole(role) {
     const supervisorActive = role === "supervisor";
     el.corretorTabBtn?.classList.toggle("active", !supervisorActive);
@@ -1239,9 +1257,11 @@
     const defaultLogo = "https://imagensconrato.pagecor.com.br/logo-lungo.png";
     const name = identity.name || "Lungo";
     const logo = identity.logo || defaultLogo;
-    [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
+    const supervisorReportLogo = document.querySelector("#supervisor-view-reports .supervisor-report-sheet header img");
+    [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo], [supervisorReportLogo, logo], [el.brokerReportLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
     if (el.brokerCompanyName) el.brokerCompanyName.textContent = name;
     if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = name;
+    if (el.brokerReportCompany) el.brokerReportCompany.textContent = name;
     if (el.companyNameInput) el.companyNameInput.value = identity.name || "";
     pendingCompanyLogo = identity.logo || pendingCompanyLogo;
     if (el.companyLogoName) el.companyLogoName.textContent = identity.logo ? "Logo salva localmente" : "Nenhum arquivo";
@@ -1319,7 +1339,7 @@
       window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
-    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: broker.lastLoginAt ? new Date(broker.lastLoginAt).toLocaleString("pt-BR") : "Nunca", tokenActive: broker.tokenActive })));
+    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
     const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `client-${client.id}`, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" }));
@@ -1667,7 +1687,7 @@
       relatorios: ["Relatórios", "Indicadores comerciais e relatórios avançados."],
       agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
     };
-    const isSoon = ["cotador", "comprar_leads", "vendedores", "treinamentos", "relatorios", "agenda"].includes(name);
+    const isSoon = ["cotador", "comprar_leads", "vendedores", "treinamentos", "agenda"].includes(name);
     const activeView = isSoon ? "soon" : name;
     el.navItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
     Object.entries(el.views).forEach(([key, node]) => node?.classList.toggle("active", key === activeView));
@@ -1684,6 +1704,7 @@
     }
     else stopCrmRealtime();
     if (name === "clients") loadClients();
+    if (name === "relatorios") refreshBrokerReport();
   }
 
   function tokenQuery() {
@@ -2838,6 +2859,35 @@
     }
   }
 
+  function reportMoneyNumber(value) {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const text = String(value || "").replace(/[^0-9,.-]/g, "");
+    const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+    return Number(normalized) || 0;
+  }
+
+  function renderBrokerReport() {
+    const identity = loadCompanyIdentity();
+    const clients = state.clients || [];
+    const leads = state.leads || [];
+    const closed = leads.filter((lead) => lead.status === "fechamento");
+    const activeClients = clients.filter((client) => !["cancelado", "inativo"].includes(normalizeClientStatus(client.status)));
+    const revenue = clients.reduce((total, client) => total + reportMoneyNumber(client.valorFechado || client.valor || 0), 0);
+    if (el.brokerReportOwner) el.brokerReportOwner.textContent = `Corretor: ${state.clientName || "Usuário"} · ${new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`;
+    if (el.brokerReportNumbers) el.brokerReportNumbers.innerHTML = [["Leads", leads.length], ["Fechamentos", closed.length], ["Clientes ativos", activeClients.length], ["Faturamento", revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })], ["Conversão", leads.length ? `${Math.round((closed.length / leads.length) * 100)}%` : "0%"], ["Total de clientes", clients.length]].map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join("");
+    if (el.brokerReportFunnel) el.brokerReportFunnel.innerHTML = STATUSES.map((stage) => `<span><b>${leads.filter((lead) => lead.status === stage.value).length}</b>${escapeHtml(stage.label)}</span>`).join("");
+    if (el.brokerReportClientRows) el.brokerReportClientRows.innerHTML = clients.slice(0, 10).map((client) => `<tr><td>${escapeHtml(client.nome || client.name || "—")}</td><td>${escapeHtml(client.produto || "—")}</td><td>${escapeHtml(CLIENT_STATUS_LABEL[normalizeClientStatus(client.status)] || "Ativo")}</td><td>${escapeHtml(formatMoney(client.valorFechado || client.valor || ""))}</td><td>${escapeHtml(formatDateOnly(client.dataContratacao || client.createdAt))}</td></tr>`).join("") || `<tr><td colspan="5">Nenhum cliente cadastrado.</td></tr>`;
+    if (el.brokerReportFooter) el.brokerReportFooter.textContent = `${identity.name || "Lungo"} · ${new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · 1/1`;
+    renderCompanyIdentity();
+  }
+
+  async function refreshBrokerReport() {
+    if (el.brokerReportStatus) el.brokerReportStatus.textContent = "Atualizando dados...";
+    await Promise.all([loadCrm(true), loadClients(true)]);
+    renderBrokerReport();
+    if (el.brokerReportStatus) el.brokerReportStatus.textContent = "Relatório atualizado com seus dados.";
+  }
+
   function renderClientBaseSales(client) {
     const sales = clientBaseSales(client);
     if (!el.clientBaseSalesList) return;
@@ -3484,7 +3534,7 @@
     const clientByName = (name) => clients.find((client) => client.name === name);
     adminData = {
       version: ADMIN_DATA_VERSION, remote: true, clients,
-      accesses: accesses.map((access) => ({ id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status: adminRemoteStatus(access.status), createdAt: String(access.created_at || "").slice(0, 10), lastAccess: access.last_login_at || access.token_last_used_at || "Nunca", validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access })),
+      accesses: accesses.map((access) => ({ id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status: adminRemoteStatus(access.status), createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access })),
       receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })),
       supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
     };
@@ -4152,6 +4202,8 @@
     el.importClientsBtn?.addEventListener("click", () => el.importClientsFile?.click());
     el.importClientsFile?.addEventListener("change", () => importClients(el.importClientsFile.files[0]));
     el.exportClientsBtn?.addEventListener("click", exportClients);
+    el.brokerRefreshReportBtn?.addEventListener("click", refreshBrokerReport);
+    el.brokerPrintReportBtn?.addEventListener("click", () => window.print());
     el.syncClosedClientsBtn?.addEventListener("click", () => syncClosedClients(false));
     el.clientForm?.addEventListener("submit", saveClient);
     el.closeClientModalBtn?.addEventListener("click", closeClientModal);
