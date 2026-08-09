@@ -1459,8 +1459,10 @@
         <span>${escapeHtml(broker.login)}</span>
       </div>`).join("");
     if (el.supervisorBrokerList) el.supervisorBrokerList.innerHTML = brokerRows;
+    const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
+    const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}">Copiar</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}">Renovar token</button><button class="tiny-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}">${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}</button></div></td></tr>`).join("");
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}">Copiar</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}">Renovar token</button><button class="tiny-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}">${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}</button></div></td></tr>`).join("") + pendingHireRows;
 
     const stages = [
       ["novos", "Novos", "Novos"], ["em_atendimento", "Em atendimento", "Em atendimento"], ["cotacao", "Cotação", "Cotação Enviada"], ["documentacao", "Doc. recebida", "Documentação recebida"],
@@ -1527,6 +1529,7 @@
 
   function recruitmentLink() { const vacancy = recruitmentData.vacancy; return vacancy ? `${location.origin}${location.pathname}?vaga=${encodeURIComponent(vacancy.slug)}` : ''; }
   function candidateWhatsApp(candidate) { const phone = String(candidate.phone || '').replace(/\D/g, ''); const text = `Olá, ${candidate.name}! Recebemos sua candidatura para a vaga de ${recruitmentData.vacancy?.title || 'Consultor de Planos de Saúde'}. Gostaríamos de conversar sobre a oportunidade. Podemos falar agora?`; return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`; }
+  function recruitmentCandidateAction(candidate) { if (candidate.stage === 'recusado') return `<button class="btn small danger" type="button" data-rh-delete="${candidate.id}">Excluir candidato</button>`; if (candidate.stage === 'aprovado' && !candidate.hiredUserId) return candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`; if (candidate.hiredUserId) return '<span class="rh-hire-pending done">Corretor cadastrado</span>'; return ''; }
 
   function ensureRhEditorModal() {
     let modal = $('#rhEditorModal');
@@ -1542,7 +1545,7 @@
     const vacancy = recruitmentData.vacancy || {}; const fields = { rhVacancyTitle: vacancy.title, rhVacancyHeadline: vacancy.headline, rhVacancyLocation: vacancy.location, rhVacancyWorkModel: vacancy.workModel, rhVacancyDescription: vacancy.description, rhVacancyRequirements: vacancy.requirements, rhVacancyBenefits: vacancy.benefits, rhVacancyActive: String(Boolean(vacancy.active)) };
     if (!preserveForm && !rhFormDirty) Object.entries(fields).forEach(([id, value]) => { if ($(`#${id}`)) $(`#${id}`).value = value || ''; });
     const kanban = $('#rhCandidateKanban'); if (!kanban) return;
-    kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}"><header><b>${escapeHtml(candidate.name)}</b>${candidate.seenAt ? '' : '<span>Novo</span>'}</header><small>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</small><p>${escapeHtml(candidate.phone)}${candidate.email ? ` · ${escapeHtml(candidate.email)}` : ''}</p><select data-rh-stage="${candidate.id}">${RH_STAGES.map(([value, text]) => `<option value="${value}" ${value === candidate.stage ? 'selected' : ''}>${text}</option>`).join('')}</select><div><a class="btn small primary" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener">Chamar no WhatsApp</a><button class="btn small" type="button" data-rh-details="${candidate.id}">Detalhes</button></div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
+    kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane" data-rh-lane="${stage}"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}" draggable="true" data-rh-candidate="${candidate.id}"><header><b>${escapeHtml(candidate.name)}</b>${candidate.seenAt ? '' : '<span>Novo</span>'}</header><small>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</small><p>${escapeHtml(candidate.phone)}${candidate.email ? ` · ${escapeHtml(candidate.email)}` : ''}</p><select data-rh-stage="${candidate.id}">${RH_STAGES.map(([value, text]) => `<option value="${value}" ${value === candidate.stage ? 'selected' : ''}>${text}</option>`).join('')}</select><div><a class="btn small" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn small" type="button" data-rh-details="${candidate.id}">Detalhes</button>${recruitmentCandidateAction(candidate)}</div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
     if ($('#rhVacancyStatus')) $('#rhVacancyStatus').textContent = vacancy.active ? `Vaga publicada: ${recruitmentLink()}` : 'Vaga salva, mas ainda desativada.';
   }
 
@@ -1555,13 +1558,19 @@
 
   async function loadRecruitment(notify = true, preserveForm = true) {
     if (!supervisorAccessToken) return;
-    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
+    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if ($('#supervisor-view-brokers')?.classList.contains('active')) renderSupervisorMocks(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
     catch (error) { if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); } }
   }
 
   async function saveRecruitmentVacancy(event) {
     event.preventDefault(); const identity = loadCompanyIdentity(); const payload = { title: $('#rhVacancyTitle').value.trim(), headline: $('#rhVacancyHeadline').value.trim(), location: $('#rhVacancyLocation').value.trim(), workModel: $('#rhVacancyWorkModel').value, description: $('#rhVacancyDescription').value.trim(), requirements: $('#rhVacancyRequirements').value.trim(), benefits: $('#rhVacancyBenefits').value.trim(), active: $('#rhVacancyActive').value === 'true', companyName: identity.name || supervisorOrganizationName || 'Corretora', logo: identity.logo || '' };
     try { const result = await window.LungoSupervisorApi.updateVacancy(payload, supervisorAccessToken); recruitmentData.vacancy = result.vacancy; rhFormDirty = false; renderRecruitment(false); $('#rhEditorModal')?.close(); toast('Página da vaga atualizada.'); } catch (error) { toast(error.message); }
+  }
+
+  async function updateRecruitmentStage(candidateId, stage) {
+    await window.LungoSupervisorApi.updateCandidate(candidateId, { stage, seen: true }, supervisorAccessToken);
+    if (stage === 'aprovado') { const candidate = recruitmentData.candidates.find((item) => item.id === candidateId); if (candidate && await confirmAction('Candidato aprovado', `Deseja enviar ${candidate.name} para a aba Corretores aguardando a geração do token?`)) await window.LungoSupervisorApi.updateCandidate(candidateId, { hirePending: true, seen: true }, supervisorAccessToken); }
+    await loadRecruitment(false, true);
   }
 
   async function loadPublicVacancy(slug) {
@@ -1582,8 +1591,10 @@
   async function submitPublicApplication(event) {
     event.preventDefault(); const slug = new URLSearchParams(location.search).get('vaga'); const status = $('#publicApplicationStatus');
     const payload = { name: $('#applicationName').value.trim(), phone: $('#applicationPhone').value.trim(), email: $('#applicationEmail').value.trim(), city: $('#applicationCity').value.trim(), experience: $('#applicationExperience').value, resumeUrl: $('#applicationResumeUrl').value.trim(), message: $('#applicationMessage').value.trim(), website: $('#applicationWebsite').value };
-    try { const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); event.currentTarget.reset(); status.textContent = 'Candidatura enviada com sucesso! A equipe entrará em contato.'; status.classList.add('ok'); }
-    catch (error) { status.textContent = error.message || 'Não foi possível enviar.'; status.classList.add('error'); }
+    if (payload.name.length < 2 || payload.phone.replace(/\D/g, '').length < 10) { status.textContent = 'Informe seu nome completo e um WhatsApp válido.'; status.classList.add('error'); status.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    const button = event.currentTarget.querySelector('button[type="submit"]'); if (button) { button.disabled = true; button.textContent = 'Enviando...'; }
+    try { const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); event.currentTarget.innerHTML = `<div class="application-success"><span>✓</span><h2>Candidatura enviada!</h2><p>Recebemos seus dados com sucesso. A equipe responsável entrará em contato pelo WhatsApp informado.</p><small>Não é necessário enviar novamente.</small></div>`; }
+    catch (error) { status.textContent = error.message || 'Não foi possível enviar sua candidatura. Tente novamente.'; status.classList.add('error'); if (button) { button.disabled = false; button.textContent = 'Enviar candidatura'; } }
   }
 
   function setSupervisorView(name) {
@@ -4237,7 +4248,7 @@
   }
 
   function bindEvents() {
-    $('#publicApplicationForm')?.addEventListener('submit', submitPublicApplication);
+    if ($('#publicApplicationForm')) { $('#publicApplicationForm').noValidate = true; $('#publicApplicationForm').addEventListener('submit', submitPublicApplication); }
     document.addEventListener('click', (event) => { const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); });
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
     el.navItems.forEach((btn) => btn.addEventListener("click", () => {
@@ -4341,8 +4352,17 @@
     $('#rhVacancyForm')?.addEventListener('input', () => { rhFormDirty = true; });
     $('#rhRefreshBtn')?.addEventListener('click', () => loadRecruitment(false));
     $('#rhCopyLinkBtn')?.addEventListener('click', async () => { const link = recruitmentLink(); if (!link) return toast('Salve a vaga primeiro.'); await navigator.clipboard.writeText(link); toast('Link público da vaga copiado.'); });
-    $('#rhCandidateKanban')?.addEventListener('change', async (event) => { const select = event.target.closest('[data-rh-stage]'); if (!select) return; try { await window.LungoSupervisorApi.updateCandidate(select.dataset.rhStage, { stage: select.value, seen: true }, supervisorAccessToken); await loadRecruitment(false); } catch (error) { toast(error.message); } });
+    $('#rhCandidateKanban')?.addEventListener('change', async (event) => { const select = event.target.closest('[data-rh-stage]'); if (!select) return; try { await updateRecruitmentStage(select.dataset.rhStage, select.value); } catch (error) { toast(error.message); } });
     $('#rhCandidateKanban')?.addEventListener('click', (event) => { const button = event.target.closest('[data-rh-details]'); if (!button) return; const candidate = recruitmentData.candidates.find((item) => item.id === button.dataset.rhDetails); if (!candidate) return; openSupervisorModal(candidate.name, 'Candidato à vaga', [['WhatsApp', candidate.phone], ['E-mail', candidate.email || '—'], ['Cidade', candidate.city || '—'], ['Experiência', candidate.experience || '—'], ['Currículo', candidate.resumeUrl || '—'], ['Apresentação', candidate.message || '—']]); });
+    $('#rhCandidateKanban')?.addEventListener('click', async (event) => {
+      const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]');
+      if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await confirmAction('Cadastrar novo corretor', `${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`)) return; await window.LungoSupervisorApi.updateCandidate(candidate.id, { hirePending: true, seen: true }, supervisorAccessToken); await loadRecruitment(false, true); renderSupervisorMocks(); setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
+      if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await confirmAction('Excluir candidato recusado', `Excluir definitivamente ${candidate.name}?`)) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
+    });
+    $('#rhCandidateKanban')?.addEventListener('dragstart', (event) => { const card = event.target.closest('[data-rh-candidate]'); if (!card) return; event.dataTransfer.setData('text/rh-candidate', card.dataset.rhCandidate); event.dataTransfer.effectAllowed = 'move'; });
+    $('#rhCandidateKanban')?.addEventListener('dragover', (event) => { const lane = event.target.closest('[data-rh-lane]'); if (!lane) return; event.preventDefault(); lane.classList.add('drag-over'); });
+    $('#rhCandidateKanban')?.addEventListener('dragleave', (event) => event.target.closest('[data-rh-lane]')?.classList.remove('drag-over'));
+    $('#rhCandidateKanban')?.addEventListener('drop', async (event) => { const lane = event.target.closest('[data-rh-lane]'); if (!lane) return; event.preventDefault(); lane.classList.remove('drag-over'); const id = event.dataTransfer.getData('text/rh-candidate'); if (!id) return; try { await updateRecruitmentStage(id, lane.dataset.rhLane); } catch (error) { toast(error.message); } });
     el.supervisorImportBtn?.addEventListener("click", () => toast("Importação simulada. Nenhum arquivo foi enviado."));
     el.supervisorExportBtn?.addEventListener("click", () => toast("Exportação simulada. Nenhum arquivo foi gerado."));
     el.supervisorArchiveBtn?.addEventListener("click", () => {
@@ -4361,6 +4381,13 @@
         return;
       }
       const brokerButton = event.target.closest("[data-supervisor-broker-action]");
+      const candidateTokenButton = event.target.closest('[data-rh-generate-token]');
+      if (candidateTokenButton) {
+        const candidate = recruitmentData.candidates.find((item) => item.id === candidateTokenButton.dataset.rhGenerateToken); if (!candidate) return;
+        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); await window.LungoSupervisorApi.updateCandidate(candidate.id, { hiredUserId: result.broker?.id || result.user?.id || '', hirePending: false, seen: true }, supervisorAccessToken); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast('Corretor cadastrado e token gerado.'); } }
+        catch (error) { toast(error.message); }
+        return;
+      }
       if (brokerButton) {
         const broker = SUPERVISOR_BROKERS.find((item) => item.id === brokerButton.dataset.brokerId);
         if (!broker) return;

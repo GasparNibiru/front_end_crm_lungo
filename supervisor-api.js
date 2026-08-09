@@ -27,6 +27,7 @@
   const getRecruitment = (token) => request('/api/supervisor/recruitment', { token });
   const updateVacancy = (payload, token) => request('/api/supervisor/recruitment/vacancy', { method: 'PATCH', token, body: payload });
   const updateCandidate = (id, payload, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'PATCH', token, body: payload });
+  const deleteCandidate = (id, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'DELETE', token });
   const markCandidatesSeen = (token) => request('/api/supervisor/recruitment/candidates/seen', { method: 'POST', token, body: {} });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, markCandidatesSeen });
+  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen });
 })();
