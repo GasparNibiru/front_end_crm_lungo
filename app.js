@@ -1562,14 +1562,19 @@
     catch (error) { if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); } }
   }
 
+  function compactRecruitmentLogo(source) {
+    if (!source || source.length < 400000) return Promise.resolve(source || '');
+    return new Promise((resolve) => { const image = new Image(); image.onload = () => { const scale = Math.min(1, 360 / Math.max(image.width, image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale)); canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/webp', .82)); }; image.onerror = () => resolve(''); image.src = source; });
+  }
+
   async function saveRecruitmentVacancy(event) {
-    event.preventDefault(); const identity = loadCompanyIdentity(); const payload = { title: $('#rhVacancyTitle').value.trim(), headline: $('#rhVacancyHeadline').value.trim(), location: $('#rhVacancyLocation').value.trim(), workModel: $('#rhVacancyWorkModel').value, description: $('#rhVacancyDescription').value.trim(), requirements: $('#rhVacancyRequirements').value.trim(), benefits: $('#rhVacancyBenefits').value.trim(), active: $('#rhVacancyActive').value === 'true', companyName: identity.name || supervisorOrganizationName || 'Corretora', logo: identity.logo || '' };
+    event.preventDefault(); const identity = loadCompanyIdentity(); const logo = await compactRecruitmentLogo(identity.logo || ''); const payload = { title: $('#rhVacancyTitle').value.trim(), headline: $('#rhVacancyHeadline').value.trim(), location: $('#rhVacancyLocation').value.trim(), workModel: $('#rhVacancyWorkModel').value, description: $('#rhVacancyDescription').value.trim(), requirements: $('#rhVacancyRequirements').value.trim(), benefits: $('#rhVacancyBenefits').value.trim(), active: $('#rhVacancyActive').value === 'true', companyName: identity.name || supervisorOrganizationName || 'Corretora', logo };
     try { const result = await window.LungoSupervisorApi.updateVacancy(payload, supervisorAccessToken); recruitmentData.vacancy = result.vacancy; rhFormDirty = false; renderRecruitment(false); $('#rhEditorModal')?.close(); toast('Página da vaga atualizada.'); } catch (error) { toast(error.message); }
   }
 
   async function updateRecruitmentStage(candidateId, stage) {
     await window.LungoSupervisorApi.updateCandidate(candidateId, { stage, seen: true }, supervisorAccessToken);
-    if (stage === 'aprovado') { const candidate = recruitmentData.candidates.find((item) => item.id === candidateId); if (candidate && await confirmAction('Candidato aprovado', `Deseja enviar ${candidate.name} para a aba Corretores aguardando a geração do token?`)) await window.LungoSupervisorApi.updateCandidate(candidateId, { hirePending: true, seen: true }, supervisorAccessToken); }
+    if (stage === 'aprovado') { const candidate = recruitmentData.candidates.find((item) => item.id === candidateId); if (candidate && await popupConfirm(`Deseja enviar ${candidate.name} para a aba Corretores aguardando a geração do token?`, 'Candidato aprovado')) await window.LungoSupervisorApi.updateCandidate(candidateId, { hirePending: true, seen: true }, supervisorAccessToken); }
     await loadRecruitment(false, true);
   }
 
@@ -1589,11 +1594,11 @@
   }
 
   async function submitPublicApplication(event) {
-    event.preventDefault(); const slug = new URLSearchParams(location.search).get('vaga'); const status = $('#publicApplicationStatus');
+    event.preventDefault(); const form = event.currentTarget; const slug = new URLSearchParams(location.search).get('vaga'); const status = $('#publicApplicationStatus');
     const payload = { name: $('#applicationName').value.trim(), phone: $('#applicationPhone').value.trim(), email: $('#applicationEmail').value.trim(), city: $('#applicationCity').value.trim(), experience: $('#applicationExperience').value, resumeUrl: $('#applicationResumeUrl').value.trim(), message: $('#applicationMessage').value.trim(), website: $('#applicationWebsite').value };
     if (payload.name.length < 2 || payload.phone.replace(/\D/g, '').length < 10) { status.textContent = 'Informe seu nome completo e um WhatsApp válido.'; status.classList.add('error'); status.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-    const button = event.currentTarget.querySelector('button[type="submit"]'); if (button) { button.disabled = true; button.textContent = 'Enviando...'; }
-    try { const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); event.currentTarget.innerHTML = `<div class="application-success"><span>✓</span><h2>Candidatura enviada!</h2><p>Recebemos seus dados com sucesso. A equipe responsável entrará em contato pelo WhatsApp informado.</p><small>Não é necessário enviar novamente.</small></div>`; }
+    const button = form.querySelector('button[type="submit"]'); if (button) { button.disabled = true; button.textContent = 'Enviando...'; }
+    try { const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); form.innerHTML = `<div class="application-success"><span>✓</span><h2>Candidatura enviada!</h2><p>Recebemos seus dados com sucesso. A equipe responsável entrará em contato pelo WhatsApp informado.</p><small>Não é necessário enviar novamente.</small></div>`; }
     catch (error) { status.textContent = error.message || 'Não foi possível enviar sua candidatura. Tente novamente.'; status.classList.add('error'); if (button) { button.disabled = false; button.textContent = 'Enviar candidatura'; } }
   }
 
@@ -4004,7 +4009,7 @@
     const button = event.target.closest('[data-training-action]'); if (!button) return;
     const item = adminTrainings.find((training) => training.id === button.dataset.id); if (!item) return;
     if (button.dataset.trainingAction === 'edit') { $('#adminTrainingId').value = item.id; $('#adminTrainingTitle').value = item.title; $('#adminTrainingUrl').value = item.url; $('#adminTrainingTrack').value = item.track; $('#adminTrainingDescription').value = item.description || ''; $('#adminTrainingStars').value = String(item.stars || 0); $('#adminTrainingOrder').value = String(item.order || 0); $('#adminTrainingActive').value = String(item.active !== false); $('#adminTrainingFormTitle').textContent = 'Editar treinamento'; $('#adminTrainingTitle').focus(); return; }
-    try { if (button.dataset.trainingAction === 'toggle') await window.LungoAdminApi.updateTraining(item.id, { active: item.active === false }, adminMasterKey); if (button.dataset.trainingAction === 'delete') { if (!await confirmAction('Excluir treinamento', `Deseja excluir “${item.title}”?`)) return; await window.LungoAdminApi.deleteTraining(item.id, adminMasterKey); } await loadAdminTrainings(); }
+    try { if (button.dataset.trainingAction === 'toggle') await window.LungoAdminApi.updateTraining(item.id, { active: item.active === false }, adminMasterKey); if (button.dataset.trainingAction === 'delete') { if (!await popupConfirm(`Deseja excluir “${item.title}”?`, 'Excluir treinamento')) return; await window.LungoAdminApi.deleteTraining(item.id, adminMasterKey); } await loadAdminTrainings(); }
     catch (error) { toast(error.message); }
   }
 
@@ -4356,8 +4361,8 @@
     $('#rhCandidateKanban')?.addEventListener('click', (event) => { const button = event.target.closest('[data-rh-details]'); if (!button) return; const candidate = recruitmentData.candidates.find((item) => item.id === button.dataset.rhDetails); if (!candidate) return; openSupervisorModal(candidate.name, 'Candidato à vaga', [['WhatsApp', candidate.phone], ['E-mail', candidate.email || '—'], ['Cidade', candidate.city || '—'], ['Experiência', candidate.experience || '—'], ['Currículo', candidate.resumeUrl || '—'], ['Apresentação', candidate.message || '—']]); });
     $('#rhCandidateKanban')?.addEventListener('click', async (event) => {
       const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]');
-      if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await confirmAction('Cadastrar novo corretor', `${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`)) return; await window.LungoSupervisorApi.updateCandidate(candidate.id, { hirePending: true, seen: true }, supervisorAccessToken); await loadRecruitment(false, true); renderSupervisorMocks(); setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
-      if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await confirmAction('Excluir candidato recusado', `Excluir definitivamente ${candidate.name}?`)) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
+      if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await popupConfirm(`${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`, 'Cadastrar novo corretor')) return; await window.LungoSupervisorApi.updateCandidate(candidate.id, { hirePending: true, seen: true }, supervisorAccessToken); await loadRecruitment(false, true); renderSupervisorMocks(); setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
+      if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir definitivamente ${candidate.name}?`, 'Excluir candidato recusado')) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
     });
     $('#rhCandidateKanban')?.addEventListener('dragstart', (event) => { const card = event.target.closest('[data-rh-candidate]'); if (!card) return; event.dataTransfer.setData('text/rh-candidate', card.dataset.rhCandidate); event.dataTransfer.effectAllowed = 'move'; });
     $('#rhCandidateKanban')?.addEventListener('dragover', (event) => { const lane = event.target.closest('[data-rh-lane]'); if (!lane) return; event.preventDefault(); lane.classList.add('drag-over'); });
