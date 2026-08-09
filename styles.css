@@ -2294,8 +2294,13 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .broker-message-body { padding: 20px; display: grid; gap: 10px; }
 .broker-message-body > span { color: var(--muted); font-size: 10px; }
 .broker-message-body > p { margin: 0; padding: 16px; border-left: 3px solid var(--primary); background: var(--surface-2); white-space: pre-wrap; line-height: 1.6; }
-.rh-layout { height: 100%; min-height: 0; display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 10px; overflow: hidden; }
+.rh-layout { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; overflow: hidden; }
 .rh-vacancy-editor, .rh-candidates-panel { min-height: 0; overflow: auto; }
+.rh-editor-modal { width: min(820px, calc(100vw - 24px)); }
+.rh-editor-modal .modal-card { width: 100%; max-width: none; max-height: min(92vh, 900px); overflow: hidden; }
+.rh-editor-body { min-height: 0; overflow-y: auto; }
+.rh-editor-body .rh-vacancy-editor { border: 0; border-radius: 0; box-shadow: none; }
+.rh-editor-body .rh-vacancy-editor > header { padding-top: 0; }
 .rh-vacancy-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .rh-vacancy-form label { display: grid; gap: 4px; }
 .rh-vacancy-form label span { color: var(--muted); font-size: 10px; }
@@ -2316,6 +2321,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .public-vacancy-page { width: min(1080px, 100%); margin: auto; }
 .public-vacancy-page > header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 22px; color: #526273; }
 .public-vacancy-page > header img { width: 58px; height: 58px; object-fit: contain; }
+.public-vacancy-page > header b { margin-right: auto; margin-left: 10px; color: #17202b; font-size: 15px; }
 .public-vacancy-hero { min-height: 280px; padding: 42px; border-radius: 16px; background: linear-gradient(135deg, #0c262b, #0e8282); color: #fff; display: flex; align-items: center; }
 .public-vacancy-hero span { color: #76e3d8; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; }
 .public-vacancy-hero h1 { max-width: 700px; margin: 10px 0; font-size: clamp(32px, 6vw, 62px); line-height: 1.02; }
@@ -2331,6 +2337,21 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .public-application-form label { display: grid; gap: 5px; }
 .public-application-form label span { color: #526273; font-size: 10px; }
 #applicationWebsite { position: absolute; left: -9999px; opacity: 0; pointer-events: none; }
+@media (min-width: 901px) and (min-height: 680px) {
+  .public-vacancy-screen { height: 100vh; overflow: hidden; }
+  .public-vacancy-page { height: 100%; display: grid; grid-template-rows: 70px 210px minmax(0, 1fr); }
+  .public-vacancy-page > header { padding: 5px 0 8px; }
+  .public-vacancy-page > header img { width: 48px; height: 48px; }
+  .public-vacancy-hero { min-height: 0; padding: 26px 36px; }
+  .public-vacancy-hero h1 { font-size: clamp(30px, 4vw, 48px); }
+  .public-vacancy-content { min-height: 0; padding: 14px 0 0; gap: 22px; overflow: hidden; }
+  .public-vacancy-content > article, .public-application-form { min-height: 0; overflow-y: auto; }
+  .public-vacancy-content > article { padding: 4px; }
+  .public-vacancy-content h2 { margin-top: 4px; }
+  .public-vacancy-content h3 { margin: 14px 0 7px; }
+  .public-application-form { padding: 15px 18px; gap: 7px 10px; }
+  .public-application-form textarea { min-height: 55px; }
+}
 .supervisor-modal { width: min(620px, calc(100vw - 24px)); }
 .supervisor-modal-body { max-height: min(64vh, 560px); overflow-y: auto; padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 .supervisor-modal-body article { padding: 9px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-2); display: grid; gap: 3px; }

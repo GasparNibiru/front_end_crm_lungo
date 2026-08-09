@@ -147,6 +147,7 @@
   let supervisorMessageTimer = null;
   let recruitmentData = { vacancy: null, candidates: [] };
   let recruitmentTimer = null;
+  let rhFormDirty = false;
   let activeBrokerMessage = null;
   let adminMasterAccessType = "individual";
   let adminMasterGeneratedMessage = "";
@@ -1502,7 +1503,7 @@
     if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = supervisorOrganizationName || "Corretora";
     const topOrganization = document.querySelector(".supervisor-top-actions strong");
     if (topOrganization) topOrganization.textContent = supervisorOrganizationName || "Corretora";
-    clearInterval(recruitmentTimer); loadRecruitment(true); recruitmentTimer = setInterval(() => loadRecruitment(true), 20000);
+    clearInterval(recruitmentTimer); loadRecruitment(true, false); recruitmentTimer = setInterval(() => loadRecruitment(true, true), 20000);
   }
 
   function closeSupervisorArea() {
@@ -1527,9 +1528,19 @@
   function recruitmentLink() { const vacancy = recruitmentData.vacancy; return vacancy ? `${location.origin}${location.pathname}?vaga=${encodeURIComponent(vacancy.slug)}` : ''; }
   function candidateWhatsApp(candidate) { const phone = String(candidate.phone || '').replace(/\D/g, ''); const text = `Olá, ${candidate.name}! Recebemos sua candidatura para a vaga de ${recruitmentData.vacancy?.title || 'Consultor de Planos de Saúde'}. Gostaríamos de conversar sobre a oportunidade. Podemos falar agora?`; return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`; }
 
-  function renderRecruitment() {
+  function ensureRhEditorModal() {
+    let modal = $('#rhEditorModal');
+    if (!modal) { document.body.insertAdjacentHTML('beforeend', `<dialog id="rhEditorModal" class="modal rh-editor-modal"><div class="modal-card"><header><div><h2>Personalizar landing page</h2><p>Configure o conteúdo e a publicação da vaga.</p></div><button id="rhEditorClose" class="btn icon" type="button">×</button></header><div id="rhEditorBody" class="rh-editor-body"></div></div></dialog>`); modal = $('#rhEditorModal'); $('#rhEditorClose').onclick = () => modal.close(); modal.addEventListener('cancel', (event) => { event.preventDefault(); modal.close(); }); }
+    const editor = $('.rh-vacancy-editor'); if (editor && editor.parentElement !== $('#rhEditorBody')) $('#rhEditorBody').appendChild(editor);
+    const panelHeader = $('.rh-candidates-panel > header'); if (panelHeader && !$('#rhOpenEditorBtn')) panelHeader.insertAdjacentHTML('beforeend', '<button id="rhOpenEditorBtn" class="btn primary" type="button">Personalizar landing page</button>');
+    if ($('#rhOpenEditorBtn')) $('#rhOpenEditorBtn').onclick = () => modal.showModal();
+    return modal;
+  }
+
+  function renderRecruitment(preserveForm = false) {
+    ensureRhEditorModal();
     const vacancy = recruitmentData.vacancy || {}; const fields = { rhVacancyTitle: vacancy.title, rhVacancyHeadline: vacancy.headline, rhVacancyLocation: vacancy.location, rhVacancyWorkModel: vacancy.workModel, rhVacancyDescription: vacancy.description, rhVacancyRequirements: vacancy.requirements, rhVacancyBenefits: vacancy.benefits, rhVacancyActive: String(Boolean(vacancy.active)) };
-    Object.entries(fields).forEach(([id, value]) => { if ($(`#${id}`)) $(`#${id}`).value = value || ''; });
+    if (!preserveForm && !rhFormDirty) Object.entries(fields).forEach(([id, value]) => { if ($(`#${id}`)) $(`#${id}`).value = value || ''; });
     const kanban = $('#rhCandidateKanban'); if (!kanban) return;
     kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}"><header><b>${escapeHtml(candidate.name)}</b>${candidate.seenAt ? '' : '<span>Novo</span>'}</header><small>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</small><p>${escapeHtml(candidate.phone)}${candidate.email ? ` · ${escapeHtml(candidate.email)}` : ''}</p><select data-rh-stage="${candidate.id}">${RH_STAGES.map(([value, text]) => `<option value="${value}" ${value === candidate.stage ? 'selected' : ''}>${text}</option>`).join('')}</select><div><a class="btn small primary" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener">Chamar no WhatsApp</a><button class="btn small" type="button" data-rh-details="${candidate.id}">Detalhes</button></div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
     if ($('#rhVacancyStatus')) $('#rhVacancyStatus').textContent = vacancy.active ? `Vaga publicada: ${recruitmentLink()}` : 'Vaga salva, mas ainda desativada.';
@@ -1542,20 +1553,29 @@
     $('#rhNotificationOpen').onclick = () => finish(true); $('#rhNotificationClose').onclick = () => finish(false); modal.addEventListener('cancel', (event) => event.preventDefault()); modal.showModal();
   }
 
-  async function loadRecruitment(notify = true) {
+  async function loadRecruitment(notify = true, preserveForm = true) {
     if (!supervisorAccessToken) return;
-    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] }; renderRecruitment(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
+    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
     catch (error) { if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); } }
   }
 
   async function saveRecruitmentVacancy(event) {
-    event.preventDefault(); const payload = { title: $('#rhVacancyTitle').value.trim(), headline: $('#rhVacancyHeadline').value.trim(), location: $('#rhVacancyLocation').value.trim(), workModel: $('#rhVacancyWorkModel').value, description: $('#rhVacancyDescription').value.trim(), requirements: $('#rhVacancyRequirements').value.trim(), benefits: $('#rhVacancyBenefits').value.trim(), active: $('#rhVacancyActive').value === 'true' };
-    try { const result = await window.LungoSupervisorApi.updateVacancy(payload, supervisorAccessToken); recruitmentData.vacancy = result.vacancy; renderRecruitment(); toast('Página da vaga atualizada.'); } catch (error) { toast(error.message); }
+    event.preventDefault(); const identity = loadCompanyIdentity(); const payload = { title: $('#rhVacancyTitle').value.trim(), headline: $('#rhVacancyHeadline').value.trim(), location: $('#rhVacancyLocation').value.trim(), workModel: $('#rhVacancyWorkModel').value, description: $('#rhVacancyDescription').value.trim(), requirements: $('#rhVacancyRequirements').value.trim(), benefits: $('#rhVacancyBenefits').value.trim(), active: $('#rhVacancyActive').value === 'true', companyName: identity.name || supervisorOrganizationName || 'Corretora', logo: identity.logo || '' };
+    try { const result = await window.LungoSupervisorApi.updateVacancy(payload, supervisorAccessToken); recruitmentData.vacancy = result.vacancy; rhFormDirty = false; renderRecruitment(false); $('#rhEditorModal')?.close(); toast('Página da vaga atualizada.'); } catch (error) { toast(error.message); }
   }
 
   async function loadPublicVacancy(slug) {
     document.body.classList.add('public-vacancy-mode'); $('#publicVacancyScreen').hidden = false; $('#authScreen').hidden = true;
-    try { const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}`); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Vaga indisponível.'); const vacancy = data.vacancy; $('#publicVacancyTitle').textContent = vacancy.title; $('#publicVacancyHeadline').textContent = vacancy.headline || ''; $('#publicVacancyLocation').textContent = [vacancy.workModel, vacancy.location].filter(Boolean).join(' · '); $('#publicVacancyDescription').textContent = vacancy.description || ''; const lines = (value) => String(value || '').split('\n').filter(Boolean).map((line) => `<span>✓ ${escapeHtml(line)}</span>`).join('') || '<span>Consulte a equipe responsável.</span>'; $('#publicVacancyRequirements').innerHTML = lines(vacancy.requirements); $('#publicVacancyBenefits').innerHTML = lines(vacancy.benefits); }
+    try {
+      const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}`); const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Vaga indisponível.');
+      const vacancy = data.vacancy; const header = $('.public-vacancy-page > header'); const logo = header?.querySelector('img');
+      if (logo && vacancy.logo) { logo.src = vacancy.logo; logo.alt = vacancy.companyName || 'Corretora'; }
+      if (header && !$('#publicVacancyCompany')) logo?.insertAdjacentHTML('afterend', `<b id="publicVacancyCompany">${escapeHtml(vacancy.companyName || 'Corretora')}</b>`);
+      $('#publicVacancyTitle').textContent = vacancy.title; $('#publicVacancyHeadline').textContent = vacancy.headline || ''; $('#publicVacancyLocation').textContent = [vacancy.workModel, vacancy.location].filter(Boolean).join(' · '); $('#publicVacancyDescription').textContent = vacancy.description || '';
+      const lines = (value) => String(value || '').split('\n').filter(Boolean).map((line) => `<span>✓ ${escapeHtml(line)}</span>`).join('') || '<span>Consulte a equipe responsável.</span>';
+      $('#publicVacancyRequirements').innerHTML = lines(vacancy.requirements); $('#publicVacancyBenefits').innerHTML = lines(vacancy.benefits);
+    }
     catch (error) { $('.public-vacancy-content').innerHTML = `<div class="empty-state"><h2>Vaga indisponível</h2><p>${escapeHtml(error.message)}</p></div>`; }
   }
 
@@ -4318,6 +4338,7 @@
     });
     el.supervisorSendMessageBtn?.addEventListener("click", sendSupervisorMessage);
     $('#rhVacancyForm')?.addEventListener('submit', saveRecruitmentVacancy);
+    $('#rhVacancyForm')?.addEventListener('input', () => { rhFormDirty = true; });
     $('#rhRefreshBtn')?.addEventListener('click', () => loadRecruitment(false));
     $('#rhCopyLinkBtn')?.addEventListener('click', async () => { const link = recruitmentLink(); if (!link) return toast('Salve a vaga primeiro.'); await navigator.clipboard.writeText(link); toast('Link público da vaga copiado.'); });
     $('#rhCandidateKanban')?.addEventListener('change', async (event) => { const select = event.target.closest('[data-rh-stage]'); if (!select) return; try { await window.LungoSupervisorApi.updateCandidate(select.dataset.rhStage, { stage: select.value, seen: true }, supervisorAccessToken); await loadRecruitment(false); } catch (error) { toast(error.message); } });
