@@ -19,5 +19,6 @@
   const getClients = (token) => request("/api/supervisor/clients", { token });
   const getLeads = (token) => request("/api/supervisor/leads", { token });
   const getOperationalClients = (token) => request("/api/supervisor/operational-clients", { token });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients });
+  const getTrainings = (token) => request('/api/trainings', { token });
+  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings });
 })();

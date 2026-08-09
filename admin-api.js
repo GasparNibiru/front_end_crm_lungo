@@ -51,6 +51,10 @@
   const updatePayment = (id, payload, adminKey) => request(`/api/admin/payments/${encodeURIComponent(id)}`, { method: "PATCH", adminKey, body: payload });
   const confirmPayment = (id, payload, adminKey) => request(`/api/admin/payments/${encodeURIComponent(id)}/confirm`, { method: "POST", adminKey, body: payload });
   const getPaymentHistory = (organizationId, adminKey) => request(`/api/admin/organizations/${encodeURIComponent(organizationId)}/payment-history`, { adminKey });
+  const getTrainings = (adminKey) => request('/api/admin/trainings', { adminKey });
+  const createTraining = (payload, adminKey) => request('/api/admin/trainings', { method: 'POST', adminKey, body: payload });
+  const updateTraining = (id, payload, adminKey) => request(`/api/admin/trainings/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
+  const deleteTraining = (id, adminKey) => request(`/api/admin/trainings/${encodeURIComponent(id)}`, { method: 'DELETE', adminKey });
 
-  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, changeAccess, renewAccess, invalidateAccess, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory });
+  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, changeAccess, renewAccess, invalidateAccess, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining });
 })();

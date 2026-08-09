@@ -142,6 +142,7 @@
   ];
   let adminMasterLogged = false;
   let adminMasterKey = "";
+  let adminTrainings = [];
   let adminMasterAccessType = "individual";
   let adminMasterGeneratedMessage = "";
   let adminData = null;
@@ -271,6 +272,9 @@
     brokerReportStatus: $("#brokerReportStatus"),
     brokerRefreshReportBtn: $("#brokerRefreshReportBtn"),
     brokerPrintReportBtn: $("#brokerPrintReportBtn"),
+    brokerTrainingLibrary: $("#brokerTrainingLibrary"),
+    brokerTrainingTrackFilter: $("#brokerTrainingTrackFilter"),
+    brokerTrainingStatus: $("#brokerTrainingStatus"),
     defaultSoonPanel: $("#defaultSoonPanel"),
     teamUpgradePanel: $("#teamUpgradePanel"),
     contactLungoTeamPlanBtn: $("#contactLungoTeamPlanBtn"),
@@ -303,6 +307,7 @@
       broadcast: $("#view-broadcast"),
       instance: $("#view-instance"),
       clients: $("#view-clients"),
+      treinamentos: $("#view-trainings"),
       relatorios: $("#view-reports"),
       soon: $("#view-soon")
     },
@@ -1287,6 +1292,35 @@
     el.supervisorOperationContent.innerHTML = `<header class="supervisor-operation-header"><div><h2>${escapeHtml(labels[name] || "Operação")}</h2><p>${escapeHtml(descriptions[name] || "Módulo operacional")}</p></div><span class="status-mini">Sessão própria · mock</span></header><div class="supervisor-operation-grid">${cards.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("")}</div><section class="supervisor-card"><header><div><h2>Estrutura operacional</h2><p>Esta prévia segue o padrão do corretor sem usar seu token ou chamar endpoints.</p></div></header><div class="toolbar"><input class="search" placeholder="Buscar neste módulo" disabled><button class="btn primary" type="button" disabled>Nova ação</button><button class="btn" type="button" disabled>Atualizar</button></div></section>`;
   }
 
+  function trainingStars(count) { return count > 0 ? `<span class="training-stars" aria-label="${count} estrelas">${'★'.repeat(count)}</span>` : ''; }
+
+  function trainingCards(trainings) {
+    if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado nesta trilha.</div>';
+    const tracks = [...new Set(trainings.map((item) => item.track || 'Geral'))];
+    return tracks.map((track) => `<section class="training-track"><header><div><span>Trilha de conhecimento</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter((item) => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter((item) => (item.track || 'Geral') === track).map((item) => `<article class="training-card"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="training-thumb"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir no YouTube</span></a><div><small>${escapeHtml(item.track || 'Geral')}</small><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p></div></article>`).join('')}</div></section>`).join('');
+  }
+
+  async function loadTrainingLibrary(token, target = 'broker') {
+    const library = target === 'broker' ? el.brokerTrainingLibrary : el.supervisorOperationContent;
+    const status = target === 'broker' ? el.brokerTrainingStatus : null;
+    if (status) status.textContent = 'Carregando treinamentos...';
+    try {
+      const result = await window.LungoSupervisorApi.getTrainings(token);
+      const trainings = result.trainings || [];
+      if (target === 'supervisor') {
+        library.innerHTML = `<div class="training-library"><header class="training-library-header"><div><h2>Central de treinamentos</h2><p>Conteúdos organizados pelo Admin Master.</p></div><select id="supervisorTrainingTrackFilter" class="select"><option value="">Todas as trilhas</option></select></header><div id="supervisorTrainingLibrary" class="training-tracks">${trainingCards(trainings)}</div></div>`;
+        const filter = $('#supervisorTrainingTrackFilter');
+        [...new Set(trainings.map((item) => item.track || 'Geral'))].forEach((track) => filter.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(track)}">${escapeHtml(track)}</option>`));
+        filter.addEventListener('change', () => { $('#supervisorTrainingLibrary').innerHTML = trainingCards(filter.value ? trainings.filter((item) => (item.track || 'Geral') === filter.value) : trainings); });
+      } else {
+        library.innerHTML = trainingCards(trainings);
+        el.brokerTrainingTrackFilter.innerHTML = '<option value="">Todas as trilhas</option>' + [...new Set(trainings.map((item) => item.track || 'Geral'))].map((track) => `<option value="${escapeHtml(track)}">${escapeHtml(track)}</option>`).join('');
+        el.brokerTrainingTrackFilter.onchange = () => { library.innerHTML = trainingCards(el.brokerTrainingTrackFilter.value ? trainings.filter((item) => (item.track || 'Geral') === el.brokerTrainingTrackFilter.value) : trainings); };
+        if (status) status.textContent = `${trainings.length} treinamento(s) disponível(is).`;
+      }
+    } catch (error) { if (status) { status.textContent = error.message; status.classList.add('error'); } else library.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
+  }
+
   function restoreSupervisorSharedView() {
     if (!supervisorMountedView) return;
     const stateEntry = supervisorSharedViewState.get(supervisorMountedView);
@@ -1298,7 +1332,8 @@
 
   function mountSupervisorSharedView(name) {
     restoreSupervisorSharedView();
-    const soonModules = ["cotador", "comprar_leads", "treinamentos", "agenda"];
+    if (name === 'treinamentos') { loadTrainingLibrary(supervisorAccessToken, 'supervisor'); return; }
+    const soonModules = ["cotador", "comprar_leads", "agenda"];
     const viewName = soonModules.includes(name) ? "soon" : name;
     const node = el.views[viewName];
     if (!node || !el.supervisorOperationContent) { renderSupervisorOperation(name); return; }
@@ -1669,7 +1704,7 @@
       setAuthStatus("Informe o token para liberar o sistema.", "");
       return;
     }
-    if (!state.connected && !["connect", "instance"].includes(name)) {
+    if (!state.connected && !["connect", "instance", "treinamentos"].includes(name)) {
       name = "connect";
       setWhatsappPending(true);
       if (el.connectStatus) el.connectStatus.textContent = "Token validado. Conecte o WhatsApp para liberar o painel.";
@@ -1687,7 +1722,7 @@
       relatorios: ["Relatórios", "Indicadores comerciais e relatórios avançados."],
       agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
     };
-    const isSoon = ["cotador", "comprar_leads", "vendedores", "treinamentos", "agenda"].includes(name);
+    const isSoon = ["cotador", "comprar_leads", "vendedores", "agenda"].includes(name);
     const activeView = isSoon ? "soon" : name;
     el.navItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
     Object.entries(el.views).forEach(([key, node]) => node?.classList.toggle("active", key === activeView));
@@ -1705,6 +1740,7 @@
     else stopCrmRealtime();
     if (name === "clients") loadClients();
     if (name === "relatorios") refreshBrokerReport();
+    if (name === "treinamentos") loadTrainingLibrary(state.token, 'broker');
   }
 
   function tokenQuery() {
@@ -3773,6 +3809,43 @@
     Object.entries(values).forEach(([id, value]) => { const field = document.getElementById(id); if (field) field.value = value; });
   }
 
+  function resetAdminTrainingForm() {
+    $('#adminTrainingForm')?.reset();
+    if ($('#adminTrainingId')) $('#adminTrainingId').value = '';
+    if ($('#adminTrainingOrder')) $('#adminTrainingOrder').value = '0';
+    if ($('#adminTrainingActive')) $('#adminTrainingActive').value = 'true';
+    if ($('#adminTrainingFormTitle')) $('#adminTrainingFormTitle').textContent = 'Novo treinamento';
+  }
+
+  function renderAdminTrainings() {
+    const list = $('#adminTrainingList'); if (!list) return;
+    const tracks = [...new Set(adminTrainings.map((item) => item.track || 'Geral'))];
+    if ($('#adminTrainingTrackList')) $('#adminTrainingTrackList').innerHTML = tracks.map((track) => `<option value="${escapeHtml(track)}"></option>`).join('');
+    list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => (a.track || '').localeCompare(b.track || '') || a.order - b.order).map((item) => `<article class="training-admin-item"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track || 'Geral')} · Ordem ${Number(item.order || 0)}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
+  }
+
+  async function loadAdminTrainings() {
+    const status = $('#adminTrainingStatus');
+    try { const result = await window.LungoAdminApi.getTrainings(adminMasterKey); adminTrainings = result.trainings || []; renderAdminTrainings(); if (status) status.textContent = `${adminTrainings.length} treinamento(s) cadastrado(s).`; }
+    catch (error) { if (status) { status.textContent = error.message; status.classList.add('error'); } }
+  }
+
+  async function saveAdminTraining(event) {
+    event.preventDefault(); const id = $('#adminTrainingId').value;
+    const payload = { title: $('#adminTrainingTitle').value.trim(), url: $('#adminTrainingUrl').value.trim(), track: $('#adminTrainingTrack').value.trim(), description: $('#adminTrainingDescription').value.trim(), stars: Number($('#adminTrainingStars').value), order: Number($('#adminTrainingOrder').value), active: $('#adminTrainingActive').value === 'true' };
+    const status = $('#adminTrainingStatus');
+    try { if (id) await window.LungoAdminApi.updateTraining(id, payload, adminMasterKey); else await window.LungoAdminApi.createTraining(payload, adminMasterKey); resetAdminTrainingForm(); await loadAdminTrainings(); status.textContent = id ? 'Treinamento atualizado.' : 'Treinamento publicado.'; status.classList.add('ok'); toast(status.textContent); }
+    catch (error) { status.textContent = error.message; status.classList.add('error'); }
+  }
+
+  async function adminTrainingAction(event) {
+    const button = event.target.closest('[data-training-action]'); if (!button) return;
+    const item = adminTrainings.find((training) => training.id === button.dataset.id); if (!item) return;
+    if (button.dataset.trainingAction === 'edit') { $('#adminTrainingId').value = item.id; $('#adminTrainingTitle').value = item.title; $('#adminTrainingUrl').value = item.url; $('#adminTrainingTrack').value = item.track; $('#adminTrainingDescription').value = item.description || ''; $('#adminTrainingStars').value = String(item.stars || 0); $('#adminTrainingOrder').value = String(item.order || 0); $('#adminTrainingActive').value = String(item.active !== false); $('#adminTrainingFormTitle').textContent = 'Editar treinamento'; $('#adminTrainingTitle').focus(); return; }
+    try { if (button.dataset.trainingAction === 'toggle') await window.LungoAdminApi.updateTraining(item.id, { active: item.active === false }, adminMasterKey); if (button.dataset.trainingAction === 'delete') { if (!await confirmAction('Excluir treinamento', `Deseja excluir “${item.title}”?`)) return; await window.LungoAdminApi.deleteTraining(item.id, adminMasterKey); } await loadAdminTrainings(); }
+    catch (error) { toast(error.message); }
+  }
+
   async function renderAdminMaster() {
     await loadAdminRemoteData();
     renderAdminV2();
@@ -3780,10 +3853,11 @@
   }
 
   function setAdminMasterView(view) {
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", settings: "Configurações" };
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", trainings: "Treinamentos", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
+    if (view === 'trainings') loadAdminTrainings();
   }
 
   async function renderAdminMasterSession() {
@@ -3935,6 +4009,10 @@
       localStorage.setItem(THEME_KEY, next);
     });
     $$(".admin-master-nav-item").forEach((button) => button.addEventListener("click", () => setAdminMasterView(button.dataset.adminMasterView)));
+    $('#adminTrainingForm')?.addEventListener('submit', saveAdminTraining);
+    $('#adminTrainingCancel')?.addEventListener('click', resetAdminTrainingForm);
+    $('#adminTrainingRefresh')?.addEventListener('click', loadAdminTrainings);
+    $('#adminTrainingList')?.addEventListener('click', adminTrainingAction);
     $("#adminAccessIndividualTab")?.addEventListener("click", () => setAdminMasterAccessType("individual"));
     $("#adminAccessSupervisorTab")?.addEventListener("click", () => setAdminMasterAccessType("supervisor"));
     $("#adminMasterAccessForm")?.addEventListener("submit", generateAdminMasterAccess);
