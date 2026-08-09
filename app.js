@@ -143,6 +143,9 @@
   let adminMasterLogged = false;
   let adminMasterKey = "";
   let adminTrainings = [];
+  let brokerMessageTimer = null;
+  let supervisorMessageTimer = null;
+  let activeBrokerMessage = null;
   let adminMasterAccessType = "individual";
   let adminMasterGeneratedMessage = "";
   let adminData = null;
@@ -1399,6 +1402,7 @@
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
     SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
+    renderSupervisorMessageRecipients();
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
     const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `client-${client.id}`, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" }));
@@ -1499,6 +1503,7 @@
   }
 
   function closeSupervisorArea() {
+    clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     supervisorAccessToken = "";
     supervisorDashboard = null;
     supervisorOrganizationName = "";
@@ -1520,6 +1525,8 @@
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
     if (name === "settings") renderCompanyIdentity();
+    clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
+    if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
   }
 
   function openSupervisorModal(title, subtitle, fields) {
@@ -1607,20 +1614,68 @@
     el.supervisorPostSaleModal.showModal();
   }
 
-  function sendSupervisorMessage() {
+  function renderSupervisorMessageRecipients() {
+    if (!el.supervisorMessageRecipient) return;
+    el.supervisorMessageRecipient.innerHTML = '<option value="all">Todos os corretores</option>' + SUPERVISOR_BROKERS.filter((broker) => !broker.supervisor && broker.id).map((broker) => `<option value="${escapeHtml(broker.id)}">${escapeHtml(broker.name)}</option>`).join('');
+  }
+
+  function renderSupervisorMessageHistory(messages) {
+    if (!el.supervisorMessageHistory) return;
+    el.supervisorMessageHistory.innerHTML = messages.length ? messages.map((item) => {
+      const read = item.recipients.filter((recipient) => recipient.readAt).length; const total = item.recipients.length;
+      const audience = item.audience === 'all' ? 'Todos os corretores' : item.recipients.map((recipient) => recipient.name).join(', ');
+      const status = read === total ? 'Lida por todos' : read ? `Lida por ${read} de ${total}` : 'Ainda não lida';
+      return `<article><b>${escapeHtml(audience)}</b><span>${escapeHtml(item.message)}</span><small>${escapeHtml(formatLastAccess(item.createdAt))} · <strong class="message-read-status ${read === total ? 'read' : ''}">${escapeHtml(status)}</strong></small></article>`;
+    }).join('') : '<div class="empty-state compact-empty">Nenhuma mensagem enviada.</div>';
+  }
+
+  async function loadSupervisorMessages() {
+    if (!supervisorAccessToken) return;
+    try { const result = await window.LungoSupervisorApi.getTeamMessages(supervisorAccessToken); renderSupervisorMessageHistory(result.messages || []); }
+    catch (error) { if (el.supervisorMessageStatus) { el.supervisorMessageStatus.textContent = error.message; el.supervisorMessageStatus.classList.add('error'); } }
+  }
+
+  async function sendSupervisorMessage() {
     const message = String(el.supervisorMessageText?.value || "").trim();
     if (!message) {
       el.supervisorMessageStatus.textContent = "Digite uma mensagem antes de enviar.";
       el.supervisorMessageStatus.classList.add("error");
       return;
     }
-    const recipient = el.supervisorMessageRecipient?.value || "Todos os corretores";
-    el.supervisorMessageHistory?.insertAdjacentHTML("afterbegin", `<article><b>${escapeHtml(recipient)}</b><span>${escapeHtml(message)}</span><small>Agora · envio simulado</small></article>`);
-    el.supervisorMessageText.value = "";
-    el.supervisorMessageStatus.textContent = "Notificação adicionada ao histórico fictício.";
-    el.supervisorMessageStatus.classList.remove("error");
-    el.supervisorMessageStatus.classList.add("ok");
+    try {
+      el.supervisorSendMessageBtn.disabled = true;
+      await window.LungoSupervisorApi.sendTeamMessage({ recipientId: el.supervisorMessageRecipient?.value || 'all', message }, supervisorAccessToken);
+      el.supervisorMessageText.value = "";
+      el.supervisorMessageStatus.textContent = "Mensagem enviada. Aguardando leitura.";
+      el.supervisorMessageStatus.classList.remove("error"); el.supervisorMessageStatus.classList.add("ok");
+      await loadSupervisorMessages();
+    } catch (error) { el.supervisorMessageStatus.textContent = error.message; el.supervisorMessageStatus.classList.add('error'); }
+    finally { el.supervisorSendMessageBtn.disabled = false; }
   }
+
+  function ensureBrokerMessageModal() {
+    let modal = $('#brokerMessageModal'); if (modal) return modal;
+    document.body.insertAdjacentHTML('beforeend', `<dialog id="brokerMessageModal" class="modal broker-message-modal"><div class="modal-card"><header><div><h2>Mensagem da supervisão</h2><p id="brokerMessageSender">Supervisor</p></div></header><div class="broker-message-body"><span id="brokerMessageDate"></span><p id="brokerMessageText"></p></div><footer><span class="footer-spacer"></span><button id="brokerMessageReadBtn" class="btn primary" type="button">Li a mensagem</button></footer></div></dialog>`);
+    modal = $('#brokerMessageModal'); modal.addEventListener('cancel', (event) => event.preventDefault());
+    $('#brokerMessageReadBtn').addEventListener('click', closeBrokerMessageAsRead); return modal;
+  }
+
+  async function closeBrokerMessageAsRead() {
+    if (!activeBrokerMessage) return;
+    const button = $('#brokerMessageReadBtn'); button.disabled = true;
+    try { await window.LungoSupervisorApi.markBrokerMessageRead(activeBrokerMessage.id, state.token); const modal = $('#brokerMessageModal'); activeBrokerMessage = null; if (modal?.open) modal.close(); setTimeout(checkBrokerMessages, 250); }
+    catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }
+
+  async function checkBrokerMessages() {
+    if (!state.token || activeBrokerMessage || document.body.classList.contains('supervisor-mode')) return;
+    try { const result = await window.LungoSupervisorApi.getBrokerMessages(state.token, true); const message = result.messages?.[0]; if (!message) return; activeBrokerMessage = message; const modal = ensureBrokerMessageModal(); $('#brokerMessageSender').textContent = message.senderName || 'Supervisor'; $('#brokerMessageDate').textContent = formatLastAccess(message.createdAt); $('#brokerMessageText').textContent = message.message; modal.showModal(); }
+    catch (_) {}
+  }
+
+  function startBrokerMessagePolling() { clearInterval(brokerMessageTimer); checkBrokerMessages(); brokerMessageTimer = setInterval(checkBrokerMessages, 15000); }
+  function stopBrokerMessagePolling() { clearInterval(brokerMessageTimer); brokerMessageTimer = null; activeBrokerMessage = null; const modal = $('#brokerMessageModal'); if (modal?.open) modal.close(); }
 
   function setWhatsappPending(pending) {
     document.body.classList.toggle("whatsapp-pending", Boolean(pending));
@@ -1690,6 +1745,7 @@
         return false;
       }
       setAuthLocked(false);
+      startBrokerMessagePolling();
       setWhatsappPending(!state.connected);
       setAuthStatus(state.connected ? "Acesso liberado." : "Token validado. Conecte o WhatsApp pelo QR Code.", "ok");
       if (state.connected) {
@@ -3447,6 +3503,7 @@
   }
 
   function logout() {
+    stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
     [STORAGE_KEY, "lungo-suite-access-v2", "lungo-suite-access-v3", "lungo-suite-access-v4"].forEach((key) => localStorage.removeItem(key));
     state.token = "";

@@ -2287,6 +2287,13 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .supervisor-history { display: grid; gap: 7px; }
 .supervisor-history article { padding: 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); display: grid; gap: 3px; }
 .supervisor-history span, .supervisor-history small { color: var(--muted); }
+.message-read-status { color: #f5b301; }
+.message-read-status.read { color: var(--success); }
+.broker-message-modal { width: min(560px, calc(100vw - 24px)); }
+.broker-message-modal .modal-card { width: 100%; }
+.broker-message-body { padding: 20px; display: grid; gap: 10px; }
+.broker-message-body > span { color: var(--muted); font-size: 10px; }
+.broker-message-body > p { margin: 0; padding: 16px; border-left: 3px solid var(--primary); background: var(--surface-2); white-space: pre-wrap; line-height: 1.6; }
 .supervisor-modal { width: min(620px, calc(100vw - 24px)); }
 .supervisor-modal-body { max-height: min(64vh, 560px); overflow-y: auto; padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 .supervisor-modal-body article { padding: 9px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-2); display: grid; gap: 3px; }

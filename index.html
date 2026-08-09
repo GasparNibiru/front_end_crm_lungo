@@ -11,8 +11,8 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260809-1" defer></script>
-  <script src="supervisor-api.js?v=20260809-1" defer></script>
-  <script src="app.js?v=20260809-2" defer></script>
+  <script src="supervisor-api.js?v=20260809-2" defer></script>
+  <script src="app.js?v=20260809-3" defer></script>
 </head>
 <body class="auth-locked">
   <section id="authScreen" class="auth-screen" aria-label="Acesso Lungo Corretores">
@@ -174,8 +174,8 @@
         </section>
 
         <section id="supervisor-view-messages" class="supervisor-view supervisor-message-layout">
-          <article class="supervisor-card"><header><div><h2>Nova notificação</h2><p>Envio simulado para a equipe.</p></div></header><div class="supervisor-message-form"><label><span>Destinatário</span><select id="supervisorMessageRecipient"><option>Todos os corretores</option><option>Ana Souza</option><option>Bruno Lima</option><option>Carla Mendes</option></select></label><label><span>Mensagem</span><textarea id="supervisorMessageText" rows="6" placeholder="Digite a mensagem para a equipe"></textarea></label><button id="supervisorSendMessageBtn" class="btn primary" type="button">Enviar notificação</button><div id="supervisorMessageStatus" class="auth-status">Nenhuma mensagem enviada nesta sessão.</div></div></article>
-          <article class="supervisor-card"><header><div><h2>Histórico</h2><p>Notificações fictícias recentes.</p></div></header><div id="supervisorMessageHistory" class="supervisor-history"><article><b>Todos os corretores</b><span>Reunião comercial amanhã às 9h.</span><small>Hoje, 10:20</small></article><article><b>Ana Souza</b><span>Parabéns pela meta alcançada!</span><small>Ontem, 17:45</small></article></div></article>
+          <article class="supervisor-card"><header><div><h2>Nova mensagem</h2><p>Envie um aviso para um corretor ou para toda a equipe.</p></div></header><div class="supervisor-message-form"><label><span>Destinatário</span><select id="supervisorMessageRecipient"><option value="all">Todos os corretores</option></select></label><label><span>Mensagem</span><textarea id="supervisorMessageText" rows="6" maxlength="2000" placeholder="Digite a mensagem para a equipe"></textarea></label><button id="supervisorSendMessageBtn" class="btn primary" type="button">Enviar mensagem</button><div id="supervisorMessageStatus" class="auth-status">Aguardando envio.</div></div></article>
+          <article class="supervisor-card"><header><div><h2>Histórico e leitura</h2><p>Acompanhe quem já confirmou a leitura.</p></div></header><div id="supervisorMessageHistory" class="supervisor-history"><div class="empty-state compact-empty">Nenhuma mensagem enviada.</div></div></article>
         </section>
 
         <section id="supervisor-view-operation" class="supervisor-view">

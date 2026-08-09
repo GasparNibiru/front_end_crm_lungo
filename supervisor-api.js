@@ -20,5 +20,9 @@
   const getLeads = (token) => request("/api/supervisor/leads", { token });
   const getOperationalClients = (token) => request("/api/supervisor/operational-clients", { token });
   const getTrainings = (token) => request('/api/trainings', { token });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings });
+  const getTeamMessages = (token) => request('/api/supervisor/messages', { token });
+  const sendTeamMessage = (payload, token) => request('/api/supervisor/messages', { method: 'POST', token, body: payload });
+  const getBrokerMessages = (token, unread = false) => request(`/api/team/messages${unread ? '?unread=1' : ''}`, { token });
+  const markBrokerMessageRead = (id, token) => request(`/api/team/messages/${encodeURIComponent(id)}/read`, { method: 'POST', token, body: {} });
+  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead });
 })();
