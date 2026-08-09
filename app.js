@@ -145,6 +145,8 @@
   let adminTrainings = [];
   let brokerMessageTimer = null;
   let supervisorMessageTimer = null;
+  let recruitmentData = { vacancy: null, candidates: [] };
+  let recruitmentTimer = null;
   let activeBrokerMessage = null;
   let adminMasterAccessType = "individual";
   let adminMasterGeneratedMessage = "";
@@ -1500,10 +1502,12 @@
     if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = supervisorOrganizationName || "Corretora";
     const topOrganization = document.querySelector(".supervisor-top-actions strong");
     if (topOrganization) topOrganization.textContent = supervisorOrganizationName || "Corretora";
+    clearInterval(recruitmentTimer); loadRecruitment(true); recruitmentTimer = setInterval(() => loadRecruitment(true), 20000);
   }
 
   function closeSupervisorArea() {
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
+    clearInterval(recruitmentTimer); recruitmentTimer = null;
     supervisorAccessToken = "";
     supervisorDashboard = null;
     supervisorOrganizationName = "";
@@ -1518,15 +1522,60 @@
     });
   }
 
+  const RH_STAGES = [['novo', 'Novos'], ['triagem', 'Triagem'], ['contato', 'Contato'], ['entrevista', 'Entrevista'], ['aprovado', 'Aprovados'], ['recusado', 'Recusados']];
+
+  function recruitmentLink() { const vacancy = recruitmentData.vacancy; return vacancy ? `${location.origin}${location.pathname}?vaga=${encodeURIComponent(vacancy.slug)}` : ''; }
+  function candidateWhatsApp(candidate) { const phone = String(candidate.phone || '').replace(/\D/g, ''); const text = `Olá, ${candidate.name}! Recebemos sua candidatura para a vaga de ${recruitmentData.vacancy?.title || 'Consultor de Planos de Saúde'}. Gostaríamos de conversar sobre a oportunidade. Podemos falar agora?`; return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`; }
+
+  function renderRecruitment() {
+    const vacancy = recruitmentData.vacancy || {}; const fields = { rhVacancyTitle: vacancy.title, rhVacancyHeadline: vacancy.headline, rhVacancyLocation: vacancy.location, rhVacancyWorkModel: vacancy.workModel, rhVacancyDescription: vacancy.description, rhVacancyRequirements: vacancy.requirements, rhVacancyBenefits: vacancy.benefits, rhVacancyActive: String(Boolean(vacancy.active)) };
+    Object.entries(fields).forEach(([id, value]) => { if ($(`#${id}`)) $(`#${id}`).value = value || ''; });
+    const kanban = $('#rhCandidateKanban'); if (!kanban) return;
+    kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}"><header><b>${escapeHtml(candidate.name)}</b>${candidate.seenAt ? '' : '<span>Novo</span>'}</header><small>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</small><p>${escapeHtml(candidate.phone)}${candidate.email ? ` · ${escapeHtml(candidate.email)}` : ''}</p><select data-rh-stage="${candidate.id}">${RH_STAGES.map(([value, text]) => `<option value="${value}" ${value === candidate.stage ? 'selected' : ''}>${text}</option>`).join('')}</select><div><a class="btn small primary" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener">Chamar no WhatsApp</a><button class="btn small" type="button" data-rh-details="${candidate.id}">Detalhes</button></div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
+    if ($('#rhVacancyStatus')) $('#rhVacancyStatus').textContent = vacancy.active ? `Vaga publicada: ${recruitmentLink()}` : 'Vaga salva, mas ainda desativada.';
+  }
+
+  function showRecruitmentNotification(candidate) {
+    if ($('#rhCandidateNotification')?.open || !candidate) return;
+    document.body.insertAdjacentHTML('beforeend', `<dialog id="rhCandidateNotification" class="modal rh-notification-modal"><div class="modal-card"><header><div><h2>Novo candidato!</h2><p>Uma candidatura acaba de chegar.</p></div></header><div class="broker-message-body"><b>${escapeHtml(candidate.name)}</b><p>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</p></div><footer><span class="footer-spacer"></span><button id="rhNotificationOpen" class="btn primary" type="button">Ver candidato</button><button id="rhNotificationClose" class="btn" type="button">Fechar</button></footer></div></dialog>`);
+    const modal = $('#rhCandidateNotification'); const finish = async (open) => { await window.LungoSupervisorApi.markCandidatesSeen(supervisorAccessToken); modal.close(); modal.remove(); if (open) setSupervisorView('rh'); };
+    $('#rhNotificationOpen').onclick = () => finish(true); $('#rhNotificationClose').onclick = () => finish(false); modal.addEventListener('cancel', (event) => event.preventDefault()); modal.showModal();
+  }
+
+  async function loadRecruitment(notify = true) {
+    if (!supervisorAccessToken) return;
+    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] }; renderRecruitment(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
+    catch (error) { if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); } }
+  }
+
+  async function saveRecruitmentVacancy(event) {
+    event.preventDefault(); const payload = { title: $('#rhVacancyTitle').value.trim(), headline: $('#rhVacancyHeadline').value.trim(), location: $('#rhVacancyLocation').value.trim(), workModel: $('#rhVacancyWorkModel').value, description: $('#rhVacancyDescription').value.trim(), requirements: $('#rhVacancyRequirements').value.trim(), benefits: $('#rhVacancyBenefits').value.trim(), active: $('#rhVacancyActive').value === 'true' };
+    try { const result = await window.LungoSupervisorApi.updateVacancy(payload, supervisorAccessToken); recruitmentData.vacancy = result.vacancy; renderRecruitment(); toast('Página da vaga atualizada.'); } catch (error) { toast(error.message); }
+  }
+
+  async function loadPublicVacancy(slug) {
+    document.body.classList.add('public-vacancy-mode'); $('#publicVacancyScreen').hidden = false; $('#authScreen').hidden = true;
+    try { const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}`); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Vaga indisponível.'); const vacancy = data.vacancy; $('#publicVacancyTitle').textContent = vacancy.title; $('#publicVacancyHeadline').textContent = vacancy.headline || ''; $('#publicVacancyLocation').textContent = [vacancy.workModel, vacancy.location].filter(Boolean).join(' · '); $('#publicVacancyDescription').textContent = vacancy.description || ''; const lines = (value) => String(value || '').split('\n').filter(Boolean).map((line) => `<span>✓ ${escapeHtml(line)}</span>`).join('') || '<span>Consulte a equipe responsável.</span>'; $('#publicVacancyRequirements').innerHTML = lines(vacancy.requirements); $('#publicVacancyBenefits').innerHTML = lines(vacancy.benefits); }
+    catch (error) { $('.public-vacancy-content').innerHTML = `<div class="empty-state"><h2>Vaga indisponível</h2><p>${escapeHtml(error.message)}</p></div>`; }
+  }
+
+  async function submitPublicApplication(event) {
+    event.preventDefault(); const slug = new URLSearchParams(location.search).get('vaga'); const status = $('#publicApplicationStatus');
+    const payload = { name: $('#applicationName').value.trim(), phone: $('#applicationPhone').value.trim(), email: $('#applicationEmail').value.trim(), city: $('#applicationCity').value.trim(), experience: $('#applicationExperience').value, resumeUrl: $('#applicationResumeUrl').value.trim(), message: $('#applicationMessage').value.trim(), website: $('#applicationWebsite').value };
+    try { const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); event.currentTarget.reset(); status.textContent = 'Candidatura enviada com sucesso! A equipe entrará em contato.'; status.classList.add('ok'); }
+    catch (error) { status.textContent = error.message || 'Não foi possível enviar.'; status.classList.add('error'); }
+  }
+
   function setSupervisorView(name) {
     restoreSupervisorSharedView();
-    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", goals: "Metas", reports: "Relatórios", messages: "Mensagens", settings: "Configurações da Corretora" };
+    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", goals: "Metas", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
     if (name === "settings") renderCompanyIdentity();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
+    if (name === 'rh') loadRecruitment(false);
   }
 
   function openSupervisorModal(title, subtitle, fields) {
@@ -4168,6 +4217,7 @@
   }
 
   function bindEvents() {
+    $('#publicApplicationForm')?.addEventListener('submit', submitPublicApplication);
     document.addEventListener('click', (event) => { const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); });
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
     el.navItems.forEach((btn) => btn.addEventListener("click", () => {
@@ -4267,6 +4317,11 @@
       el.supervisorReportStatus.classList.add("ok");
     });
     el.supervisorSendMessageBtn?.addEventListener("click", sendSupervisorMessage);
+    $('#rhVacancyForm')?.addEventListener('submit', saveRecruitmentVacancy);
+    $('#rhRefreshBtn')?.addEventListener('click', () => loadRecruitment(false));
+    $('#rhCopyLinkBtn')?.addEventListener('click', async () => { const link = recruitmentLink(); if (!link) return toast('Salve a vaga primeiro.'); await navigator.clipboard.writeText(link); toast('Link público da vaga copiado.'); });
+    $('#rhCandidateKanban')?.addEventListener('change', async (event) => { const select = event.target.closest('[data-rh-stage]'); if (!select) return; try { await window.LungoSupervisorApi.updateCandidate(select.dataset.rhStage, { stage: select.value, seen: true }, supervisorAccessToken); await loadRecruitment(false); } catch (error) { toast(error.message); } });
+    $('#rhCandidateKanban')?.addEventListener('click', (event) => { const button = event.target.closest('[data-rh-details]'); if (!button) return; const candidate = recruitmentData.candidates.find((item) => item.id === button.dataset.rhDetails); if (!candidate) return; openSupervisorModal(candidate.name, 'Candidato à vaga', [['WhatsApp', candidate.phone], ['E-mail', candidate.email || '—'], ['Cidade', candidate.city || '—'], ['Experiência', candidate.experience || '—'], ['Currículo', candidate.resumeUrl || '—'], ['Apresentação', candidate.message || '—']]); });
     el.supervisorImportBtn?.addEventListener("click", () => toast("Importação simulada. Nenhum arquivo foi enviado."));
     el.supervisorExportBtn?.addEventListener("click", () => toast("Exportação simulada. Nenhum arquivo foi gerado."));
     el.supervisorArchiveBtn?.addEventListener("click", () => {
@@ -4548,6 +4603,7 @@
 
   function init() {
     const isAdminMasterRoute = window.location.hash.toLowerCase() === "#admin";
+    const publicVacancySlug = new URLSearchParams(window.location.search).get('vaga');
     const theme = localStorage.getItem(THEME_KEY) || "dark";
     el.root.dataset.theme = theme;
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -4577,8 +4633,9 @@
     bindAdminMasterEvents();
     setMode("list");
     renderCrm();
-    if (!isAdminMasterRoute) bootAccess();
-    syncAdminMasterHash();
+    if (publicVacancySlug) loadPublicVacancy(publicVacancySlug);
+    else if (!isAdminMasterRoute) bootAccess();
+    if (!publicVacancySlug) syncAdminMasterHash();
   }
 
   init();

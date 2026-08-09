@@ -6,15 +6,16 @@
   <title>Lungo Corretores</title>
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <link rel="stylesheet" href="styles.css?v=trainings-2">
+  <link rel="stylesheet" href="styles.css?v=rh-1">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260809-1" defer></script>
-  <script src="supervisor-api.js?v=20260809-2" defer></script>
-  <script src="app.js?v=20260809-3" defer></script>
+  <script src="supervisor-api.js?v=20260809-3" defer></script>
+  <script src="app.js?v=20260809-4" defer></script>
 </head>
 <body class="auth-locked">
+  <section id="publicVacancyScreen" class="public-vacancy-screen" hidden><main class="public-vacancy-page"><header><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><span>Oportunidade profissional</span></header><section class="public-vacancy-hero"><div><span id="publicVacancyLocation">Vaga comercial</span><h1 id="publicVacancyTitle">Consultor de Planos de Saúde</h1><p id="publicVacancyHeadline"></p></div></section><div class="public-vacancy-content"><article><h2>Sobre a oportunidade</h2><p id="publicVacancyDescription"></p><h3>Requisitos</h3><div id="publicVacancyRequirements" class="public-vacancy-list"></div><h3>Benefícios</h3><div id="publicVacancyBenefits" class="public-vacancy-list"></div></article><form id="publicApplicationForm" class="public-application-form"><h2>Candidate-se</h2><p>Preencha seus dados para participar do processo seletivo.</p><label><span>Nome completo</span><input id="applicationName" required></label><label><span>WhatsApp</span><input id="applicationPhone" required inputmode="tel"></label><label><span>E-mail</span><input id="applicationEmail" type="email"></label><label><span>Cidade</span><input id="applicationCity"></label><label><span>Experiência comercial</span><select id="applicationExperience"><option value="Sem experiência">Sem experiência</option><option value="Até 1 ano">Até 1 ano</option><option value="1 a 3 anos">1 a 3 anos</option><option value="Mais de 3 anos">Mais de 3 anos</option></select></label><label><span>Link do currículo</span><input id="applicationResumeUrl" type="url" placeholder="Google Drive, LinkedIn..."></label><label class="full"><span>Conte um pouco sobre você</span><textarea id="applicationMessage" rows="4"></textarea></label><input id="applicationWebsite" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary" type="submit">Enviar candidatura</button><div id="publicApplicationStatus" class="auth-status">Seus dados serão enviados à equipe responsável.</div></form></div></main></section>
   <section id="authScreen" class="auth-screen" aria-label="Acesso Lungo Corretores">
     <div class="auth-bg-mark"></div>
     <div class="auth-card">
@@ -118,6 +119,7 @@
         <button class="supervisor-nav-item" data-supervisor-view="goals" type="button"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M15 9l5-5"/></svg></span><b>Metas</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="reports" type="button"><span><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg></span><b>Relatórios</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="messages" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 5h16v12H7l-3 3zM7 9h10M7 13h7"/></svg></span><b>Mensagens</b></button>
+        <button class="supervisor-nav-item" data-supervisor-view="rh" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M17 8h4M19 6v4"/></svg></span><b>Recursos Humanos</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="settings" type="button"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6l-.3-2.6h-4L10.4 6A7 7 0 0 0 9 7L6.6 6l-2 3.4 2 1.5a7 7 0 0 0 0 2L4.6 14.5l2 3.4L9 17a7 7 0 0 0 1.4.9l.3 2.6h4l.3-2.6A7 7 0 0 0 16.5 17l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></span><b>Configurações da Corretora</b></button>
       </nav>
       <button id="supervisorLogoutBtn" class="supervisor-logout" type="button"><span><svg viewBox="0 0 24 24"><path d="M10 6H6v12h4M14 8l4 4-4 4M8 12h10"/></svg></span><b>Sair</b></button>
@@ -181,6 +183,8 @@
         <section id="supervisor-view-operation" class="supervisor-view">
           <div id="supervisorOperationContent" class="supervisor-operation-content"></div>
         </section>
+
+        <section id="supervisor-view-rh" class="supervisor-view"><div class="rh-layout"><section class="supervisor-card rh-vacancy-editor"><header><div><h2>Landing page da vaga</h2><p>Personalize a página pública de recrutamento.</p></div><button id="rhCopyLinkBtn" class="btn" type="button">Copiar link</button></header><form id="rhVacancyForm" class="rh-vacancy-form"><label><span>Título da vaga</span><input id="rhVacancyTitle" required></label><label><span>Chamada principal</span><input id="rhVacancyHeadline"></label><label><span>Local / região</span><input id="rhVacancyLocation"></label><label><span>Modelo de trabalho</span><select id="rhVacancyWorkModel"><option>Presencial</option><option>Híbrido</option><option>Remoto</option></select></label><label class="full"><span>Descrição</span><textarea id="rhVacancyDescription" rows="3"></textarea></label><label class="full"><span>Requisitos — um por linha</span><textarea id="rhVacancyRequirements" rows="4"></textarea></label><label class="full"><span>Benefícios — um por linha</span><textarea id="rhVacancyBenefits" rows="4"></textarea></label><label><span>Publicação</span><select id="rhVacancyActive"><option value="true">Vaga publicada</option><option value="false">Vaga desativada</option></select></label><button class="btn primary" type="submit">Salvar página da vaga</button><div id="rhVacancyStatus" class="auth-status">Carregando configuração...</div></form></section><section class="supervisor-card rh-candidates-panel"><header><div><h2>Candidatos</h2><p>Atualize cada candidato conforme o processo seletivo.</p></div><button id="rhRefreshBtn" class="btn" type="button">Atualizar</button></header><div id="rhCandidateKanban" class="rh-kanban"></div></section></div></section>
 
         <section id="supervisor-view-settings" class="supervisor-view">
           <form id="companySettingsForm" class="company-settings-form company-identity-form">
