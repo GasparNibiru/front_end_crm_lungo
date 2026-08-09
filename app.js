@@ -1297,7 +1297,31 @@
   function trainingCards(trainings) {
     if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado nesta trilha.</div>';
     const tracks = [...new Set(trainings.map((item) => item.track || 'Geral'))];
-    return tracks.map((track) => `<section class="training-track"><header><div><span>Trilha de conhecimento</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter((item) => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter((item) => (item.track || 'Geral') === track).map((item) => `<article class="training-card"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="training-thumb"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir no YouTube</span></a><div><small>${escapeHtml(item.track || 'Geral')}</small><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p></div></article>`).join('')}</div></section>`).join('');
+    return tracks.map((track) => `<section class="training-track"><header><div><span>Trilha de conhecimento</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter((item) => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter((item) => (item.track || 'Geral') === track).map((item) => `<article class="training-card"><button type="button" class="training-thumb" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span></button><div><small>${escapeHtml(item.track || 'Geral')}</small><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p></div></article>`).join('')}</div></section>`).join('');
+  }
+
+  function ensureTrainingPlayer() {
+    let modal = $('#trainingPlayerModal');
+    if (modal) return modal;
+    document.body.insertAdjacentHTML('beforeend', `<dialog id="trainingPlayerModal" class="modal training-player-modal"><div class="modal-card"><header><div><h2 id="trainingPlayerTitle">Treinamento</h2><p id="trainingPlayerTrack">Trilha de conhecimento</p></div><button class="btn icon" type="button" data-training-player-close aria-label="Fechar">×</button></header><div class="training-player-frame"><iframe id="trainingPlayerFrame" title="Player do treinamento" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><footer><span class="footer-spacer"></span><button class="btn primary" type="button" data-training-player-close>Fechar</button></footer></div></dialog>`);
+    modal = $('#trainingPlayerModal');
+    modal.addEventListener('close', closeTrainingPlayer);
+    modal.addEventListener('click', (event) => { if (event.target === modal || event.target.closest('[data-training-player-close]')) closeTrainingPlayer(); });
+    return modal;
+  }
+
+  function openTrainingPlayer(button) {
+    const modal = ensureTrainingPlayer();
+    $('#trainingPlayerTitle').textContent = button.dataset.trainingTitle || 'Treinamento';
+    $('#trainingPlayerTrack').textContent = `Trilha: ${button.dataset.trainingTrack || 'Geral'}`;
+    $('#trainingPlayerFrame').src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(button.dataset.trainingPlay)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+    modal.showModal();
+  }
+
+  function closeTrainingPlayer() {
+    const modal = $('#trainingPlayerModal'); const frame = $('#trainingPlayerFrame');
+    if (frame) frame.src = '';
+    if (modal?.open) modal.close();
   }
 
   async function loadTrainingLibrary(token, target = 'broker') {
@@ -3819,6 +3843,7 @@
 
   function renderAdminTrainings() {
     const list = $('#adminTrainingList'); if (!list) return;
+    if (!$('#adminTrainingNew')) list.insertAdjacentHTML('beforebegin', '<div class="training-admin-toolbar"><button id="adminTrainingNew" class="btn primary" type="button">Cadastrar novo</button></div>');
     const tracks = [...new Set(adminTrainings.map((item) => item.track || 'Geral'))];
     if ($('#adminTrainingTrackList')) $('#adminTrainingTrackList').innerHTML = tracks.map((track) => `<option value="${escapeHtml(track)}"></option>`).join('');
     list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => (a.track || '').localeCompare(b.track || '') || a.order - b.order).map((item) => `<article class="training-admin-item"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track || 'Geral')} · Ordem ${Number(item.order || 0)}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
@@ -4011,6 +4036,7 @@
     $$(".admin-master-nav-item").forEach((button) => button.addEventListener("click", () => setAdminMasterView(button.dataset.adminMasterView)));
     $('#adminTrainingForm')?.addEventListener('submit', saveAdminTraining);
     $('#adminTrainingCancel')?.addEventListener('click', resetAdminTrainingForm);
+    $('#adminTrainingList')?.parentElement?.addEventListener('click', (event) => { if (event.target.closest('#adminTrainingNew')) { resetAdminTrainingForm(); $('#adminTrainingForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('#adminTrainingTitle')?.focus(), 250); } });
     $('#adminTrainingRefresh')?.addEventListener('click', loadAdminTrainings);
     $('#adminTrainingList')?.addEventListener('click', adminTrainingAction);
     $("#adminAccessIndividualTab")?.addEventListener("click", () => setAdminMasterAccessType("individual"));
@@ -4085,6 +4111,7 @@
   }
 
   function bindEvents() {
+    document.addEventListener('click', (event) => { const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); });
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
     el.navItems.forEach((btn) => btn.addEventListener("click", () => {
       const upgrade = btn.dataset.view === "vendedores";

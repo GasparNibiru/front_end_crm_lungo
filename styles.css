@@ -2238,7 +2238,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-track > header > b { color: var(--primary-2); font-size: 10px; }
 .training-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .training-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
-.training-thumb { position: relative; aspect-ratio: 16 / 9; display: block; overflow: hidden; background: #111; }
+.training-thumb { position: relative; width: 100%; aspect-ratio: 16 / 9; display: block; padding: 0; overflow: hidden; border: 0; border-radius: 0; background: #111; text-align: left; }
 .training-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s ease; }
 .training-thumb:hover img { transform: scale(1.03); }
 .training-thumb span { position: absolute; inset: auto 8px 8px; width: max-content; padding: 5px 8px; border-radius: 4px; background: rgba(0,0,0,.78); color: #fff; font-size: 9px; }
@@ -2254,6 +2254,11 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-admin-item img { width: 96px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; }
 .training-admin-item > div { min-width: 0; display: grid; gap: 3px; }
 .training-admin-item span, .training-admin-item small { color: var(--muted); font-size: 9px; }
+.training-admin-toolbar { margin-bottom: 9px; display: flex; justify-content: flex-end; }
+.training-player-modal { width: min(960px, calc(100vw - 24px)); }
+.training-player-modal .modal-card { width: 100%; max-width: none; }
+.training-player-frame { width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
+.training-player-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
 
 @media print {
   body * { visibility: hidden !important; }
