@@ -7,12 +7,12 @@
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <link rel="stylesheet" href="styles.css?v=all-mobile-2">
-  <script src="config.js?v=20260808-8"></script>
+  <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="admin-api.js?v=20260808-8" defer></script>
-  <script src="supervisor-api.js?v=20260808-8" defer></script>
-  <script src="app.js?v=20260808-8" defer></script>
+  <script src="admin-api.js?v=20260808-9" defer></script>
+  <script src="supervisor-api.js?v=20260808-9" defer></script>
+  <script src="app.js?v=20260808-9" defer></script>
 </head>
 <body class="auth-locked">
   <section id="authScreen" class="auth-screen" aria-label="Acesso Lungo Corretores">
@@ -136,7 +136,7 @@
 
         <section id="supervisor-view-brokers" class="supervisor-view">
           <article class="supervisor-card supervisor-access-card"><header><div><h2>Gerar acesso do corretor</h2><p>O acesso será vinculado à sua organização e respeitará o limite contratado.</p></div></header><div class="supervisor-access-form"><label><span>Nome do corretor</span><input id="supervisorBrokerName" type="text" placeholder="Ex.: Maria Silva"></label><label><span>E-mail</span><input id="supervisorBrokerEmail" type="email" placeholder="maria@empresa.com"></label><label><span>Telefone</span><input id="supervisorBrokerPhone" type="text" placeholder="(11) 99999-9999"></label><button id="supervisorGenerateMessageBtn" class="btn primary" type="button">Gerar acesso</button></div><div id="supervisorAccessStatus" class="auth-status" aria-live="polite">Preencha os dados para gerar o acesso.</div><div id="supervisorGeneratedMessage" class="supervisor-message-ready" hidden><div><span>Token exibido uma única vez</span><p></p></div><button id="supervisorCopyMessageBtn" class="btn" type="button">Copiar mensagem</button></div></article>
-          <article class="supervisor-card supervisor-grow"><header><div><h2>Corretores cadastrados</h2><p>Equipe vinculada à sua organização.</p></div></header><div class="supervisor-table-wrap supervisor-brokers-table-wrap"><table class="supervisor-table supervisor-brokers-table"><thead><tr><th>Corretor</th><th>E-mail</th><th>Status</th><th>Último login</th><th>Token ativo</th><th>Ações</th></tr></thead><tbody id="supervisorBrokerRows"></tbody></table></div></article>
+          <article class="supervisor-card supervisor-grow"><header><div><h2>Corretores cadastrados</h2><p>Equipe vinculada à sua organização.</p></div></header><div class="supervisor-table-wrap supervisor-brokers-table-wrap"><table class="supervisor-table supervisor-brokers-table"><thead><tr><th>Corretor</th><th>E-mail</th><th>Status</th><th>Último login</th><th>Token de acesso</th><th>Ações</th></tr></thead><tbody id="supervisorBrokerRows"></tbody></table></div></article>
         </section>
 
         <section id="supervisor-view-funnel" class="supervisor-view">

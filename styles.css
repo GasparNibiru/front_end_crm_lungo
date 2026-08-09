@@ -2259,6 +2259,9 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .supervisor-access-card { border-top: 3px solid var(--primary); }
 .supervisor-brokers-table { min-width: 900px; }
 .supervisor-broker-actions, .supervisor-client-actions { display: flex; gap: 5px; align-items: center; flex-wrap: nowrap; }
+.supervisor-token-cell { min-width: 0; display: flex; align-items: center; gap: 5px; }
+.supervisor-token-cell code { font-size: 10px; white-space: nowrap; }
+.supervisor-token-cell > span { color: var(--muted); font-size: 9px; white-space: normal; }
 .supervisor-clients-layout { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
 .supervisor-client-metrics { grid-template-columns: repeat(5, minmax(110px, 1fr)); }
 .supervisor-client-list-panel { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }

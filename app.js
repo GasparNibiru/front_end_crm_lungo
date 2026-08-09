@@ -1319,7 +1319,7 @@
       window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
-    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.tokenActive ? "Ativo" : "Sem token", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: broker.lastLoginAt ? new Date(broker.lastLoginAt).toLocaleString("pt-BR") : "Nunca", tokenActive: broker.tokenActive })));
+    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: broker.lastLoginAt ? new Date(broker.lastLoginAt).toLocaleString("pt-BR") : "Nunca", tokenActive: broker.tokenActive })));
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
     const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `client-${client.id}`, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" }));
@@ -1374,7 +1374,7 @@
       </div>`).join("");
     if (el.supervisorBrokerList) el.supervisorBrokerList.innerHTML = brokerRows;
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td>${broker.tokenActive ? "Sim" : "Não"}</td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}">Renovar token</button><button class="tiny-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}">${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}</button></div></td></tr>`).join("");
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}">Copiar</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}">Renovar token</button><button class="tiny-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}">${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}</button></div></td></tr>`).join("");
 
     const stages = [
       ["novos", "Novos", "Novos"], ["em_atendimento", "Em atendimento", "Em atendimento"], ["cotacao", "Cotação", "Cotação Enviada"], ["documentacao", "Doc. recebida", "Documentação recebida"],
@@ -1479,9 +1479,11 @@
   }
 
   async function copySupervisorText(value, successMessage) {
-    if (!navigator.clipboard?.writeText) { toast("Cópia automática indisponível neste navegador."); return false; }
-    try { await navigator.clipboard.writeText(value); toast(successMessage); return true; }
-    catch { toast("Não foi possível copiar."); return false; }
+    try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(value); toast(successMessage); return true; } } catch {}
+    const helper = document.createElement("textarea"); helper.value = value; helper.setAttribute("readonly", ""); helper.style.position = "fixed"; helper.style.opacity = "0"; document.body.appendChild(helper); helper.select();
+    let copied = false; try { copied = document.execCommand("copy"); } catch {} helper.remove();
+    if (copied) { toast(successMessage); return true; }
+    window.prompt("Copie o token abaixo:", value); toast("Selecione e copie o token exibido."); return false;
   }
 
   async function copySupervisorMessage() {
@@ -4075,12 +4077,13 @@
         const broker = SUPERVISOR_BROKERS.find((item) => item.id === brokerButton.dataset.brokerId);
         if (!broker) return;
         const action = brokerButton.dataset.supervisorBrokerAction;
+        if (action === "copy") { await copySupervisorText(broker.token, "Token copiado para a área de transferência."); return; }
         try {
           let result;
           if (action === "renew") result = await window.LungoSupervisorApi.renewBrokerToken(broker.id, {}, supervisorAccessToken);
           if (action === "disable") result = await window.LungoSupervisorApi.changeBroker(broker.id, "block", supervisorAccessToken);
           if (action === "reactivate") result = await window.LungoSupervisorApi.changeBroker(broker.id, "reactivate", supervisorAccessToken);
-          if (result?.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector("p").textContent = supervisorAccessMessage(broker.name, result.token); setSupervisorView("brokers"); toast("Novo token gerado. Salve-o agora."); }
+          if (result?.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector("p").textContent = supervisorAccessMessage(broker.name, result.token); setSupervisorView("brokers"); toast("Novo token gerado e salvo no painel do Supervisor."); }
           await loadSupervisorRemoteData(); renderSupervisorMocks();
         } catch (error) { toast(error.message); }
         return;
