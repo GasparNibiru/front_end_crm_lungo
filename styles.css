@@ -2894,6 +2894,9 @@ body.admin-mode .admin-screen {
   font-size: 11px;
 }
 .tiny-btn:hover { border-color: var(--primary); }
+.tiny-btn.danger { border-color: color-mix(in srgb, var(--danger) 65%, var(--border)); color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface-2)); }
+.tiny-btn.warning { border-color: color-mix(in srgb, var(--warning) 65%, var(--border)); color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, var(--surface-2)); }
+.tiny-btn.success { border-color: color-mix(in srgb, var(--ok) 65%, var(--border)); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface-2)); }
 .empty-admin-row { color: var(--muted); text-align: center !important; padding: 22px !important; }
 @media (max-width: 1000px) {
   body.admin-mode .admin-screen { grid-template-columns: 1fr; }
