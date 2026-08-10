@@ -555,13 +555,13 @@
 
   function termsStorageKey() {
     const token = normalizeTermsToken(state.token || el.accessTokenInput?.value || el.globalToken?.value || "sem-token");
-    return `${TERMS_ACCEPT_PREFIX}:${TERMS_VERSION}:${token}`;
+    return `${TERMS_ACCEPT_PREFIX}:${token}`;
   }
 
   function hasAcceptedTerms() {
     try {
       const saved = JSON.parse(localStorage.getItem(termsStorageKey()) || "{}");
-      return Boolean(saved.accepted && saved.version === TERMS_VERSION && saved.token === normalizeTermsToken(state.token));
+      return Boolean(saved.accepted && saved.token === normalizeTermsToken(state.token));
     } catch {
       return false;
     }
@@ -1409,12 +1409,11 @@
     renderSupervisorMessageRecipients();
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
-    const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `client-${client.id}`, client: client.name, seller: client.users?.name || "—", phone: client.phone || "—", email: client.email || "", product: "Cliente", status: client.status === "active" ? "Ativo" : "Inativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "—", notes: client.city || "" }));
     const operationalCustomers = (operationalClientsResult.clients || []).map((client) => ({ id: `operational-${client.id}`, client: client.nome || "Cliente", seller: client.brokerName || "Corretor", phone: client.telefone || "—", email: client.email || "", product: client.produto || "Cliente", status: ({ ativo: "Ativo", a_renovar: "A renovar", renovado: "Renovado" })[client.status] || "Ativo", lives: Number(client.qtdVidas || 0), value: client.valorFechado ? formatMoney(client.valorFechado) : "—", date: client.dataContratacao || String(client.createdAt || "").slice(0, 10), renewal: client.dataRenovacao || "—", post: client.posVenda ? "Agendado" : "Pendente", notes: client.observacao || "" }));
-    const pipelineCustomers = SUPERVISOR_DEALS.map((deal) => ({ id: `lead-${deal.id}`, leadId: deal.id, client: deal.client, seller: deal.seller, phone: deal.phone, email: deal.email, product: deal.product, status: "Ativo", lives: deal.lives, value: deal.value, date: "—", renewal: "—", post: deal.stage === "fechamento" ? "Pendente" : "Em negociação", notes: deal.notes }));
+    const pipelineCustomers = SUPERVISOR_DEALS.filter((deal) => deal.stage === "fechamento").map((deal) => ({ id: `lead-${deal.id}`, leadId: deal.id, client: deal.client, seller: deal.seller, phone: deal.phone, email: deal.email, product: deal.product, status: "Ativo", lives: deal.lives, value: deal.value, date: "—", renewal: "—", post: "Pendente", notes: deal.notes }));
     const customerKey = (item) => String(item.email || item.phone || item.client || item.id).replace(/\D/g, "") || String(item.email || item.client || item.id).trim().toLowerCase();
     const consolidatedCustomers = new Map();
-    [...registeredCustomers, ...pipelineCustomers, ...operationalCustomers].forEach((customer) => consolidatedCustomers.set(customerKey(customer), { ...(consolidatedCustomers.get(customerKey(customer)) || {}), ...customer }));
+    [...pipelineCustomers, ...operationalCustomers].forEach((customer) => consolidatedCustomers.set(customerKey(customer), { ...(consolidatedCustomers.get(customerKey(customer)) || {}), ...customer }));
     SUPERVISOR_CUSTOMERS.splice(0, SUPERVISOR_CUSTOMERS.length, ...consolidatedCustomers.values());
   }
 
@@ -1429,6 +1428,7 @@
       state.token = token;
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
+      if (!await ensureTermsAccepted()) return;
       await loadSupervisorRemoteData();
       el.supervisorEmailInput.value = "";
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
@@ -1440,6 +1440,29 @@
 
   function supervisorInitials(name) {
     return String(name || "").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
+  }
+
+  function supervisorTeamGoalKey() { return `lungo-supervisor-team-goal:${supervisorAccessToken || state.token || "sem-token"}`; }
+  function supervisorTeamGoal() { return Math.max(0, Number(localStorage.getItem(supervisorTeamGoalKey()) || 0)); }
+
+  function renderSupervisorGoalsAndReport() {
+    const goal = supervisorTeamGoal();
+    const revenue = Number(supervisorDashboard?.revenue || 0);
+    const percent = goal > 0 ? Math.min(999, Math.round((revenue / goal) * 100)) : 0;
+    if ($('#supervisorTeamGoalInput')) $('#supervisorTeamGoalInput').value = goal || '';
+    if ($('#supervisorGoalTarget')) $('#supervisorGoalTarget').textContent = formatCurrency(goal);
+    if ($('#supervisorGoalRealized')) $('#supervisorGoalRealized').textContent = `${formatCurrency(revenue)} realizados`;
+    if ($('#supervisorGoalPercent')) $('#supervisorGoalPercent').textContent = `${percent}%`;
+    const identity = loadCompanyIdentity();
+    const companyName = identity.name || supervisorOrganizationName || 'Corretora';
+    const logo = identity.logo || 'https://imagensconrato.pagecor.com.br/logo-lungo.png';
+    if ($('#supervisorReportLogo')) { $('#supervisorReportLogo').src = logo; $('#supervisorReportLogo').alt = companyName; }
+    if ($('#supervisorReportCompany')) $('#supervisorReportCompany').textContent = companyName;
+    if ($('#supervisorReportOwner')) $('#supervisorReportOwner').textContent = `Supervisor: ${state.clientName || 'Supervisor'} · ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`;
+    if ($('#supervisorReportNumbers')) $('#supervisorReportNumbers').innerHTML = [['Meta da equipe', formatCurrency(goal)], ['Faturamento', formatCurrency(revenue)], ['Meta alcançada', `${percent}%`], ['Vendas', Number(supervisorDashboard?.sales || 0)], ['Clientes ativos', SUPERVISOR_CUSTOMERS.length], ['Corretores', SUPERVISOR_BROKERS.length]].map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('');
+    if ($('#supervisorReportRows')) $('#supervisorReportRows').innerHTML = SUPERVISOR_BROKERS.map((broker, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(broker.name)}</td><td>${broker.sales}</td><td>${formatCurrency(goal && SUPERVISOR_BROKERS.length ? goal / SUPERVISOR_BROKERS.length : 0)}</td><td>${broker.goal}%</td><td>${escapeHtml(broker.login)}</td></tr>`).join('') || '<tr><td colspan="6">Nenhum corretor cadastrado.</td></tr>';
+    if ($('#supervisorReportFunnel')) $('#supervisorReportFunnel').innerHTML = [['novos','Novos'],['em_atendimento','Em atendimento'],['cotacao','Cotação'],['documentacao','Documentação'],['venda','Venda cadastrada'],['boleto','Boleto'],['fechamento','Fechamento'],['perdida','Perdida']].map(([stage,label]) => `<span><b>${SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length}</b>${label}</span>`).join('');
+    if ($('#supervisorReportFooter')) $('#supervisorReportFooter').textContent = `${companyName} · 1/1`;
   }
 
   function renderSupervisorMocks() {
@@ -1478,6 +1501,7 @@
 
     renderSupervisorCustomers();
     if (el.supervisorGoalRows) el.supervisorGoalRows.innerHTML = SUPERVISOR_BROKERS.slice(0, 6).map((broker) => `<div class="supervisor-goal-row"><b>${escapeHtml(broker.name)}</b><div class="supervisor-progress"><i style="width:${broker.goal}%"></i></div><span>${broker.goal}% · ${broker.sales} vendas</span></div>`).join("");
+    renderSupervisorGoalsAndReport();
   }
 
   function filteredSupervisorCustomers() {
@@ -1971,7 +1995,6 @@
     const status = el.crmStatusFilter.value;
     return state.leads.filter((lead) => {
       if (!isUsableLead(lead)) return false;
-      if (!belongsToWhatsappConversationWindow(lead)) return false;
       if (status && lead.status !== status) return false;
       if (!status && ["arquivado", "lixeira"].includes(lead.status)) return false;
       if (!inSelectedPeriod(lead)) return false;
@@ -2025,7 +2048,7 @@
   }
 
   function renderMetrics() {
-    const activeLeads = state.leads.filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && isUsableLead(lead) && belongsToWhatsappConversationWindow(lead));
+    const activeLeads = state.leads.filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && isUsableLead(lead));
     const items = [{ value: "total", label: "Total", count: activeLeads.length }]
       .concat(STATUSES.map((status) => ({ ...status, count: activeLeads.filter((lead) => lead.status === status.value).length })));
     el.metricsBar.innerHTML = items.map((item) => `
@@ -3575,10 +3598,21 @@
   async function importClients(file) {
     if (!file) return;
     try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" }).map(mapImportedClientRow).filter((row) => row.nome && row.telefone);
+      let importedRows;
+      if (/\.csv$/i.test(file.name)) {
+        const text = await file.text();
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+        const separator = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ';' : ',';
+        const headers = lines.shift().split(separator).map((value) => value.trim());
+        importedRows = lines.map((line) => Object.fromEntries(headers.map((header, index) => [header, line.split(separator)[index]?.trim() || ''])));
+      } else {
+        if (!window.XLSX) throw new Error('O leitor de Excel não carregou. Use o modelo CSV ou atualize a página.');
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        importedRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      }
+      const rows = importedRows.map(mapImportedClientRow).filter((row) => row.nome && row.telefone);
       if (!rows.length) throw new Error("A lista não tem clientes válidos. Use o modelo de lista.");
       const result = await api("/api/clientes/import", {
         method: "POST",
@@ -3611,10 +3645,14 @@
       Renovacao: client.dataRenovacao || "",
       Observacao: client.observacao || ""
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Clientes");
-    XLSX.writeFile(wb, "clientes-lungo.xlsx");
+    if (!rows.length) return toast("Não há clientes para exportar.");
+    const headers = Object.keys(rows[0]);
+    const csv = [headers.join(';'), ...rows.map((row) => headers.map((header) => `"${String(row[header] ?? '').replace(/"/g, '""')}"`).join(';'))].join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    link.download = `clientes-lungo-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
+    toast('Lista de clientes exportada.');
   }
 
   function logout() {
@@ -4337,7 +4375,17 @@
     document.querySelectorAll("[data-company-upload]").forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.companyUpload)?.click()));
     el.companyLogoInput?.addEventListener("change", () => readCompanyImage(el.companyLogoInput.files?.[0], "logo"));
     el.companyBannerInput?.addEventListener("change", () => readCompanyImage(el.companyBannerInput.files?.[0], "banner"));
-    el.companySettingsForm?.addEventListener("submit", (event) => { event.preventDefault(); saveCompanyIdentity(); });
+    el.companySettingsForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const identity = saveCompanyIdentity();
+      if (!identity) return;
+      renderSupervisorGoalsAndReport();
+      try {
+        const logo = await compactRecruitmentLogo(identity.logo || '');
+        const result = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken);
+        recruitmentData.vacancy = result.vacancy;
+      } catch (error) { toast(`Identidade salva, mas a landing page não foi atualizada: ${error.message}`); }
+    });
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
     el.supervisorClientSearch?.addEventListener("input", renderSupervisorCustomers);
@@ -4373,8 +4421,17 @@
       toast("PDF adicionado visualmente.");
       el.supervisorPdfInput.value = "";
     });
+    $('#supervisorTeamGoalForm')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const value = Math.max(0, Number($('#supervisorTeamGoalInput')?.value || 0));
+      localStorage.setItem(supervisorTeamGoalKey(), String(value));
+      renderSupervisorGoalsAndReport();
+      $('#supervisorTeamGoalStatus').textContent = 'Meta da equipe salva.';
+      $('#supervisorTeamGoalStatus').classList.add('ok');
+    });
     el.supervisorGenerateReportBtn?.addEventListener("click", () => {
-      el.supervisorReportStatus.textContent = "Relatório demonstrativo gerado com sucesso.";
+      renderSupervisorGoalsAndReport();
+      el.supervisorReportStatus.textContent = "Relatório atualizado com sucesso.";
       el.supervisorReportStatus.classList.add("ok");
     });
     el.supervisorSendMessageBtn?.addEventListener("click", sendSupervisorMessage);
