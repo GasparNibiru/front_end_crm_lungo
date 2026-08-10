@@ -1422,10 +1422,11 @@
       if (closed.length) { broker.sales = closed.length; broker.revenue = closed.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0); }
     });
     const operationalCustomers = (operationalClientsResult.clients || []).map((client) => ({ id: `operational-${client.id}`, client: client.nome || "Cliente", seller: client.brokerName || "Corretor", phone: client.telefone || "—", email: client.email || "", product: client.produto || "Cliente", status: ({ ativo: "Ativo", a_renovar: "A renovar", renovado: "Renovado" })[client.status] || "Ativo", lives: Number(client.qtdVidas || 0), value: client.valorFechado ? formatMoney(client.valorFechado) : "—", date: client.dataContratacao || String(client.createdAt || "").slice(0, 10), renewal: client.dataRenovacao || "—", post: client.posVenda ? "Agendado" : "Pendente", notes: client.observacao || "" }));
+    const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `registered-${client.id}`, client: client.name || "Cliente", seller: client.users?.name || "Supervisor", phone: client.phone || "—", email: client.email || "", product: "Cliente importado", status: client.status === "inactive" ? "Inativo" : "Ativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "Pendente", notes: [client.document_number, client.city].filter(Boolean).join(" · ") }));
     const pipelineCustomers = SUPERVISOR_DEALS.filter((deal) => deal.stage === "fechamento").map((deal) => ({ id: `lead-${deal.id}`, leadId: deal.id, client: deal.client, seller: deal.seller, phone: deal.phone, email: deal.email, product: deal.product, status: "Ativo", lives: deal.lives, value: deal.value, date: "—", renewal: "—", post: "Pendente", notes: deal.notes }));
     const customerKey = (item) => String(item.email || item.phone || item.client || item.id).replace(/\D/g, "") || String(item.email || item.client || item.id).trim().toLowerCase();
     const consolidatedCustomers = new Map();
-    [...pipelineCustomers, ...operationalCustomers].forEach((customer) => consolidatedCustomers.set(customerKey(customer), { ...(consolidatedCustomers.get(customerKey(customer)) || {}), ...customer }));
+    [...pipelineCustomers, ...operationalCustomers, ...registeredCustomers].forEach((customer) => consolidatedCustomers.set(customerKey(customer), { ...(consolidatedCustomers.get(customerKey(customer)) || {}), ...customer }));
     SUPERVISOR_CUSTOMERS.splice(0, SUPERVISOR_CUSTOMERS.length, ...consolidatedCustomers.values());
   }
 
@@ -3693,7 +3694,7 @@
       }
       const clientes = importedRows.map(mapImportedClientRow).filter((row) => row.nome && row.telefone);
       if (!clientes.length) throw new Error('Nenhum cliente válido foi encontrado. Use o modelo disponível na tela.');
-      const result = await api('/api/clientes/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: supervisorAccessToken, clientes }) });
+      const result = await api('/api/supervisor/clients/import', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-access-token': supervisorAccessToken }, body: JSON.stringify({ clientes }) });
       await loadSupervisorRemoteData(); renderSupervisorMocks();
       toast(`Importação concluída: ${result.created || 0} novos e ${result.updated || 0} atualizados.`);
     } catch (error) { toast(error.message); }
