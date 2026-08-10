@@ -1831,15 +1831,10 @@
       }
       setAuthLocked(false);
       startBrokerMessagePolling();
-      setWhatsappPending(!state.connected);
-      setAuthStatus(state.connected ? "Acesso liberado." : "Token validado. Conecte o WhatsApp pelo QR Code.", "ok");
-      if (state.connected) {
-        setView("crm");
-        loadCrm(true); startCrmRealtime();
-      } else {
-        setView("connect");
-        if (!status?.qrCodeBase64 && !status?.qrCode) connectWhatsApp();
-      }
+      setWhatsappPending(false);
+      setAuthStatus(state.connected ? "Acesso liberado. WhatsApp conectado." : "Acesso liberado. A conexão com o WhatsApp é opcional.", "ok");
+      setView("crm");
+      loadCrm(true); startCrmRealtime();
       return true;
     } catch (error) {
       setAuthLocked(true);
@@ -1868,11 +1863,6 @@
       setAuthLocked(true);
       setAuthStatus("Informe o token para liberar o sistema.", "");
       return;
-    }
-    if (!state.connected && !["connect", "instance", "treinamentos"].includes(name)) {
-      name = "connect";
-      setWhatsappPending(true);
-      if (el.connectStatus) el.connectStatus.textContent = "Token validado. Conecte o WhatsApp para liberar o painel.";
     }
     const titles = {
       crm: ["Meus Leads", "Pipeline comercial com lista, kanban, importação e exportação."],
@@ -2477,11 +2467,14 @@
   }
 
   async function configureAuto(silent = false) {
+    silent = silent === true;
     try {
       if (!silent) {
         el.configureAutoBtn.disabled = true;
         el.configureAutoBtn.textContent = "Sincronizando...";
       }
+      const connection = await refreshInstanceSilent().catch(() => ({ connected: state.connected }));
+      if (!connection?.connected && !state.connected) throw new Error("Conecte o WhatsApp pelo QR Code antes de sincronizar as conversas.");
       await api(`/api/crm/configure-auto-conversations-browser?token=${tokenQuery()}`);
       setLeadSyncEnabled(true);
       const sync = silent ? { created: 0, updated: 0 } : await api(`/api/crm/sync-recent-conversations-browser?token=${tokenQuery()}&limit=20`);
@@ -2489,7 +2482,7 @@
       await loadCrm(true);
       if (!silent) saveWhatsappConversationWindow();
       renderCrm();
-      if (!silent) toast(`Sincronização concluída: ${sync.created || 0} novos, ${sync.updated || 0} atualizados.`);
+      if (!silent) toast(`Sincronização concluída: ${sync.scanned || 0} conversas encontradas, ${sync.created || 0} novas e ${sync.updated || 0} atualizadas.`);
     } catch (error) {
       if (!silent) toast(error.message);
     } finally {
@@ -2614,7 +2607,7 @@
       saveAccess();
       renderAccess();
       setAuthLocked(false);
-      setWhatsappPending(!state.connected);
+      setWhatsappPending(false);
       el.connectStatus.textContent = state.connected ? "WhatsApp conectado." : "Escaneie o QR Code.";
       await renderQr(data.qrCodeBase64 || data.qrCode || "");
       if (state.connected) setView("crm");
@@ -2655,7 +2648,7 @@
       saveAccess();
       renderAccess();
       setAuthLocked(false);
-      setWhatsappPending(!state.connected);
+      setWhatsappPending(false);
       toast(state.connected ? "WhatsApp conectado." : "WhatsApp ainda desconectado.");
       if (state.connected) setView("crm");
     } catch (error) {
@@ -4488,7 +4481,7 @@
     el.crmPeriodFilter?.addEventListener("change", () => { toggleCustomPeriodFields(); renderCrm(); });
     el.crmDateFrom?.addEventListener("change", renderCrm);
     el.crmDateTo?.addEventListener("change", renderCrm);
-    el.configureAutoBtn.addEventListener("click", configureAuto);
+    el.configureAutoBtn.addEventListener("click", () => configureAuto(false));
     el.newLeadBtn.addEventListener("click", () => openLeadModal());
     el.importBtn.addEventListener("click", () => el.importFile.click());
     el.importFile.addEventListener("change", () => importLeads(el.importFile.files[0]));
