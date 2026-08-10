@@ -5,4 +5,11 @@ Alteração desta versão:
 - Aceite salvo no navegador por token e versão dos termos.
 - Texto inclui período beta, instabilidades, exportação/backup de contatos e regra do Plano Legacy.
 
-Deploy: subir esta pasta no domínio do painel do corretor.
+Deploy no EasyPanel:
+- Criar um app separado do backend usando o repositório GasparNibiru/front_end_crm_lungo.
+- Selecionar a branch feature/admin-master para staging.
+- Build: Dockerfile (detectado automaticamente).
+- Porta interna: 80.
+- Associar o domínio staging-crm.lungocorretores.com.br ao app.
+- O frontend usa o backend configurado em config.js.
+- O Nginx desabilita cache para HTML, JavaScript e CSS durante a homologação.
