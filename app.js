@@ -205,6 +205,7 @@
     supervisorMessageStatus: $("#supervisorMessageStatus"),
     supervisorMessageHistory: $("#supervisorMessageHistory"),
     supervisorImportBtn: $("#supervisorImportBtn"),
+    supervisorImportFile: $("#supervisorImportFile"),
     supervisorArchiveBtn: $("#supervisorArchiveBtn"),
     supervisorDetailModal: $("#supervisorDetailModal"),
     supervisorModalTitle: $("#supervisorModalTitle"),
@@ -600,6 +601,10 @@
 
   async function ensureTermsAccepted() {
     if (hasAcceptedTerms()) return true;
+    try {
+      const remote = await api('/api/access/terms', { headers: { 'x-access-token': state.token } });
+      if (remote.accepted) { saveTermsAcceptance(); return true; }
+    } catch {}
     const accepted = await showTermsModal();
     if (!accepted) {
       try { localStorage.removeItem(STORAGE_KEY); } catch {}
@@ -608,6 +613,8 @@
       renderAccess();
       return false;
     }
+    try { await api('/api/access/terms', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-access-token': state.token }, body: JSON.stringify({ version: TERMS_VERSION }) }); }
+    catch { toast('Termos aceitos neste dispositivo; a sincronização com o servidor será tentada novamente.'); }
     return true;
   }
 
@@ -828,7 +835,7 @@
     const phone = displayPhone(lead);
     const raw = String(lead.nome || "").trim();
     if (!isBadName(raw) && !/^Contato\s+\d{10,}/i.test(raw) && !/^Contato\s+WhatsApp$/i.test(raw)) return raw;
-    return phone ? `Contato ${phone}` : "";
+    return phone ? `Contato ${phone}` : (lead?.whatsappJid && lead?.lastMessage ? "Contato WhatsApp" : "");
   }
 
   function isUsableLead(lead) {
@@ -837,6 +844,7 @@
     const hasManualData = [lead.email, lead.cidade, lead.planoInteresse, lead.cnpjOuPf, lead.valorNegocio, lead.qtdVidas].some((v) => String(v || "").trim());
     if (phone && phone.length >= 10 && name) return true;
     if (hasManualData && name) return true;
+    if (lead?.lastMessage && lead?.whatsappJid && name) return true;
     return false;
   }
 
@@ -1405,10 +1413,14 @@
       window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
-    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: 0, goal: 0, login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
+    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: Number(broker.sales || 0), revenue: Number(broker.revenue || 0), goal: Number(broker.goalPercent || 0), login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
     renderSupervisorMessageRecipients();
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
+    SUPERVISOR_BROKERS.forEach((broker) => {
+      const closed = SUPERVISOR_DEALS.filter((deal) => deal.stage === 'fechamento' && stripAccents(deal.seller).toLowerCase() === stripAccents(broker.name).toLowerCase());
+      if (closed.length) { broker.sales = closed.length; broker.revenue = closed.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0); }
+    });
     const operationalCustomers = (operationalClientsResult.clients || []).map((client) => ({ id: `operational-${client.id}`, client: client.nome || "Cliente", seller: client.brokerName || "Corretor", phone: client.telefone || "—", email: client.email || "", product: client.produto || "Cliente", status: ({ ativo: "Ativo", a_renovar: "A renovar", renovado: "Renovado" })[client.status] || "Ativo", lives: Number(client.qtdVidas || 0), value: client.valorFechado ? formatMoney(client.valorFechado) : "—", date: client.dataContratacao || String(client.createdAt || "").slice(0, 10), renewal: client.dataRenovacao || "—", post: client.posVenda ? "Agendado" : "Pendente", notes: client.observacao || "" }));
     const pipelineCustomers = SUPERVISOR_DEALS.filter((deal) => deal.stage === "fechamento").map((deal) => ({ id: `lead-${deal.id}`, leadId: deal.id, client: deal.client, seller: deal.seller, phone: deal.phone, email: deal.email, product: deal.product, status: "Ativo", lives: deal.lives, value: deal.value, date: "—", renewal: "—", post: "Pendente", notes: deal.notes }));
     const customerKey = (item) => String(item.email || item.phone || item.client || item.id).replace(/\D/g, "") || String(item.email || item.client || item.id).trim().toLowerCase();
@@ -1447,7 +1459,9 @@
 
   function renderSupervisorGoalsAndReport() {
     const goal = supervisorTeamGoal();
-    const revenue = Number(supervisorDashboard?.revenue || 0);
+    const teamRevenue = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.revenue || 0), 0);
+    const teamSales = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.sales || 0), 0);
+    const revenue = Number(supervisorDashboard?.revenue || 0) || teamRevenue;
     const percent = goal > 0 ? Math.min(999, Math.round((revenue / goal) * 100)) : 0;
     if ($('#supervisorTeamGoalInput')) $('#supervisorTeamGoalInput').value = goal || '';
     if ($('#supervisorGoalTarget')) $('#supervisorGoalTarget').textContent = formatCurrency(goal);
@@ -1459,13 +1473,16 @@
     if ($('#supervisorReportLogo')) { $('#supervisorReportLogo').src = logo; $('#supervisorReportLogo').alt = companyName; }
     if ($('#supervisorReportCompany')) $('#supervisorReportCompany').textContent = companyName;
     if ($('#supervisorReportOwner')) $('#supervisorReportOwner').textContent = `Supervisor: ${state.clientName || 'Supervisor'} · ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`;
-    if ($('#supervisorReportNumbers')) $('#supervisorReportNumbers').innerHTML = [['Meta da equipe', formatCurrency(goal)], ['Faturamento', formatCurrency(revenue)], ['Meta alcançada', `${percent}%`], ['Vendas', Number(supervisorDashboard?.sales || 0)], ['Clientes ativos', SUPERVISOR_CUSTOMERS.length], ['Corretores', SUPERVISOR_BROKERS.length]].map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('');
+    if ($('#supervisorReportNumbers')) $('#supervisorReportNumbers').innerHTML = [['Meta da equipe', formatCurrency(goal)], ['Faturamento', formatCurrency(revenue)], ['Meta alcançada', `${percent}%`], ['Vendas', Number(supervisorDashboard?.sales || 0) || teamSales], ['Clientes ativos', SUPERVISOR_CUSTOMERS.length], ['Corretores', SUPERVISOR_BROKERS.length]].map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join('');
     if ($('#supervisorReportRows')) $('#supervisorReportRows').innerHTML = SUPERVISOR_BROKERS.map((broker, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(broker.name)}</td><td>${broker.sales}</td><td>${formatCurrency(goal && SUPERVISOR_BROKERS.length ? goal / SUPERVISOR_BROKERS.length : 0)}</td><td>${broker.goal}%</td><td>${escapeHtml(broker.login)}</td></tr>`).join('') || '<tr><td colspan="6">Nenhum corretor cadastrado.</td></tr>';
     if ($('#supervisorReportFunnel')) $('#supervisorReportFunnel').innerHTML = [['novos','Novos'],['em_atendimento','Em atendimento'],['cotacao','Cotação'],['documentacao','Documentação'],['venda','Venda cadastrada'],['boleto','Boleto'],['fechamento','Fechamento'],['perdida','Perdida']].map(([stage,label]) => `<span><b>${SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length}</b>${label}</span>`).join('');
     if ($('#supervisorReportFooter')) $('#supervisorReportFooter').textContent = `${companyName} · 1/1`;
   }
 
   function renderSupervisorMocks() {
+    const teamGoal = supervisorTeamGoal();
+    const brokerTarget = teamGoal && SUPERVISOR_BROKERS.length ? teamGoal / SUPERVISOR_BROKERS.length : 0;
+    SUPERVISOR_BROKERS.forEach((broker) => { broker.goal = brokerTarget > 0 ? Math.min(999, Math.round((Number(broker.revenue || 0) / brokerTarget) * 100)) : 0; });
     const dashboardCards = $$("#supervisor-view-dashboard .supervisor-kpis article");
     const dashboardValues = [
       [String((supervisorDashboard?.brokers || 0) + 1), `${supervisorDashboard?.brokers || 0} corretores + Supervisor`],
@@ -1583,7 +1600,7 @@
 
   async function loadRecruitment(notify = true, preserveForm = true) {
     if (!supervisorAccessToken) return;
-    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if ($('#supervisor-view-brokers')?.classList.contains('active')) renderSupervisorMocks(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
+    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); const identity = loadCompanyIdentity(); let vacancy = result.vacancy; if (identity.name && (vacancy?.companyName !== identity.name || (identity.logo && vacancy?.logo !== identity.logo))) { const logo = await compactRecruitmentLogo(identity.logo || ''); const updated = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken); vacancy = updated.vacancy; } recruitmentData = { vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if ($('#supervisor-view-brokers')?.classList.contains('active')) renderSupervisorMocks(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
     catch (error) { if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); } }
   }
 
@@ -2504,6 +2521,10 @@
       const sync = silent ? { created: 0, updated: 0 } : await api(`/api/crm/sync-recent-conversations-browser?token=${tokenQuery()}&limit=20`);
       sessionStorage.setItem(`lungo-auto-webhook-${state.token}`, String(Date.now()));
       await loadCrm(true);
+      if (!silent && Array.isArray(sync.leads) && sync.leads.length) {
+        const syncedIds = new Set(sync.leads.map((lead) => lead.id));
+        state.leads = sync.leads.map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).concat(state.leads.filter((lead) => !syncedIds.has(lead.id)));
+      }
       if (!silent) saveWhatsappConversationWindow();
       renderCrm();
       if (!silent) toast(`Sincronização concluída: ${sync.scanned || 0} conversas encontradas, ${sync.created || 0} novas e ${sync.updated || 0} atualizadas.`);
@@ -3655,6 +3676,42 @@
     toast('Lista de clientes exportada.');
   }
 
+  async function importSupervisorClients(file) {
+    if (!file) return;
+    try {
+      let importedRows;
+      if (/\.csv$/i.test(file.name)) {
+        const text = await file.text();
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+        const separator = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ';' : ',';
+        const headers = lines.shift().split(separator).map((value) => value.trim());
+        importedRows = lines.map((line) => Object.fromEntries(headers.map((header, index) => [header, line.split(separator)[index]?.replace(/^"|"$/g, '').trim() || ''])));
+      } else {
+        if (!window.XLSX) throw new Error('O leitor de Excel não carregou. Use o modelo CSV.');
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+        importedRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+      }
+      const clientes = importedRows.map(mapImportedClientRow).filter((row) => row.nome && row.telefone);
+      if (!clientes.length) throw new Error('Nenhum cliente válido foi encontrado. Use o modelo disponível na tela.');
+      const result = await api('/api/clientes/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: supervisorAccessToken, clientes }) });
+      await loadSupervisorRemoteData(); renderSupervisorMocks();
+      toast(`Importação concluída: ${result.created || 0} novos e ${result.updated || 0} atualizados.`);
+    } catch (error) { toast(error.message); }
+    finally { if (el.supervisorImportFile) el.supervisorImportFile.value = ''; }
+  }
+
+  function exportSupervisorClients() {
+    const rows = filteredSupervisorCustomers().map((client) => ({ Nome: client.client || '', Vendedor: client.seller || '', WhatsApp: client.phone || '', Email: client.email || '', Produto: client.product || '', Status: client.status || '', Vidas: client.lives || '', Valor: client.value || '', Contratacao: client.date || '', Renovacao: client.renewal || '', PosVenda: client.post || '', Observacao: client.notes || '' }));
+    if (!rows.length) return toast('Não há clientes para exportar.');
+    const headers = Object.keys(rows[0]);
+    const csv = [headers.join(';'), ...rows.map((row) => headers.map((header) => `"${String(row[header] ?? '').replace(/"/g, '""')}"`).join(';'))].join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    link.download = `clientes-equipe-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
+    toast('Clientes da equipe exportados.');
+  }
+
   function logout() {
     stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
@@ -4450,8 +4507,9 @@
     $('#rhCandidateKanban')?.addEventListener('dragover', (event) => { const lane = event.target.closest('[data-rh-lane]'); if (!lane) return; event.preventDefault(); lane.classList.add('drag-over'); });
     $('#rhCandidateKanban')?.addEventListener('dragleave', (event) => event.target.closest('[data-rh-lane]')?.classList.remove('drag-over'));
     $('#rhCandidateKanban')?.addEventListener('drop', async (event) => { const lane = event.target.closest('[data-rh-lane]'); if (!lane) return; event.preventDefault(); lane.classList.remove('drag-over'); const id = event.dataTransfer.getData('text/rh-candidate'); if (!id) return; try { await updateRecruitmentStage(id, lane.dataset.rhLane); } catch (error) { toast(error.message); } });
-    el.supervisorImportBtn?.addEventListener("click", () => toast("Importação simulada. Nenhum arquivo foi enviado."));
-    el.supervisorExportBtn?.addEventListener("click", () => toast("Exportação simulada. Nenhum arquivo foi gerado."));
+    el.supervisorImportBtn?.addEventListener("click", () => el.supervisorImportFile?.click());
+    el.supervisorImportFile?.addEventListener("change", () => importSupervisorClients(el.supervisorImportFile.files?.[0]));
+    el.supervisorExportBtn?.addEventListener("click", exportSupervisorClients);
     el.supervisorArchiveBtn?.addEventListener("click", () => {
       if (!supervisorSelectedClientIds.size) { toast("Selecione ao menos um cliente."); return; }
       toast(`${supervisorSelectedClientIds.size} cliente(s) arquivado(s) visualmente.`);
