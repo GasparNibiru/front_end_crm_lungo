@@ -2503,6 +2503,8 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .broker-branding-banner:not([hidden]) + .crm-layout { height: calc(100% - 70px); margin-top: 8px; }
 .broker-branding-banner.has-background::before { content: ""; position: absolute; inset: 0; background: var(--company-banner) center/cover; opacity: .17; }
 .team-upgrade-panel { max-width: none; width: 100%; margin: 0; }
+.view.team-upgrade-panel { display: none; }
+.view.team-upgrade-panel.active { display: grid; }
 .team-upgrade-panel[hidden] { display: none; }
 .team-upgrade-panel strong { color: var(--primary-2); }
 .team-upgrade-panel .btn { justify-self: auto; margin-top: 0; }

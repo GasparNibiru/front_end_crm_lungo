@@ -315,6 +315,7 @@
       clients: $("#view-clients"),
       treinamentos: $("#view-trainings"),
       relatorios: $("#view-reports"),
+      vendedores: $("#view-vendedores"),
       soon: $("#view-soon")
     },
     viewTitle: $("#viewTitle"),
@@ -1877,10 +1878,7 @@
       relatorios: ["Relatórios", "Indicadores comerciais e relatórios avançados."],
       agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
     };
-    const isSoon = ["cotador", "comprar_leads", "vendedores", "agenda"].includes(name);
-    const isTeamUpgrade = name === "vendedores";
-    if (el.defaultSoonPanel) el.defaultSoonPanel.hidden = isTeamUpgrade;
-    if (el.teamUpgradePanel) el.teamUpgradePanel.hidden = !isTeamUpgrade;
+    const isSoon = ["cotador", "comprar_leads", "agenda"].includes(name);
     const activeView = isSoon ? "soon" : name;
     el.navItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
     Object.entries(el.views).forEach(([key, node]) => node?.classList.toggle("active", key === activeView));
