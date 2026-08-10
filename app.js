@@ -1942,11 +1942,45 @@
     if (el.baseSaleProduto) el.baseSaleProduto.innerHTML = productSelectOptions(el.baseSaleProduto.value || "Saúde");
   }
 
+  function whatsappConversationWindowKey() {
+    return `lungo-whatsapp-conversation-window-${state.token || "sem-token"}`;
+  }
+
+  function isWhatsappConversation(lead) {
+    return Boolean(lead?.lastMessage && (lead?.whatsappJid || String(lead?.externalId || "").startsWith("whatsapp:") || String(lead?.origem || "").toLowerCase() === "whatsapp"));
+  }
+
+  function loadWhatsappConversationWindow() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(whatsappConversationWindowKey()) || "null");
+      return saved && Array.isArray(saved.initialIds) ? saved : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveWhatsappConversationWindow() {
+    const initialIds = state.leads
+      .filter(isWhatsappConversation)
+      .sort((a, b) => leadLastMessageTime(b) - leadLastMessageTime(a))
+      .slice(0, 20)
+      .map((lead) => lead.id);
+    localStorage.setItem(whatsappConversationWindowKey(), JSON.stringify({ initialIds, syncedAt: Date.now() }));
+  }
+
+  function belongsToWhatsappConversationWindow(lead) {
+    if (!isWhatsappConversation(lead)) return true;
+    const window = loadWhatsappConversationWindow();
+    if (!window) return false;
+    return window.initialIds.includes(lead.id) || leadLastMessageTime(lead) > Number(window.syncedAt || 0);
+  }
+
   function filteredLeads() {
     const q = el.crmSearch.value.trim().toLowerCase();
     const status = el.crmStatusFilter.value;
     return state.leads.filter((lead) => {
       if (!isUsableLead(lead)) return false;
+      if (!belongsToWhatsappConversationWindow(lead)) return false;
       if (status && lead.status !== status) return false;
       if (!status && ["arquivado", "lixeira"].includes(lead.status)) return false;
       if (!inSelectedPeriod(lead)) return false;
@@ -2000,7 +2034,7 @@
   }
 
   function renderMetrics() {
-    const activeLeads = state.leads.filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && isUsableLead(lead));
+    const activeLeads = state.leads.filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && isUsableLead(lead) && belongsToWhatsappConversationWindow(lead));
     const items = [{ value: "total", label: "Total", count: activeLeads.length }]
       .concat(STATUSES.map((status) => ({ ...status, count: activeLeads.filter((lead) => lead.status === status.value).length })));
     el.metricsBar.innerHTML = items.map((item) => `
@@ -2109,7 +2143,7 @@
       if (!state.token) return;
       await loadCrm(true);
       if (el.views.clients?.classList.contains("active")) await loadClients(true);
-    }, 12000);
+    }, 5000);
   }
 
   function stopCrmRealtime() {
@@ -2450,9 +2484,11 @@
       }
       await api(`/api/crm/configure-auto-conversations-browser?token=${tokenQuery()}`);
       setLeadSyncEnabled(true);
-      const sync = silent ? { created: 0, updated: 0 } : await api(`/api/crm/sync-recent-conversations-browser?token=${tokenQuery()}&limit=100`);
+      const sync = silent ? { created: 0, updated: 0 } : await api(`/api/crm/sync-recent-conversations-browser?token=${tokenQuery()}&limit=20`);
       sessionStorage.setItem(`lungo-auto-webhook-${state.token}`, String(Date.now()));
       await loadCrm(true);
+      if (!silent) saveWhatsappConversationWindow();
+      renderCrm();
       if (!silent) toast(`Sincronização concluída: ${sync.created || 0} novos, ${sync.updated || 0} atualizados.`);
     } catch (error) {
       if (!silent) toast(error.message);
