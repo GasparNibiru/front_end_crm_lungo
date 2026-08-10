@@ -29,5 +29,9 @@
   const updateCandidate = (id, payload, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'PATCH', token, body: payload });
   const deleteCandidate = (id, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'DELETE', token });
   const markCandidatesSeen = (token) => request('/api/supervisor/recruitment/candidates/seen', { method: 'POST', token, body: {} });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen });
+  const getCalendarEvents = (token) => request('/api/calendar/events', { token });
+  const createCalendarEvent = (payload, token) => request('/api/calendar/events', { method: 'POST', token, body: payload });
+  const deleteCalendarEvent = (id, token) => request(`/api/calendar/events/${encodeURIComponent(id)}`, { method: 'DELETE', token });
+  const checkCalendarReminders = (token) => request('/api/calendar/reminders/check', { method: 'POST', token, body: {} });
+  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, updateBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders });
 })();
