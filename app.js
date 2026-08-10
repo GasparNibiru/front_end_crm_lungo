@@ -1878,6 +1878,9 @@
       agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
     };
     const isSoon = ["cotador", "comprar_leads", "vendedores", "agenda"].includes(name);
+    const isTeamUpgrade = name === "vendedores";
+    if (el.defaultSoonPanel) el.defaultSoonPanel.hidden = isTeamUpgrade;
+    if (el.teamUpgradePanel) el.teamUpgradePanel.hidden = !isTeamUpgrade;
     const activeView = isSoon ? "soon" : name;
     el.navItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
     Object.entries(el.views).forEach(([key, node]) => node?.classList.toggle("active", key === activeView));
@@ -4285,11 +4288,6 @@
     if ($('#publicApplicationForm')) { $('#publicApplicationForm').noValidate = true; $('#publicApplicationForm').addEventListener('submit', submitPublicApplication); }
     document.addEventListener('click', (event) => { const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); });
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
-    el.navItems.forEach((btn) => btn.addEventListener("click", () => {
-      const upgrade = btn.dataset.view === "vendedores";
-      if (el.defaultSoonPanel) el.defaultSoonPanel.hidden = upgrade;
-      if (el.teamUpgradePanel) el.teamUpgradePanel.hidden = !upgrade;
-    }));
     el.sidebarToggleBtn?.addEventListener("click", () => {
       const collapsed = !el.appShell.classList.contains("sidebar-collapsed");
       el.appShell.classList.toggle("sidebar-collapsed", collapsed);
