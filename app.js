@@ -4311,7 +4311,7 @@
       if (event.key === "Enter") enterWithToken();
     });
     el.contactLungoTeamPlanBtn?.addEventListener("click", () => {
-      const message = encodeURIComponent("Olá! Gostaria de conhecer o Plano Gestão de Equipes da Lungo Corretores.");
+      const message = encodeURIComponent("Olá! Uso o sistema Lungo como corretor e gostaria de solicitar o upgrade para o Plano Gestão de Equipes. Pode me passar mais informações?");
       window.open(`https://wa.me/5555992102864?text=${message}`, "_blank", "noopener,noreferrer");
     });
     el.corretorTabBtn?.addEventListener("click", () => setAuthRole("corretor"));
