@@ -6,6 +6,10 @@
   const THEME_KEY = "lungo-suite-theme-v5";
   const SIDEBAR_KEY = "lungo-suite-sidebar-v5";
   const SUPERVISOR_SIDEBAR_KEY = "lungo-supervisor-sidebar-v1";
+  const SUPERVISOR_SESSION_KEY = "lungo-supervisor-session-v1";
+  const ACTIVE_PROFILE_KEY = "lungo-active-profile-v1";
+  const AUTH_SESSION_KEY = "lungo-auth-session-v1";
+  const TAB_PROFILE_KEY = "lungo-tab-profile-v1";
   const LEAD_SEEN_PREFIX = "lungo-lead-seen-v1";
   const ADMIN_SESSION_KEY = "lungo-admin-master-session-v1";
   const TERMS_VERSION = "mvp-beta-v1-2026-07-31";
@@ -1097,12 +1101,16 @@
   }
 
   function saveAccess() {
+    // Componentes do Corretor também são reutilizados pelo Supervisor.
+    // Nunca grave o token do Supervisor no armazenamento do Corretor.
+    if (supervisorAccessToken || document.body.classList.contains("supervisor-mode")) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       token: state.token,
       clientName: state.clientName,
       instanceName: state.instanceName,
       connected: state.connected
     }));
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "broker", token: state.token }));
   }
 
   function loadAccess() {
@@ -1145,6 +1153,7 @@
 
   function setAuthLocked(locked) {
     document.body.classList.toggle("auth-locked", Boolean(locked));
+    if (!locked) el.root.classList.remove("session-restoring");
   }
 
   function formatLastAccess(value) {
@@ -1512,8 +1521,9 @@
     SUPERVISOR_CUSTOMERS.splice(0, SUPERVISOR_CUSTOMERS.length, ...consolidatedCustomers.values());
   }
 
-  async function supervisorLogin() {
-    const token = String(el.supervisorEmailInput?.value || "").trim();
+  async function supervisorLogin(options = {}) {
+    const silent = Boolean(options.silent);
+    const token = String(options.token || el.supervisorEmailInput?.value || "").trim();
     if (!token) { el.supervisorStatus.textContent = "Informe o token de Supervisor."; el.supervisorStatus.classList.add("error"); return; }
     el.supervisorLoginBtn.disabled = true; el.supervisorStatus.textContent = "Validando acesso..."; el.supervisorStatus.classList.remove("error", "ok");
     try {
@@ -1523,13 +1533,17 @@
       state.token = token;
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
+      localStorage.setItem(SUPERVISOR_SESSION_KEY, token);
+      localStorage.setItem(ACTIVE_PROFILE_KEY, "supervisor");
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "supervisor", token }));
+      sessionStorage.setItem(TAB_PROFILE_KEY, "supervisor");
       if (!await ensureTermsAccepted()) return;
       await loadSupervisorRemoteData();
-      el.supervisorEmailInput.value = "";
+      if (el.supervisorEmailInput) el.supervisorEmailInput.value = "";
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
       supervisorOrganizationName = auth.user.organization?.name || "Corretora";
       openSupervisorArea();
-    } catch (error) { supervisorAccessToken = ""; el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); }
+    } catch (error) { supervisorAccessToken = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
     finally { el.supervisorLoginBtn.disabled = false; }
   }
 
@@ -1642,7 +1656,11 @@
     supervisorDashboard = null;
     supervisorOrganizationName = "";
     state.token = ""; state.clientName = ""; state.instanceName = ""; state.connected = false; state.leads = [];
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SUPERVISOR_SESSION_KEY);
+    localStorage.removeItem(ACTIVE_PROFILE_KEY);
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    sessionStorage.removeItem(TAB_PROFILE_KEY);
+    if (el.supervisorEmailInput) el.supervisorEmailInput.value = "";
     restoreSupervisorSharedView();
     document.body.classList.remove("supervisor-mode");
     if (el.supervisorScreen) el.supervisorScreen.hidden = true;
@@ -1945,7 +1963,10 @@
     try {
       if (!silent) setAuthStatus("Validando token...", "");
       await validateTokenAccess(token);
-      if (el.rememberAccessCheck?.checked !== false || fromTopbar) saveAccess();
+      // Uma autenticação válida permanece neste dispositivo até o usuário clicar em Sair.
+      saveAccess();
+      localStorage.setItem(ACTIVE_PROFILE_KEY, "broker");
+      sessionStorage.setItem(TAB_PROFILE_KEY, "broker");
       let status = null;
       try { status = await refreshInstanceSilent(); }
       catch { state.connected = false; saveAccess(); renderAccess(); }
@@ -1965,6 +1986,7 @@
       loadCrm(true); startCrmRealtime();
       return true;
     } catch (error) {
+      el.root.classList.remove("session-restoring");
       setAuthLocked(true);
       setWhatsappPending(false);
       setAuthStatus(error.message || "Token inválido ou inativo.", "error");
@@ -1975,6 +1997,7 @@
 
   async function bootAccess() {
     if (!state.token) {
+      el.root.classList.remove("session-restoring");
       setAuthLocked(true);
       setWhatsappPending(false);
       setAuthStatus("Informe o token para liberar o sistema.", "");
@@ -3805,6 +3828,9 @@
     stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
     [STORAGE_KEY, "lungo-suite-access-v2", "lungo-suite-access-v3", "lungo-suite-access-v4"].forEach((key) => localStorage.removeItem(key));
+    localStorage.removeItem(ACTIVE_PROFILE_KEY);
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    sessionStorage.removeItem(TAB_PROFILE_KEY);
     state.token = "";
     state.clientName = "";
     state.instanceName = "";
@@ -3835,7 +3861,7 @@
     renderAccess();
     renderCrm();
     renderClients();
-    toast("Logout realizado.");
+    toast("Saída realizada.");
   }
 
   function getPlanDefinition(planId) {
@@ -4555,6 +4581,11 @@
     });
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
+    $("#supervisorOpenAccessModalBtn")?.addEventListener("click", () => {
+      if (el.supervisorGeneratedMessage) el.supervisorGeneratedMessage.hidden = true;
+      if (el.supervisorAccessStatus) { el.supervisorAccessStatus.textContent = "Preencha os dados para gerar o acesso."; el.supervisorAccessStatus.classList.remove("error", "ok"); }
+      $("#supervisorAccessModal")?.showModal();
+    });
     el.supervisorClientSearch?.addEventListener("input", renderSupervisorCustomers);
     el.supervisorClientStatusFilter?.addEventListener("change", renderSupervisorCustomers);
     el.supervisorClientPeriodFilter?.addEventListener("change", renderSupervisorCustomers);
@@ -4907,6 +4938,15 @@
   function init() {
     const isAdminMasterRoute = window.location.hash.toLowerCase() === "#admin";
     const publicVacancySlug = new URLSearchParams(window.location.search).get('vaga');
+    let authSession = null;
+    try { authSession = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null"); } catch {}
+    const legacySupervisorToken = localStorage.getItem(SUPERVISOR_SESSION_KEY) || "";
+    const legacyProfile = localStorage.getItem(ACTIVE_PROFILE_KEY) || (legacySupervisorToken ? "supervisor" : "broker");
+    if (!authSession?.token && legacyProfile === "supervisor" && legacySupervisorToken) authSession = { role: "supervisor", token: legacySupervisorToken };
+    const tabProfile = sessionStorage.getItem(TAB_PROFILE_KEY) || "";
+    const hasBrokerSession = Boolean(localStorage.getItem(STORAGE_KEY));
+    const activeProfile = tabProfile === "supervisor" && legacySupervisorToken ? "supervisor" : tabProfile === "broker" && hasBrokerSession ? "broker" : authSession?.role === "supervisor" && legacySupervisorToken ? "supervisor" : "broker";
+    const savedSupervisorToken = activeProfile === "supervisor" ? legacySupervisorToken : "";
     const theme = localStorage.getItem(THEME_KEY) || "dark";
     el.root.dataset.theme = theme;
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -4931,13 +4971,19 @@
     renderCompanyIdentity();
     toggleCustomPeriodFields();
     toggleClientCustomPeriodFields();
-    loadAccess();
+    // Perfis usam sessões distintas. Se houver uma sessão de Supervisor,
+    // não carregue um token legado de Corretor antes de restaurá-la.
+    if (activeProfile === "supervisor" && savedSupervisorToken) renderAccess();
+    else loadAccess();
     bindEvents();
     bindAdminMasterEvents();
     setMode("list");
     renderCrm();
     if (publicVacancySlug) loadPublicVacancy(publicVacancySlug);
-    else if (!isAdminMasterRoute) bootAccess();
+    else if (!isAdminMasterRoute && activeProfile === "supervisor" && savedSupervisorToken) {
+      setAuthRole("supervisor");
+      supervisorLogin({ token: savedSupervisorToken, silent: true });
+    } else if (!isAdminMasterRoute) bootAccess();
     if (!publicVacancySlug) syncAdminMasterHash();
   }
 
