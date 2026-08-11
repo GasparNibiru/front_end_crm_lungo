@@ -4947,7 +4947,10 @@
     renderCompanyIdentity();
     toggleCustomPeriodFields();
     toggleClientCustomPeriodFields();
-    loadAccess();
+    // Perfis usam sessões distintas. Se houver uma sessão de Supervisor,
+    // não carregue um token legado de Corretor antes de restaurá-la.
+    if (savedSupervisorToken) renderAccess();
+    else loadAccess();
     bindEvents();
     bindAdminMasterEvents();
     setMode("list");
