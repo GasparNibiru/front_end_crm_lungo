@@ -3452,3 +3452,181 @@ body.admin-mode .admin-screen {
   body.supervisor-mode .toast,
   body:not(.admin-master-mode):not(.supervisor-mode) .toast { max-width: calc(100vw - 70px); left: auto; right: 8px; font-size: 10px; overflow-wrap: anywhere; }
 }
+/* Refinamento visual Lungo — vidro verde e profundidade suave */
+:root {
+  --sidebar-glass: rgba(8, 55, 43, .92);
+  --sidebar-glass-deep: rgba(5, 38, 31, .97);
+  --sidebar-text: #edf6f2;
+  --sidebar-muted: #bfd2ca;
+  --sidebar-line: rgba(224, 244, 236, .14);
+  --sidebar-highlight: rgba(230, 250, 242, .10);
+  --card-radius: 9px;
+  --card-depth: 7px 7px 18px rgba(0, 0, 0, .20), -3px -3px 12px rgba(255, 255, 255, .025);
+  --green-glass: rgba(12, 112, 81, .10);
+}
+
+[data-theme="light"] {
+  --sidebar-glass: rgba(8, 72, 54, .91);
+  --sidebar-glass-deep: rgba(5, 49, 39, .96);
+  --card-depth: 8px 8px 20px rgba(45, 68, 59, .12), -5px -5px 14px rgba(255, 255, 255, .76);
+  --green-glass: rgba(11, 111, 78, .09);
+}
+
+/* A navegação permanece verde-escura nos temas claro e escuro. */
+.sidebar,
+.admin-master-sidebar,
+.supervisor-sidebar {
+  position: relative;
+  isolation: isolate;
+  color: var(--sidebar-text);
+  border-right-color: var(--sidebar-line);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .07), transparent 42%),
+    linear-gradient(180deg, var(--sidebar-glass), var(--sidebar-glass-deep));
+  box-shadow: 8px 0 28px rgba(3, 32, 25, .18);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+}
+
+.sidebar::before,
+.admin-master-sidebar::before,
+.supervisor-sidebar::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, rgba(255, 255, 255, .055), transparent 38% 74%, rgba(81, 199, 158, .055));
+}
+
+.sidebar .brand strong,
+.sidebar .sidebar-meta b,
+.admin-master-brand b,
+.supervisor-brand-text b { color: var(--sidebar-text); }
+
+.sidebar .brand span,
+.sidebar .sidebar-meta span,
+.admin-master-brand span,
+.supervisor-brand-text span,
+.supervisor-nav-group-title { color: var(--sidebar-muted); }
+
+.nav-item,
+.admin-master-nav-item,
+.admin-master-logout,
+.supervisor-nav-item,
+.supervisor-logout { color: var(--sidebar-muted); border-radius: 7px; }
+
+.nav-item .nav-ico,
+.admin-master-nav-item span,
+.admin-master-logout span,
+.supervisor-nav-item span,
+.supervisor-logout span { color: var(--sidebar-text); opacity: .9; }
+
+.nav-item:hover,
+.admin-master-nav-item:hover,
+.admin-master-logout:hover,
+.supervisor-nav-item:hover,
+.supervisor-logout:hover {
+  color: var(--sidebar-text);
+  background: var(--sidebar-highlight);
+  border-color: rgba(235, 251, 244, .08);
+}
+
+.nav-item.active,
+.admin-master-nav-item.active,
+.supervisor-nav-item.active {
+  color: #fff;
+  border-color: rgba(235, 251, 244, .16);
+  background: rgba(235, 251, 244, .13);
+  box-shadow: inset 3px 0 0 #74d9b4, 0 7px 16px rgba(2, 27, 21, .16);
+}
+
+.sidebar-toggle,
+.admin-master-icon-btn,
+.supervisor-icon-btn {
+  color: var(--sidebar-text);
+  border-color: var(--sidebar-line);
+  background: rgba(255, 255, 255, .08);
+  border-radius: 7px;
+}
+
+.sidebar-meta,
+.admin-master-logout,
+.supervisor-logout { border-color: var(--sidebar-line); }
+
+/* Cantos levemente suaves e sombra dupla dão profundidade sem inflar o layout. */
+.metric,
+.content-frame,
+.flat-panel,
+.kanban-card,
+.modal-card,
+.chart-card,
+.client-list-panel,
+.supervisor-card,
+.supervisor-kpis article,
+.supervisor-goal-summary article,
+.training-card,
+.rh-candidate-card,
+.calendar-event-card,
+.calendar-week-panel,
+.lead-offer-card,
+.lead-wallet-card,
+.admin-master-login-card,
+.admin-master-kpis article,
+.admin-master-panel,
+.admin-master-plan-grid article,
+.admin-finance-kpis article,
+.admin-master-modal-body article,
+.product-contract-card,
+.product-folder-card,
+.product-docs-panel {
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-depth);
+}
+
+.toolbar,
+.segmented,
+.supervisor-table-wrap,
+.admin-master-table-wrap,
+.supervisor-lane,
+.supervisor-deal { border-radius: 7px; }
+
+/* Reflexos verdes discretos conectam o conteúdo à identidade da sidebar. */
+.app,
+body.admin-master-mode .admin-master-screen,
+body.supervisor-mode .supervisor-screen {
+  background:
+    radial-gradient(circle at 18% 8%, var(--green-glass), transparent 28%),
+    radial-gradient(circle at 92% 92%, color-mix(in srgb, var(--green-glass) 65%, transparent), transparent 24%),
+    var(--bg);
+}
+
+.topbar,
+.admin-master-topbar,
+.supervisor-topbar {
+  background: color-mix(in srgb, var(--surface) 88%, var(--green-glass));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] body { background: #e7eee9; }
+[data-theme="light"] .topbar,
+[data-theme="light"] .admin-master-topbar,
+[data-theme="light"] .supervisor-topbar {
+  background: rgba(242, 248, 244, .88);
+  border-bottom-color: rgba(25, 91, 68, .14);
+}
+
+[data-theme="light"] .metric,
+[data-theme="light"] .content-frame,
+[data-theme="light"] .flat-panel,
+[data-theme="light"] .supervisor-card,
+[data-theme="light"] .admin-master-panel {
+  border-color: rgba(34, 91, 70, .14);
+}
+
+@media (max-width: 720px) {
+  .sidebar,
+  .admin-master-sidebar,
+  .supervisor-sidebar { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+}
