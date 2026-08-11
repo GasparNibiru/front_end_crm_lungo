@@ -1316,7 +1316,7 @@
   }
 
   function renderSupervisorOperation(name) {
-    const labels = { instance: "Minha Instância", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     const descriptions = { instance: "Status da instância própria do Supervisor.", connect: "Conexão visual da conta WhatsApp do Supervisor.", crm: "Pipeline próprio do Supervisor.", clients: "Carteira própria do Supervisor.", broadcast: "Campanhas próprias do Supervisor.", cotador: "Cotações comerciais.", comprar_leads: "Aquisição de oportunidades.", treinamentos: "Trilhas e materiais comerciais.", agenda: "Compromissos e retornos comerciais." };
     const cards = name === "crm" ? [["Leads próprios", "31"], ["Em atendimento", "12"], ["Fechamentos", "6"]] : name === "clients" ? [["Clientes próprios", "18"], ["Vidas", "37"], ["Pós-vendas", "9"]] : [["Ambiente", "Supervisor"], ["Status", "Mock visual"], ["Integração", "Aguardando backend"]];
     el.supervisorOperationContent.innerHTML = `<header class="supervisor-operation-header"><div><h2>${escapeHtml(labels[name] || "Operação")}</h2><p>${escapeHtml(descriptions[name] || "Módulo operacional")}</p></div><span class="status-mini">Sessão própria · mock</span></header><div class="supervisor-operation-grid">${cards.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("")}</div><section class="supervisor-card"><header><div><h2>Estrutura operacional</h2><p>Esta prévia segue o padrão do corretor sem usar seu token ou chamar endpoints.</p></div></header><div class="toolbar"><input class="search" placeholder="Buscar neste módulo" disabled><button class="btn primary" type="button" disabled>Nova ação</button><button class="btn" type="button" disabled>Atualizar</button></div></section>`;
@@ -1491,7 +1491,7 @@
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
     if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
-    const labels = { instance: "Minha Instância", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
   }
 
@@ -1580,12 +1580,18 @@
     const teamGoal = supervisorTeamGoal();
     const brokerTarget = teamGoal && SUPERVISOR_BROKERS.length ? teamGoal / SUPERVISOR_BROKERS.length : 0;
     SUPERVISOR_BROKERS.forEach((broker) => { broker.goal = brokerTarget > 0 ? Math.min(999, Math.round((Number(broker.revenue || 0) / brokerTarget) * 100)) : 0; });
+    const brokerSales = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.sales || 0), 0);
+    const brokerRevenue = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.revenue || 0), 0);
+    const monthSales = Math.max(Number(supervisorDashboard?.sales || 0), brokerSales);
+    const monthRevenue = Math.max(Number(supervisorDashboard?.revenue || 0), brokerRevenue);
+    const totalLeads = Math.max(Number(supervisorDashboard?.leads || 0), SUPERVISOR_DEALS.length);
+    const conversion = totalLeads > 0 ? (monthSales / totalLeads) * 100 : 0;
     const dashboardCards = $$("#supervisor-view-dashboard .supervisor-kpis article");
     const dashboardValues = [
       [String((supervisorDashboard?.brokers || 0) + 1), `${supervisorDashboard?.brokers || 0} corretores + Supervisor`],
-      [String(supervisorDashboard?.sales || 0), "vendas neste mês"],
-      [formatCurrency(supervisorDashboard?.revenue || 0), "produção da organização"],
-      [String(supervisorDashboard?.clients || 0), "clientes ativos"]
+      [String(monthSales), "vendas neste mês"],
+      [formatCurrency(monthRevenue), "produção da organização"],
+      [`${conversion.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, `${monthSales} vendas em ${totalLeads} leads`]
     ];
     dashboardCards.forEach((card, index) => { if (dashboardValues[index]) { card.querySelector("b").textContent = dashboardValues[index][0]; card.querySelector("small").textContent = dashboardValues[index][1]; } });
     const brokerRows = SUPERVISOR_BROKERS.map((broker) => `
@@ -2020,7 +2026,7 @@
       clients: ["Clientes", "Carteira ativa, clientes em fechamento, pós-venda e faturamento."],
       connect: ["Conectar WhatsApp", "Conecte a instância por QR Code."],
       broadcast: ["Disparos", "Envie mensagens para bases autorizadas."],
-      instance: ["Minha Instância", "Consulte o status da conexão."],
+      instance: ["Meus dados", "Consulte o status da conexão."],
       cotador: ["Cotador", "Cotação de planos e propostas comerciais."],
       comprar_leads: ["Comprar leads", "Aquisição e distribuição de oportunidades."],
       vendedores: ["Vendedores", "Gestão de equipe e acompanhamento comercial."],
