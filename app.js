@@ -7,6 +7,7 @@
   const SIDEBAR_KEY = "lungo-suite-sidebar-v5";
   const SUPERVISOR_SIDEBAR_KEY = "lungo-supervisor-sidebar-v1";
   const SUPERVISOR_SESSION_KEY = "lungo-supervisor-session-v1";
+  const ACTIVE_PROFILE_KEY = "lungo-active-profile-v1";
   const LEAD_SEEN_PREFIX = "lungo-lead-seen-v1";
   const ADMIN_SESSION_KEY = "lungo-admin-master-session-v1";
   const TERMS_VERSION = "mvp-beta-v1-2026-07-31";
@@ -1098,6 +1099,9 @@
   }
 
   function saveAccess() {
+    // Componentes do Corretor também são reutilizados pelo Supervisor.
+    // Nunca grave o token do Supervisor no armazenamento do Corretor.
+    if (supervisorAccessToken || document.body.classList.contains("supervisor-mode")) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       token: state.token,
       clientName: state.clientName,
@@ -1527,6 +1531,7 @@
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
       localStorage.setItem(SUPERVISOR_SESSION_KEY, token);
+      localStorage.setItem(ACTIVE_PROFILE_KEY, "supervisor");
       localStorage.removeItem(STORAGE_KEY);
       if (!await ensureTermsAccepted()) return;
       await loadSupervisorRemoteData();
@@ -1648,6 +1653,7 @@
     supervisorOrganizationName = "";
     state.token = ""; state.clientName = ""; state.instanceName = ""; state.connected = false; state.leads = [];
     localStorage.removeItem(SUPERVISOR_SESSION_KEY);
+    localStorage.removeItem(ACTIVE_PROFILE_KEY);
     localStorage.removeItem(STORAGE_KEY);
     restoreSupervisorSharedView();
     document.body.classList.remove("supervisor-mode");
@@ -1953,6 +1959,7 @@
       await validateTokenAccess(token);
       // Uma autenticação válida permanece neste dispositivo até o usuário clicar em Sair.
       saveAccess();
+      localStorage.setItem(ACTIVE_PROFILE_KEY, "broker");
       localStorage.removeItem(SUPERVISOR_SESSION_KEY);
       let status = null;
       try { status = await refreshInstanceSilent(); }
@@ -3815,6 +3822,7 @@
     stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
     [STORAGE_KEY, "lungo-suite-access-v2", "lungo-suite-access-v3", "lungo-suite-access-v4"].forEach((key) => localStorage.removeItem(key));
+    localStorage.removeItem(ACTIVE_PROFILE_KEY);
     state.token = "";
     state.clientName = "";
     state.instanceName = "";
@@ -4923,6 +4931,7 @@
     const isAdminMasterRoute = window.location.hash.toLowerCase() === "#admin";
     const publicVacancySlug = new URLSearchParams(window.location.search).get('vaga');
     const savedSupervisorToken = localStorage.getItem(SUPERVISOR_SESSION_KEY) || "";
+    const activeProfile = localStorage.getItem(ACTIVE_PROFILE_KEY) || (savedSupervisorToken ? "supervisor" : "broker");
     const theme = localStorage.getItem(THEME_KEY) || "dark";
     el.root.dataset.theme = theme;
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -4949,14 +4958,14 @@
     toggleClientCustomPeriodFields();
     // Perfis usam sessões distintas. Se houver uma sessão de Supervisor,
     // não carregue um token legado de Corretor antes de restaurá-la.
-    if (savedSupervisorToken) renderAccess();
+    if (activeProfile === "supervisor" && savedSupervisorToken) renderAccess();
     else loadAccess();
     bindEvents();
     bindAdminMasterEvents();
     setMode("list");
     renderCrm();
     if (publicVacancySlug) loadPublicVacancy(publicVacancySlug);
-    else if (!isAdminMasterRoute && savedSupervisorToken && !state.token) {
+    else if (!isAdminMasterRoute && activeProfile === "supervisor" && savedSupervisorToken) {
       setAuthRole("supervisor");
       supervisorLogin({ token: savedSupervisorToken, silent: true });
     } else if (!isAdminMasterRoute) bootAccess();
