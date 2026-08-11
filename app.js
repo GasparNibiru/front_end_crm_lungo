@@ -8,6 +8,7 @@
   const SUPERVISOR_SIDEBAR_KEY = "lungo-supervisor-sidebar-v1";
   const SUPERVISOR_SESSION_KEY = "lungo-supervisor-session-v1";
   const ACTIVE_PROFILE_KEY = "lungo-active-profile-v1";
+  const AUTH_SESSION_KEY = "lungo-auth-session-v1";
   const LEAD_SEEN_PREFIX = "lungo-lead-seen-v1";
   const ADMIN_SESSION_KEY = "lungo-admin-master-session-v1";
   const TERMS_VERSION = "mvp-beta-v1-2026-07-31";
@@ -1108,6 +1109,7 @@
       instanceName: state.instanceName,
       connected: state.connected
     }));
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "broker", token: state.token }));
   }
 
   function loadAccess() {
@@ -1532,6 +1534,7 @@
       state.instanceName = auth.client?.instanceName || "";
       localStorage.setItem(SUPERVISOR_SESSION_KEY, token);
       localStorage.setItem(ACTIVE_PROFILE_KEY, "supervisor");
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "supervisor", token }));
       localStorage.removeItem(STORAGE_KEY);
       if (!await ensureTermsAccepted()) return;
       await loadSupervisorRemoteData();
@@ -1654,7 +1657,9 @@
     state.token = ""; state.clientName = ""; state.instanceName = ""; state.connected = false; state.leads = [];
     localStorage.removeItem(SUPERVISOR_SESSION_KEY);
     localStorage.removeItem(ACTIVE_PROFILE_KEY);
+    localStorage.removeItem(AUTH_SESSION_KEY);
     localStorage.removeItem(STORAGE_KEY);
+    if (el.supervisorEmailInput) el.supervisorEmailInput.value = "";
     restoreSupervisorSharedView();
     document.body.classList.remove("supervisor-mode");
     if (el.supervisorScreen) el.supervisorScreen.hidden = true;
@@ -3823,6 +3828,8 @@
     if (state.token) localStorage.removeItem(leadSyncKey());
     [STORAGE_KEY, "lungo-suite-access-v2", "lungo-suite-access-v3", "lungo-suite-access-v4"].forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem(ACTIVE_PROFILE_KEY);
+    localStorage.removeItem(SUPERVISOR_SESSION_KEY);
+    localStorage.removeItem(AUTH_SESSION_KEY);
     state.token = "";
     state.clientName = "";
     state.instanceName = "";
@@ -4930,8 +4937,13 @@
   function init() {
     const isAdminMasterRoute = window.location.hash.toLowerCase() === "#admin";
     const publicVacancySlug = new URLSearchParams(window.location.search).get('vaga');
-    const savedSupervisorToken = localStorage.getItem(SUPERVISOR_SESSION_KEY) || "";
-    const activeProfile = localStorage.getItem(ACTIVE_PROFILE_KEY) || (savedSupervisorToken ? "supervisor" : "broker");
+    let authSession = null;
+    try { authSession = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null"); } catch {}
+    const legacySupervisorToken = localStorage.getItem(SUPERVISOR_SESSION_KEY) || "";
+    const legacyProfile = localStorage.getItem(ACTIVE_PROFILE_KEY) || (legacySupervisorToken ? "supervisor" : "broker");
+    if (!authSession?.token && legacyProfile === "supervisor" && legacySupervisorToken) authSession = { role: "supervisor", token: legacySupervisorToken };
+    const activeProfile = authSession?.role === "supervisor" ? "supervisor" : "broker";
+    const savedSupervisorToken = activeProfile === "supervisor" ? String(authSession?.token || "") : "";
     const theme = localStorage.getItem(THEME_KEY) || "dark";
     el.root.dataset.theme = theme;
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
