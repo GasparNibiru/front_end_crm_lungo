@@ -4565,6 +4565,11 @@
     });
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
+    $("#supervisorOpenAccessModalBtn")?.addEventListener("click", () => {
+      if (el.supervisorGeneratedMessage) el.supervisorGeneratedMessage.hidden = true;
+      if (el.supervisorAccessStatus) { el.supervisorAccessStatus.textContent = "Preencha os dados para gerar o acesso."; el.supervisorAccessStatus.classList.remove("error", "ok"); }
+      $("#supervisorAccessModal")?.showModal();
+    });
     el.supervisorClientSearch?.addEventListener("input", renderSupervisorCustomers);
     el.supervisorClientStatusFilter?.addEventListener("change", renderSupervisorCustomers);
     el.supervisorClientPeriodFilter?.addEventListener("change", renderSupervisorCustomers);
