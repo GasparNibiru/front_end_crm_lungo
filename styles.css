@@ -2382,7 +2382,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 
 .team-calendar { width: 100%; min-width: 0; }
 .team-calendar-view { overflow-y: auto; }
-.calendar-layout { display: grid; grid-template-columns: minmax(280px, .75fr) minmax(360px, 1.4fr); gap: 16px; align-items: start; }
+.calendar-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .calendar-form, .calendar-events { padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-2); box-shadow: var(--shadow); }
 .calendar-form > header, .calendar-events > header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
 .calendar-form h2, .calendar-events h2 { margin: 0 0 4px; font-size: 18px; }

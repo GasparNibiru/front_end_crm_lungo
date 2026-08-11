@@ -1345,7 +1345,7 @@
   function calendarToken() { return supervisorAccessToken || state.token; }
   function calendarDateTime(value) { return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 
-  async function renderTeamCalendarLegacy(target = 'broker') {
+  async function renderTeamCalendar(target = 'broker') {
     const container = target === 'supervisor' ? el.supervisorOperationContent : el.views.agenda;
     if (!container) return;
     if (target === 'broker') Array.from(container.children).forEach((child) => { if (!child.classList.contains('team-calendar')) child.hidden = true; });
@@ -1355,8 +1355,11 @@
     try {
       const result = await window.LungoSupervisorApi.getCalendarEvents(calendarToken()); const events = result.events || []; const canShare = target === 'supervisor';
       host.innerHTML = `<div class="calendar-layout"><form class="calendar-form"><header><div><h2>Novo agendamento</h2><p>Lembretes na tela 24 horas e 2 horas antes.</p></div></header><div class="calendar-form-grid"><label><span>Título</span><input name="title" maxlength="160" required></label><label><span>Tipo</span><select name="type"><option>Visita</option><option>Lembrete</option><option>Treinamento</option><option>Reunião</option><option>Retorno</option></select></label><label><span>Data</span><input name="date" type="date" min="${new Date().toISOString().slice(0, 10)}" required></label><label><span>Hora</span><input name="time" type="time" value="09:00" required></label><label><span>Local ou link</span><input name="location" maxlength="240"></label>${canShare ? '<label><span>Quem visualiza</span><select name="audience"><option value="self">Somente eu</option><option value="team">Toda a equipe</option></select></label>' : ''}<label class="full"><span>Descrição</span><textarea name="description" rows="3" maxlength="2000"></textarea></label></div><button class="btn primary" type="submit">Salvar agendamento</button><span class="auth-status calendar-form-status"></span></form><section class="calendar-events"><header><div><h2>Próximos compromissos</h2><p>${canShare ? 'Agenda própria e agendamentos dos corretores.' : 'Seus compromissos e eventos enviados pelo supervisor.'}</p></div><button class="btn calendar-refresh" type="button">Atualizar</button></header><div class="calendar-event-list">${events.length ? events.map((item) => `<article class="calendar-event-card"><time><b>${new Date(item.startsAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</b><span>${new Date(item.startsAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></time><div><span class="calendar-event-type">${escapeHtml(item.type)}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description || 'Sem descrição')}</p><small>${escapeHtml(item.location || 'Local não informado')} · Criado por ${escapeHtml(item.creatorName)}${item.audience === 'team' ? ' · Toda a equipe' : ''}</small></div>${item.canDelete ? `<button class="tiny-btn danger" type="button" data-calendar-delete="${escapeHtml(item.id)}">Excluir</button>` : ''}</article>`).join('') : '<div class="empty-state">Nenhum compromisso agendado.</div>'}</div></section></div>`;
+      host.querySelector('.calendar-form').hidden = true;
+      host.querySelector('.calendar-refresh').textContent = 'Novo agendamento';
+      host.querySelector('.calendar-refresh').classList.add('primary');
       host.querySelector('.calendar-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; const status = form.querySelector('.calendar-form-status'); const data = new FormData(form); try { const startsAt = new Date(`${data.get('date')}T${data.get('time')}:00`); if (startsAt <= new Date()) throw new Error('Escolha uma data e hora futuras.'); await window.LungoSupervisorApi.createCalendarEvent({ title: data.get('title'), type: data.get('type'), description: data.get('description'), location: data.get('location'), audience: data.get('audience') || 'self', startsAt: startsAt.toISOString() }, calendarToken()); await renderTeamCalendar(target); toast('Agendamento salvo.'); } catch (error) { status.textContent = error.message; status.className = 'auth-status calendar-form-status error'; } });
-      host.querySelector('.calendar-refresh').onclick = () => renderTeamCalendar(target);
+      host.querySelector('.calendar-refresh').onclick = () => openCalendarEditor(target);
       host.querySelector('.calendar-event-list').addEventListener('click', async (event) => { const button = event.target.closest('[data-calendar-delete]'); if (!button || !confirm('Excluir este agendamento?')) return; try { await window.LungoSupervisorApi.deleteCalendarEvent(button.dataset.calendarDelete, calendarToken()); await renderTeamCalendar(target); toast('Agendamento excluído.'); } catch (error) { toast(error.message); } });
     } catch (error) { host.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
   }
@@ -1377,7 +1380,7 @@
     form.reset(); form.querySelector('[name="time"]').value = '09:00'; form.querySelector('.calendar-form-status').textContent = ''; modal.showModal();
   }
 
-  async function renderTeamCalendar(target = 'broker') {
+  async function renderTeamCalendarWeekly(target = 'broker') {
     const container = target === 'supervisor' ? el.supervisorOperationContent : el.views.agenda; if (!container) return;
     let host = container.querySelector(':scope > .team-calendar'); if (!host) { host = document.createElement('section'); host.className = 'team-calendar'; container.appendChild(host); }
     host.hidden = false; host.innerHTML = '<div class="empty-state">Carregando agenda...</div>';
