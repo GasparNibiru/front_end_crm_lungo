@@ -2415,6 +2415,8 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .calendar-week-event { min-width: 0; padding: 8px; border-left: 3px solid var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 8%, var(--surface-2)); }
 .calendar-week-event time { color: var(--primary); font-size: 10px; font-weight: 800; }.calendar-week-event h3 { margin: 3px 0; font-size: 11px; overflow-wrap: anywhere; }.calendar-week-event p, .calendar-week-event small { display: block; margin: 0 0 4px; color: var(--muted); font-size: 8px; overflow-wrap: anywhere; }.calendar-week-event button { margin-top: 4px; }
 .lead-storefront { min-width: 0; width: 100%; }
+#view-comprar_leads { height: 100%; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; }
+#view-comprar_leads .lead-storefront { padding-bottom: 18px; }
 .lead-store-header { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 16px; padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 15%, var(--surface-2)), var(--surface-2)); }
 .lead-store-header > div:first-child { display: grid; gap: 3px; }.lead-store-header span, .lead-store-header small { color: var(--muted); }.lead-store-header b { font-size: 28px; }.lead-store-header > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
 .lead-store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 13px; }
