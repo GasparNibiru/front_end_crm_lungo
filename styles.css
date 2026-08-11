@@ -3806,3 +3806,29 @@ body:not(.admin-master-mode):not(.supervisor-mode) .kanban-lane::-webkit-scrollb
   border-radius: 999px;
   background: color-mix(in srgb, var(--border-strong) 72%, transparent);
 }
+
+/* Kanban do Supervisor: os negócios rolam dentro de cada coluna. */
+body.supervisor-mode #supervisor-view-funnel,
+body.supervisor-mode #supervisor-view-funnel.active,
+body.supervisor-mode .supervisor-kanban,
+body.supervisor-mode .supervisor-lane {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+body.supervisor-mode .supervisor-lane { overflow: hidden; }
+body.supervisor-mode .supervisor-lane-cards {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--border-strong) 72%, transparent) transparent;
+}
+body.supervisor-mode .supervisor-lane-cards::-webkit-scrollbar { width: 4px; }
+body.supervisor-mode .supervisor-lane-cards::-webkit-scrollbar-track { background: transparent; }
+body.supervisor-mode .supervisor-lane-cards::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-strong) 72%, transparent);
+}
