@@ -318,6 +318,7 @@
       treinamentos: $("#view-trainings"),
       relatorios: $("#view-reports"),
       vendedores: $("#view-vendedores"),
+      agenda: $("#view-agenda"),
       soon: $("#view-soon")
     },
     viewTitle: $("#viewTitle"),
@@ -1344,7 +1345,7 @@
   function calendarDateTime(value) { return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 
   async function renderTeamCalendar(target = 'broker') {
-    const container = target === 'supervisor' ? el.supervisorOperationContent : el.views.soon;
+    const container = target === 'supervisor' ? el.supervisorOperationContent : el.views.agenda;
     if (!container) return;
     if (target === 'broker') Array.from(container.children).forEach((child) => { if (!child.classList.contains('team-calendar')) child.hidden = true; });
     let host = container.querySelector(':scope > .team-calendar');
@@ -1954,7 +1955,7 @@
       relatorios: ["Relatórios", "Indicadores comerciais e relatórios avançados."],
       agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
     };
-    const isSoon = ["cotador", "comprar_leads", "agenda"].includes(name);
+    const isSoon = ["cotador", "comprar_leads"].includes(name);
     const activeView = isSoon ? "soon" : name;
     el.navItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
     Object.entries(el.views).forEach(([key, node]) => node?.classList.toggle("active", key === activeView));
@@ -1962,10 +1963,6 @@
     el.viewTitle.textContent = title[0];
     el.viewSubtitle.textContent = title[1];
     if (isSoon) {
-      const calendarHost = el.views.soon?.querySelector(':scope > .team-calendar');
-      if (calendarHost) calendarHost.hidden = name !== 'agenda';
-      Array.from(el.views.soon?.children || []).forEach((child) => { if (!child.classList.contains('team-calendar')) child.hidden = name === 'agenda'; });
-      if (name === 'agenda') { stopCrmRealtime(); renderTeamCalendar('broker'); startCalendarReminders(); return; }
       if (el.soonTitle) el.soonTitle.textContent = title[0];
       if (el.soonText) el.soonText.textContent = `${title[0]} está no roadmap e será liberado em uma próxima atualização.`;
       stopCrmRealtime();
@@ -1977,6 +1974,7 @@
     if (name === "clients") loadClients();
     if (name === "relatorios") refreshBrokerReport();
     if (name === "treinamentos") loadTrainingLibrary(state.token, 'broker');
+    if (name === "agenda") { renderTeamCalendar('broker'); startCalendarReminders(); }
   }
 
   function tokenQuery() {
