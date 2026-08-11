@@ -1580,18 +1580,17 @@
     const teamGoal = supervisorTeamGoal();
     const brokerTarget = teamGoal && SUPERVISOR_BROKERS.length ? teamGoal / SUPERVISOR_BROKERS.length : 0;
     SUPERVISOR_BROKERS.forEach((broker) => { broker.goal = brokerTarget > 0 ? Math.min(999, Math.round((Number(broker.revenue || 0) / brokerTarget) * 100)) : 0; });
-    const brokerSales = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.sales || 0), 0);
-    const brokerRevenue = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.revenue || 0), 0);
-    const monthSales = Math.max(Number(supervisorDashboard?.sales || 0), brokerSales);
-    const monthRevenue = Math.max(Number(supervisorDashboard?.revenue || 0), brokerRevenue);
-    const totalLeads = Math.max(Number(supervisorDashboard?.leads || 0), SUPERVISOR_DEALS.length);
-    const conversion = totalLeads > 0 ? (monthSales / totalLeads) * 100 : 0;
+    const closedDeals = SUPERVISOR_DEALS.filter((deal) => deal.stage === "fechamento");
+    const closedSales = closedDeals.length;
+    const closedRevenue = closedDeals.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0);
+    const totalLeads = SUPERVISOR_DEALS.length;
+    const conversion = totalLeads > 0 ? (closedSales / totalLeads) * 100 : 0;
     const dashboardCards = $$("#supervisor-view-dashboard .supervisor-kpis article");
     const dashboardValues = [
       [String((supervisorDashboard?.brokers || 0) + 1), `${supervisorDashboard?.brokers || 0} corretores + Supervisor`],
-      [String(monthSales), "vendas neste mês"],
-      [formatCurrency(monthRevenue), "produção da organização"],
-      [`${conversion.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, `${monthSales} vendas em ${totalLeads} leads`]
+      [String(closedSales), "negócios em fechamento"],
+      [formatCurrency(closedRevenue), "produção dos fechamentos"],
+      [`${conversion.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, `${closedSales} fechamentos em ${totalLeads} leads`]
     ];
     dashboardCards.forEach((card, index) => { if (dashboardValues[index]) { card.querySelector("b").textContent = dashboardValues[index][0]; card.querySelector("small").textContent = dashboardValues[index][1]; } });
     const brokerRows = SUPERVISOR_BROKERS.map((broker) => `
