@@ -4443,7 +4443,7 @@
       return;
     }
     if (action === "archive") {
-      if (!await popupConfirm(`Excluir o acesso de ${access.user}? Esta ação não poderá ser desfeita.`, 'Excluir acesso', 'Excluir')) return;
+      if (!await popupConfirm(`Excluir o acesso de ${access.user}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir acesso', 'Excluir')) return;
       try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso excluído e vaga liberada.'); }
       catch (error) { toast(error.message); }
       return;
@@ -4786,7 +4786,7 @@
           return;
         }
         if (action === "archive") {
-          if (!await popupConfirm(`Excluir o corretor ${broker.name}? Esta ação não poderá ser desfeita.`, 'Excluir corretor', 'Excluir')) return;
+          if (!await popupConfirm(`Excluir o corretor ${broker.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir corretor', 'Excluir')) return;
           try { await window.LungoSupervisorApi.archiveBroker(broker.id, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); toast('Corretor excluído e vaga liberada.'); }
           catch (error) { toast(error.message); }
           return;
