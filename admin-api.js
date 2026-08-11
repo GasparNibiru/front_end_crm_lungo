@@ -55,6 +55,11 @@
   const createTraining = (payload, adminKey) => request('/api/admin/trainings', { method: 'POST', adminKey, body: payload });
   const updateTraining = (id, payload, adminKey) => request(`/api/admin/trainings/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
   const deleteTraining = (id, adminKey) => request(`/api/admin/trainings/${encodeURIComponent(id)}`, { method: 'DELETE', adminKey });
+  const getLeadMarketplace = (adminKey) => request('/api/admin/lead-marketplace', { adminKey });
+  const updateLeadMarketplaceSettings = (payload, adminKey) => request('/api/admin/lead-marketplace/settings', { method: 'PATCH', adminKey, body: payload });
+  const adjustLeadCredits = (payload, adminKey) => request('/api/admin/lead-marketplace/credits', { method: 'POST', adminKey, body: payload });
+  const createMarketplaceLead = (payload, adminKey) => request('/api/admin/lead-marketplace/leads', { method: 'POST', adminKey, body: payload });
+  const updateMarketplaceLead = (id, payload, adminKey) => request(`/api/admin/lead-marketplace/leads/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
 
-  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, changeAccess, renewAccess, invalidateAccess, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining });
+  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, changeAccess, renewAccess, invalidateAccess, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining, getLeadMarketplace, updateLeadMarketplaceSettings, adjustLeadCredits, createMarketplaceLead, updateMarketplaceLead });
 })();

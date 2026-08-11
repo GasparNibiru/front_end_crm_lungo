@@ -2414,6 +2414,14 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .calendar-day-empty { padding: 12px 3px; color: var(--muted); font-size: 9px; text-align: center; }
 .calendar-week-event { min-width: 0; padding: 8px; border-left: 3px solid var(--primary); border-radius: 8px; background: color-mix(in srgb, var(--primary) 8%, var(--surface-2)); }
 .calendar-week-event time { color: var(--primary); font-size: 10px; font-weight: 800; }.calendar-week-event h3 { margin: 3px 0; font-size: 11px; overflow-wrap: anywhere; }.calendar-week-event p, .calendar-week-event small { display: block; margin: 0 0 4px; color: var(--muted); font-size: 8px; overflow-wrap: anywhere; }.calendar-week-event button { margin-top: 4px; }
+.lead-storefront { min-width: 0; width: 100%; }
+.lead-store-header { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 16px; padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 15%, var(--surface-2)), var(--surface-2)); }
+.lead-store-header > div:first-child { display: grid; gap: 3px; }.lead-store-header span, .lead-store-header small { color: var(--muted); }.lead-store-header b { font-size: 28px; }.lead-store-header > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+.lead-store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 13px; }
+.lead-offer-card { display: grid; gap: 12px; padding: 15px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); box-shadow: var(--shadow); }
+.lead-offer-card.reserved { opacity: .65; }.lead-offer-card > header, .lead-offer-card > footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; }.lead-offer-card > header span { color: var(--primary); font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }.lead-offer-card h3 { margin: 0; font-size: 18px; letter-spacing: .06em; }.lead-offer-card dl { display: grid; gap: 7px; margin: 0; }.lead-offer-card dl div { display: flex; justify-content: space-between; gap: 10px; }.lead-offer-card dt { color: var(--muted); font-size: 10px; }.lead-offer-card dd { margin: 0; font-size: 11px; font-weight: 700; text-align: right; }.lead-offer-card footer > div { display: grid; }.lead-offer-card footer b { font-size: 16px; }.lead-store-empty { grid-column: 1 / -1; }
+.lead-purchase-history { display: grid; gap: 8px; max-height: 60vh; overflow-y: auto; padding: 14px; }.lead-purchase-history article { display: flex; justify-content: space-between; gap: 16px; padding: 11px; border: 1px solid var(--border); border-radius: 10px; }.lead-purchase-history article > div { display: grid; gap: 3px; }.lead-purchase-history article > div:last-child { text-align: right; }.lead-purchase-history span, .lead-purchase-history small { color: var(--muted); font-size: 10px; }
+.lead-marketplace-admin { min-height: 0; }.lead-admin-tabs { display: flex; gap: 6px; margin: 12px 0; }.lead-admin-tabs .active { border-color: var(--primary); color: var(--primary); }.lead-marketplace-admin td small { display: block; margin-top: 3px; color: var(--muted); }
 
 @media (max-width: 760px) {
   .calendar-layout { grid-template-columns: 1fr; }
@@ -2426,6 +2434,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
   .calendar-week-grid { min-width: 900px; }
   .calendar-day-column { min-height: 360px; }
   .calendar-form-grid { grid-template-columns: 1fr; }.calendar-form-grid .full { grid-column: auto; }
+  .lead-store-header { align-items: flex-start; flex-direction: column; }.lead-store-header > div:last-child { width: 100%; }.lead-store-header .btn { flex: 1; }.lead-store-grid { grid-template-columns: 1fr; }
 }
 .application-success { grid-column: 1 / -1; min-height: 300px; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; }
 .application-success > span { width: 58px; height: 58px; border-radius: 50%; background: #0e9f6e; color: #fff; display: grid; place-items: center; font-size: 30px; }

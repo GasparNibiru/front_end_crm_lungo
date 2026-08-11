@@ -155,6 +155,8 @@
   let adminMasterGeneratedMessage = "";
   let adminData = null;
   let adminCalendarDate = new Date();
+  let leadMarketplaceAdminData = null;
+  let leadMarketplaceAdminTab = 'users';
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -320,6 +322,7 @@
       relatorios: $("#view-reports"),
       vendedores: $("#view-vendedores"),
       agenda: $("#view-agenda"),
+      comprar_leads: $("#view-comprar_leads"),
       soon: $("#view-soon")
     },
     viewTitle: $("#viewTitle"),
@@ -1404,6 +1407,17 @@
   function startCalendarReminders() { clearInterval(calendarReminderTimer); checkCalendarReminders(); calendarReminderTimer = setInterval(checkCalendarReminders, 60000); }
   function stopCalendarReminders() { clearInterval(calendarReminderTimer); calendarReminderTimer = null; }
 
+  function leadAge(value) { const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(value || Date.now())) / 60000)); return minutes < 60 ? `${minutes} min` : minutes < 1440 ? `${Math.floor(minutes / 60)} h` : `${Math.floor(minutes / 1440)} d`; }
+  function leadStoreContainer(target) { if (target === 'supervisor') return el.supervisorOperationContent; return el.views.comprar_leads?.querySelector('.lead-storefront'); }
+  async function renderLeadStorefront(target = 'broker') {
+    const container = leadStoreContainer(target); if (!container) return; container.innerHTML = '<div class="empty-state">Carregando leads disponíveis...</div>';
+    try { const result = await window.LungoSupervisorApi.getLeadMarketplace(calendarToken()); const leads = result.leads || []; const support = String(result.supportWhatsapp || '5555992102864').replace(/\D/g, ''); const message = encodeURIComponent(`Olá! Gostaria de solicitar créditos para comprar leads. Meu acesso é ${state.clientName || 'usuário Lungo'}.`); container.innerHTML = `<section class="lead-store-header"><div><span>Saldo disponível</span><b>${formatCurrency(result.balance || 0)}</b><small>Use seus créditos para adquirir oportunidades exclusivas.</small></div><div><button class="btn" type="button" data-lead-history>Histórico de compras</button><a class="btn primary" href="https://wa.me/${support}?text=${message}" target="_blank" rel="noopener">Solicitar créditos</a></div></section><div class="lead-store-grid">${leads.length ? leads.map((lead) => `<article class="lead-offer-card ${lead.status === 'reserved' ? 'reserved' : ''}"><header><span>${lead.status === 'reserved' ? 'Em compra' : 'Novo lead'}</span><small>Captado há ${escapeHtml(leadAge(lead.capturedAt))}</small></header><h3>${escapeHtml(lead.name)}</h3><dl><div><dt>Telefone</dt><dd>${escapeHtml(lead.phone)}</dd></div><div><dt>Perfil</dt><dd>${escapeHtml(lead.profile)}</dd></div><div><dt>Interesse</dt><dd>${escapeHtml(lead.productInterest || 'Não informado')}</dd></div><div><dt>Região</dt><dd>${escapeHtml([lead.city, lead.state].filter(Boolean).join(' / ') || 'Não informada')}</dd></div></dl><footer><div><small>Valor do lead</small><b>${formatCurrency(lead.price)}</b></div><button class="btn primary" type="button" data-lead-buy="${escapeHtml(lead.id)}" ${lead.status === 'reserved' ? 'disabled' : ''}>${lead.status === 'reserved' ? 'Reservado' : 'Comprar'}</button></footer></article>`).join('') : '<div class="empty-state lead-store-empty">Nenhum lead disponível neste momento.</div>'}</div>`;
+      container.querySelector('[data-lead-history]').onclick = () => openLeadPurchaseHistory(target);
+      container.querySelector('.lead-store-grid').addEventListener('click', async (event) => { const button = event.target.closest('[data-lead-buy]'); if (!button) return; const lead = leads.find((item) => item.id === button.dataset.leadBuy); if (!lead || !await popupConfirm(`Comprar este lead por ${formatCurrency(lead.price)}? O valor será descontado do seu saldo.`, 'Confirmar compra')) return; button.disabled = true; button.textContent = 'Processando...'; try { await window.LungoSupervisorApi.buyMarketplaceLead(lead.id, calendarToken()); toast('Lead comprado e enviado para Meus Leads.'); await renderLeadStorefront(target); if (target === 'broker') await loadCrm(true); else await loadSupervisorRemoteData(); } catch (error) { toast(error.message); await renderLeadStorefront(target); } });
+    } catch (error) { container.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
+  }
+  async function openLeadPurchaseHistory(target) { try { const result = await window.LungoSupervisorApi.getLeadPurchaseHistory(calendarToken()); let modal = $('#leadPurchaseHistoryModal'); if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="leadPurchaseHistoryModal" class="modal"><div class="modal-card"><header><div><h2>Histórico de compras</h2><p>Leads adquiridos com seus créditos.</p></div><button class="btn icon" type="button" data-lead-history-close>×</button></header><div class="lead-purchase-history"></div><footer><span class="footer-spacer"></span><button class="btn primary" type="button" data-lead-history-close>Fechar</button></footer></div></dialog>'); modal = $('#leadPurchaseHistoryModal'); modal.addEventListener('click', (event) => { if (event.target.closest('[data-lead-history-close]')) modal.close(); }); } modal.querySelector('.lead-purchase-history').innerHTML = (result.purchases || []).map((item) => { const lead = item.marketplace_leads || {}; return `<article><div><b>${escapeHtml(lead.name || 'Lead')}</b><span>${escapeHtml(lead.phone || '')} · ${escapeHtml(lead.profile || '')} · ${escapeHtml(lead.product_interest || '')}</span></div><div><b>${formatCurrency(item.price)}</b><small>${calendarDateTime(item.purchased_at)}</small></div></article>`; }).join('') || '<div class="empty-state">Nenhuma compra realizada.</div>'; modal.showModal(); } catch (error) { toast(error.message); } }
+
   async function loadTrainingLibrary(token, target = 'broker') {
     const library = target === 'broker' ? el.brokerTrainingLibrary : el.supervisorOperationContent;
     const status = target === 'broker' ? el.brokerTrainingStatus : null;
@@ -1438,7 +1452,8 @@
     restoreSupervisorSharedView();
     if (name === 'treinamentos') { loadTrainingLibrary(supervisorAccessToken, 'supervisor'); return; }
     if (name === 'agenda') { renderTeamCalendar('supervisor'); return; }
-    const soonModules = ["cotador", "comprar_leads"];
+    if (name === 'comprar_leads') { renderLeadStorefront('supervisor'); return; }
+    const soonModules = ["cotador"];
     const viewName = soonModules.includes(name) ? "soon" : name;
     const node = el.views[viewName];
     if (!node || !el.supervisorOperationContent) { renderSupervisorOperation(name); return; }
@@ -1989,7 +2004,7 @@
       relatorios: ["Relatórios", "Indicadores comerciais e relatórios avançados."],
       agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
     };
-    const isSoon = ["cotador", "comprar_leads"].includes(name);
+    const isSoon = ["cotador"].includes(name);
     const activeView = isSoon ? "soon" : name;
     el.navItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
     Object.entries(el.views).forEach(([key, node]) => node?.classList.toggle("active", key === activeView));
@@ -2009,6 +2024,7 @@
     if (name === "relatorios") refreshBrokerReport();
     if (name === "treinamentos") loadTrainingLibrary(state.token, 'broker');
     if (name === "agenda") { renderTeamCalendar('broker'); startCalendarReminders(); }
+    if (name === "comprar_leads") renderLeadStorefront('broker');
   }
 
   function tokenQuery() {
@@ -4210,6 +4226,20 @@
     catch (error) { toast(error.message); }
   }
 
+  async function loadAdminLeadMarketplace() { const status = $('#adminLeadMarketStatus'); try { const result = await window.LungoAdminApi.getLeadMarketplace(adminMasterKey); leadMarketplaceAdminData = result; renderAdminLeadMarketplace(); if (status) { status.textContent = 'Marketplace atualizado.'; status.className = 'auth-status ok'; } } catch (error) { if (status) { status.textContent = error.message; status.className = 'auth-status error'; } } }
+  function renderAdminLeadMarketplace() {
+    const data = leadMarketplaceAdminData; if (!data) return; const leads = data.leads || [], users = data.users || [], purchases = data.purchases || [];
+    if ($('#adminLeadMarketKpis')) $('#adminLeadMarketKpis').innerHTML = [['Créditos em carteira', formatCurrency(users.reduce((sum, user) => sum + Number(user.balance || 0), 0))], ['Leads disponíveis', leads.filter((lead) => lead.status === 'available').length], ['Em compra', leads.filter((lead) => lead.status === 'reserved').length], ['Compras realizadas', purchases.length]].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join('');
+    $$('[data-lead-admin-tab]').forEach((button) => button.classList.toggle('active', button.dataset.leadAdminTab === leadMarketplaceAdminTab)); const content = $('#adminLeadMarketContent'); if (!content) return;
+    if (leadMarketplaceAdminTab === 'users') content.innerHTML = `<table class="admin-master-table wide"><thead><tr><th>Usuário</th><th>Organização</th><th>Perfil</th><th>Status</th><th>Saldo</th><th>Ação</th></tr></thead><tbody>${users.map((user) => `<tr><td><b>${escapeHtml(user.name)}</b><small>${escapeHtml(user.email || '')}</small></td><td>${escapeHtml(user.organizations?.name || '—')}</td><td>${user.role === 'supervisor' ? 'Supervisor' : 'Corretor'}</td><td>${escapeHtml(user.status)}</td><td><b>${formatCurrency(user.balance)}</b></td><td><button class="tiny-btn" data-admin-lead-credit-user="${user.id}" type="button">Ajustar créditos</button><button class="tiny-btn" data-admin-lead-statement="${user.id}" type="button">Extrato</button></td></tr>`).join('')}</tbody></table>`;
+    if (leadMarketplaceAdminTab === 'stock') content.innerHTML = `<table class="admin-master-table wide"><thead><tr><th>Lead</th><th>Contato</th><th>Perfil</th><th>Interesse</th><th>Campanha</th><th>Preço</th><th>Status interno</th><th>Ações</th></tr></thead><tbody>${leads.map((lead) => `<tr><td><b>${escapeHtml(lead.name)}</b><small>${calendarDateTime(lead.created_at)}</small></td><td>${escapeHtml(lead.phone)}<small>${escapeHtml(lead.email || '')}</small></td><td>${escapeHtml(lead.profile)}</td><td>${escapeHtml(lead.product_interest || '—')}</td><td>${escapeHtml(lead.campaign_name || 'Manual')}</td><td><b>${formatCurrency(lead.price)}</b></td><td>${({available:'Disponível',reserved:'Em compra',sold:'Vendido',invalid:'Inválido',duplicate:'Duplicado'})[lead.status] || lead.status}</td><td><button class="tiny-btn" data-admin-lead-status="available" data-id="${lead.id}" type="button">Disponibilizar</button><button class="tiny-btn danger" data-admin-lead-status="invalid" data-id="${lead.id}" type="button">Invalidar</button></td></tr>`).join('')}</tbody></table>`;
+    if (leadMarketplaceAdminTab === 'purchases') content.innerHTML = `<table class="admin-master-table wide"><thead><tr><th>Data</th><th>Comprador</th><th>Lead</th><th>Perfil</th><th>Valor</th></tr></thead><tbody>${purchases.map((item) => `<tr><td>${calendarDateTime(item.purchased_at)}</td><td>${escapeHtml(item.users?.name || 'Usuário')}</td><td>${escapeHtml(item.marketplace_leads?.name || 'Lead')}<small>${escapeHtml(item.marketplace_leads?.phone || '')}</small></td><td>${escapeHtml(item.marketplace_leads?.profile || '')}</td><td><b>${formatCurrency(item.price)}</b></td></tr>`).join('') || '<tr><td colspan="5">Nenhuma compra realizada.</td></tr>'}</tbody></table>`;
+  }
+  function openAdminLeadCredit(userId = '') { const users = leadMarketplaceAdminData?.users || []; openAdminFormModal('Adicionar ou ajustar créditos', 'Movimentação registrada no extrato do usuário.', `<form id="adminLeadCreditForm" class="admin-modal-form full"><label>Usuário<select name="userId">${users.map((user) => `<option value="${user.id}" ${user.id === userId ? 'selected' : ''}>${escapeHtml(user.name)} · ${formatCurrency(user.balance)}</option>`).join('')}</select></label><label>Valor da movimentação<input name="amount" type="number" step="0.01" placeholder="50,00" required></label><label class="full">Descrição<input name="description" value="Crédito adquirido via atendimento" required></label><small class="full">Use valor negativo apenas para correções ou estornos.</small><button class="btn primary" type="submit">Confirmar movimentação</button></form>`); $('#adminLeadCreditForm').onsubmit = async (event) => { event.preventDefault(); const data = new FormData(event.currentTarget); try { await window.LungoAdminApi.adjustLeadCredits({ userId: data.get('userId'), amount: Number(data.get('amount')), description: data.get('description') }, adminMasterKey); $('#adminMasterModal').close(); await loadAdminLeadMarketplace(); toast('Créditos atualizados.'); } catch (error) { toast(error.message); } }; }
+  function openAdminLeadStatement(userId) { const user = (leadMarketplaceAdminData?.users || []).find((item) => item.id === userId); const entries = (leadMarketplaceAdminData?.transactions || []).filter((item) => item.user_id === userId); openAdminFormModal('Extrato de créditos', `${user?.name || 'Usuário'} · Saldo ${formatCurrency(user?.balance || 0)}`, `<section class="lead-purchase-history full">${entries.map((item) => `<article><div><b>${escapeHtml(item.description || 'Movimentação')}</b><span>${calendarDateTime(item.created_at)} · ${escapeHtml(item.transaction_type)}</span></div><div><b class="${Number(item.amount) < 0 ? 'danger-text' : 'ok-text'}">${Number(item.amount) > 0 ? '+' : ''}${formatCurrency(item.amount)}</b><small>Saldo: ${formatCurrency(item.balance_after)}</small></div></article>`).join('') || '<div class="empty-state">Nenhuma movimentação.</div>'}</section>`); }
+  function openAdminNewLead() { openAdminFormModal('Cadastrar lead no estoque', 'O preço pode ser automático conforme a faixa configurada.', `<form id="adminLeadNewForm" class="admin-modal-form full"><label>Nome<input name="name" required></label><label>Telefone<input name="phone" required></label><label>E-mail<input name="email" type="email"></label><label>Perfil<select name="profile"><option>PF</option><option>PJ</option><option value="Adesao">Adesão</option></select></label><label>Plano de interesse<input name="productInterest"></label><label>Cidade<input name="city"></label><label>UF<input name="state" maxlength="2"></label><label>Campanha<input name="campaignName" value="Cadastro manual"></label><label>Preço personalizado<input name="price" type="number" step="0.01" placeholder="Automático"></label><button class="btn primary" type="submit">Adicionar ao estoque</button></form>`); $('#adminLeadNewForm').onsubmit = async (event) => { event.preventDefault(); const payload = Object.fromEntries(new FormData(event.currentTarget)); try { await window.LungoAdminApi.createMarketplaceLead(payload, adminMasterKey); $('#adminMasterModal').close(); leadMarketplaceAdminTab = 'stock'; await loadAdminLeadMarketplace(); toast('Lead adicionado ao marketplace.'); } catch (error) { toast(error.message); } }; }
+  function openAdminLeadSettings() { const settings = leadMarketplaceAdminData?.settings || {}; openAdminFormModal('Configurações do marketplace', 'Regras gerais para cadastro manual e solicitação de créditos.', `<form id="adminLeadSettingsForm" class="admin-modal-form full"><label>Preço mínimo<input name="minPrice" type="number" step="0.01" value="${Number(settings.min_price || 10)}" required></label><label>Preço máximo<input name="maxPrice" type="number" step="0.01" value="${Number(settings.max_price || 20)}" required></label><label>WhatsApp para créditos<input name="supportWhatsapp" value="${escapeHtml(settings.support_whatsapp || '5555992102864')}" required></label><label>Reserva em minutos<input name="reservationMinutes" type="number" min="1" max="30" value="${Number(settings.reservation_minutes || 2)}"></label><button class="btn primary" type="submit">Salvar configurações</button></form>`); $('#adminLeadSettingsForm').onsubmit = async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); try { await window.LungoAdminApi.updateLeadMarketplaceSettings(data, adminMasterKey); $('#adminMasterModal').close(); await loadAdminLeadMarketplace(); toast('Configurações salvas.'); } catch (error) { toast(error.message); } }; }
+
   async function renderAdminMaster() {
     await loadAdminRemoteData();
     renderAdminV2();
@@ -4217,11 +4247,12 @@
   }
 
   function setAdminMasterView(view) {
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", trainings: "Treinamentos", settings: "Configurações" };
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
     if (view === 'trainings') loadAdminTrainings();
+    if (view === 'lead-marketplace') loadAdminLeadMarketplace();
   }
 
   async function renderAdminMasterSession() {
@@ -4378,6 +4409,11 @@
     $('#adminTrainingList')?.parentElement?.addEventListener('click', (event) => { if (event.target.closest('#adminTrainingNew')) { resetAdminTrainingForm(); $('#adminTrainingForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('#adminTrainingTitle')?.focus(), 250); } });
     $('#adminTrainingRefresh')?.addEventListener('click', loadAdminTrainings);
     $('#adminTrainingList')?.addEventListener('click', adminTrainingAction);
+    $('#adminLeadCreditBtn')?.addEventListener('click', () => openAdminLeadCredit());
+    $('#adminLeadNewBtn')?.addEventListener('click', openAdminNewLead);
+    $('#adminLeadSettingsBtn')?.addEventListener('click', openAdminLeadSettings);
+    $$('.lead-admin-tabs [data-lead-admin-tab]').forEach((button) => button.addEventListener('click', () => { leadMarketplaceAdminTab = button.dataset.leadAdminTab; renderAdminLeadMarketplace(); }));
+    $('#adminLeadMarketContent')?.addEventListener('click', async (event) => { const credit = event.target.closest('[data-admin-lead-credit-user]'); if (credit) return openAdminLeadCredit(credit.dataset.adminLeadCreditUser); const statement = event.target.closest('[data-admin-lead-statement]'); if (statement) return openAdminLeadStatement(statement.dataset.adminLeadStatement); const status = event.target.closest('[data-admin-lead-status]'); if (!status) return; try { await window.LungoAdminApi.updateMarketplaceLead(status.dataset.id, { status: status.dataset.adminLeadStatus }, adminMasterKey); await loadAdminLeadMarketplace(); toast('Status do lead atualizado.'); } catch (error) { toast(error.message); } });
     $("#adminAccessIndividualTab")?.addEventListener("click", () => setAdminMasterAccessType("individual"));
     $("#adminAccessSupervisorTab")?.addEventListener("click", () => setAdminMasterAccessType("supervisor"));
     $("#adminMasterAccessForm")?.addEventListener("submit", generateAdminMasterAccess);
