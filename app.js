@@ -1945,7 +1945,8 @@
     try {
       if (!silent) setAuthStatus("Validando token...", "");
       await validateTokenAccess(token);
-      if (el.rememberAccessCheck?.checked !== false || fromTopbar) saveAccess();
+      // Uma autenticação válida permanece neste dispositivo até o usuário clicar em Sair.
+      saveAccess();
       let status = null;
       try { status = await refreshInstanceSilent(); }
       catch { state.connected = false; saveAccess(); renderAccess(); }
@@ -3835,7 +3836,7 @@
     renderAccess();
     renderCrm();
     renderClients();
-    toast("Logout realizado.");
+    toast("Saída realizada.");
   }
 
   function getPlanDefinition(planId) {

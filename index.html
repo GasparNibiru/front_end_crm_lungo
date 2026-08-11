@@ -6,13 +6,13 @@
   <title>Lungo Corretores</title>
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <link rel="stylesheet" href="styles.css?v=20260811-5">
+  <link rel="stylesheet" href="styles.css?v=20260811-6">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260810-10" defer></script>
   <script src="supervisor-api.js?v=20260810-10" defer></script>
-  <script src="app.js?v=20260811-1" defer></script>
+  <script src="app.js?v=20260811-2" defer></script>
 </head>
 <body class="auth-locked">
   <section id="publicVacancyScreen" class="public-vacancy-screen" hidden><main class="public-vacancy-page"><header><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><span>Oportunidade profissional</span></header><section class="public-vacancy-hero"><div><span id="publicVacancyLocation">Vaga comercial</span><h1 id="publicVacancyTitle">Consultor de Planos de Saúde</h1><p id="publicVacancyHeadline"></p></div></section><div class="public-vacancy-content"><article><h2>Sobre a oportunidade</h2><p id="publicVacancyDescription"></p><h3>Requisitos</h3><div id="publicVacancyRequirements" class="public-vacancy-list"></div><h3>Benefícios</h3><div id="publicVacancyBenefits" class="public-vacancy-list"></div></article><form id="publicApplicationForm" class="public-application-form"><h2>Candidate-se</h2><p>Preencha seus dados para participar do processo seletivo.</p><label><span>Nome completo</span><input id="applicationName" required></label><label><span>WhatsApp</span><input id="applicationPhone" required inputmode="tel"></label><label><span>E-mail</span><input id="applicationEmail" type="email"></label><label><span>Cidade</span><input id="applicationCity"></label><label><span>Experiência comercial</span><select id="applicationExperience"><option value="Sem experiência">Sem experiência</option><option value="Até 1 ano">Até 1 ano</option><option value="1 a 3 anos">1 a 3 anos</option><option value="Mais de 3 anos">Mais de 3 anos</option></select></label><label><span>Link do currículo</span><input id="applicationResumeUrl" type="url" placeholder="Google Drive, LinkedIn..."></label><label class="full"><span>Conte um pouco sobre você</span><textarea id="applicationMessage" rows="4"></textarea></label><input id="applicationWebsite" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary" type="submit">Enviar candidatura</button><div id="publicApplicationStatus" class="auth-status">Seus dados serão enviados à equipe responsável.</div></form></div></main></section>
@@ -35,10 +35,6 @@
         <label>
           <span>Token de acesso</span>
           <input id="accessTokenInput" type="password" placeholder="Digite seu token" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_access_gate_v42">
-        </label>
-        <label class="auth-check">
-          <input id="rememberAccessCheck" type="checkbox" checked>
-          <span>Lembrar neste dispositivo</span>
         </label>
         <button id="accessLoginBtn" class="btn primary auth-login-btn" type="button">Entrar</button>
         <div id="accessStatus" class="auth-status">Informe o token para liberar o sistema.</div>
@@ -284,9 +280,9 @@
           <span>Status</span>
           <b id="sidebarClient">Aguardando token</b>
         </div>
-        <button id="logoutBtn" class="logout-btn" type="button" title="Logout">
+        <button id="logoutBtn" class="logout-btn" type="button" title="Sair">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6H6v12h4"/><path d="M14 8l4 4-4 4"/><path d="M8 12h10"/></svg>
-          <span class="nav-label">Logout</span>
+          <span class="nav-label">Sair</span>
         </button>
       </div>
     </aside>
@@ -300,7 +296,7 @@
         <div class="top-actions">
           <span id="todayLabel" class="today-label"></span>
           <span id="topStatus" class="status-mini">Status: —</span>
-          <button id="topLogoutBtn" class="mini-logout" type="button" title="Sair">Logout</button>
+          <button id="topLogoutBtn" class="mini-logout" type="button" title="Sair">Sair</button>
           <div class="token-wrap">
             <input id="globalToken" class="token-input" type="password" placeholder="Token do usuário" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_access_key_v29" readonly onfocus="this.removeAttribute('readonly')">
             <button id="toggleTokenBtn" class="token-eye" type="button" title="Mostrar/ocultar token" aria-label="Mostrar ou ocultar token">

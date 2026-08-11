@@ -3777,3 +3777,32 @@ body.supervisor-mode .supervisor-screen {
 .theme-icon-moon { display: none; }
 [data-theme="light"] .theme-icon-sun { display: none; }
 [data-theme="light"] .theme-icon-moon { display: grid; }
+
+/* Kanban do Corretor: cada coluna mantém altura fixa e sua própria rolagem. */
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-view.active,
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-scroll,
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-board,
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-col {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-board { align-items: stretch; }
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-col { overflow: hidden; }
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-lane {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  grid-auto-rows: max-content;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--border-strong) 72%, transparent) transparent;
+}
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-lane::-webkit-scrollbar { width: 4px; }
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-lane::-webkit-scrollbar-track { background: transparent; }
+body:not(.admin-master-mode):not(.supervisor-mode) .kanban-lane::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-strong) 72%, transparent);
+}
