@@ -2514,6 +2514,16 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .supervisor-access-card { border-top: 3px solid var(--primary); }
 .supervisor-brokers-table { min-width: 900px; }
 .supervisor-broker-actions, .supervisor-client-actions { display: flex; gap: 5px; align-items: center; flex-wrap: nowrap; }
+.icon-action-btn { width: 28px; height: 28px; min-width: 28px; padding: 0 !important; display: inline-grid; place-items: center; border-radius: 6px; }
+.icon-action-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.icon-action-btn:hover { transform: translateY(-1px); }
+.supervisor-token-cell { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.supervisor-token-cell code { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.access-limit-card header > div { display: grid; justify-items: start; gap: 5px; }
+.access-limit-icon { width: 42px; height: 42px; margin-bottom: 3px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--warning) 14%, var(--surface-2)); color: var(--warning); }
+.access-limit-icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.access-limit-body { padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); display: grid; gap: 4px; }
+.access-limit-body p { margin: 0; color: var(--muted); line-height: 1.5; }
 .supervisor-token-cell { min-width: 0; display: flex; align-items: center; gap: 5px; }
 .supervisor-token-cell code { font-size: 10px; white-space: nowrap; }
 .supervisor-token-cell > span { color: var(--muted); font-size: 9px; white-space: normal; }

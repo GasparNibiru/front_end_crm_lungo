@@ -1504,7 +1504,7 @@
       window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
-    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: Number(broker.sales || 0), revenue: Number(broker.revenue || 0), goal: Number(broker.goalPercent || 0), login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
+    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", phone: broker.phone || "", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: Number(broker.sales || 0), revenue: Number(broker.revenue || 0), goal: Number(broker.goalPercent || 0), login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
     renderSupervisorMessageRecipients();
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
@@ -1550,6 +1550,18 @@
 
   function supervisorInitials(name) {
     return String(name || "").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
+  }
+
+  function actionIcon(name) {
+    const paths = {
+      copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+      renew: '<path d="M20 7v5h-5"/><path d="M18.4 16a8 8 0 1 1 .1-8.1L20 12"/>',
+      block: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+      reactivate: '<path d="M7 10V7a4 4 0 0 1 7.5-2"/><rect x="5" y="10" width="14" height="10" rx="2"/>',
+      edit: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+      archive: '<path d="M4 7h16v13H4z"/><path d="M3 4h18v3H3zM9 11h6"/>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ''}</svg>`;
   }
 
   function supervisorTeamGoalKey() { return `lungo-supervisor-team-goal:${supervisorAccessToken || state.token || "sem-token"}`; }
@@ -1614,7 +1626,7 @@
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}">Copiar</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}">Renovar token</button><button class="tiny-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}">${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}</button></div></td></tr>`).join("") + pendingHireRows;
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
 
     const stages = [
       ["novos", "Novos", "Novos"], ["em_atendimento", "Em atendimento", "Em atendimento"], ["cotacao", "Cotação", "Cotação Enviada"], ["documentacao", "Doc. recebida", "Documentação recebida"],
@@ -1781,6 +1793,21 @@
     el.supervisorDetailModal.showModal();
   }
 
+  function showAccessLimitModal() {
+    const modal = $('#accessLimitModal');
+    if (modal && !modal.open) modal.showModal();
+  }
+
+  function isAccessLimitError(error) {
+    return /limite de acessos|número máximo|numero maximo|access_limit_reached/i.test(String(error?.message || error || ''));
+  }
+
+  function supervisorBrokerCapacity() {
+    const subscription = supervisorDashboard?.subscription;
+    if (!subscription) return Infinity;
+    return Math.max(0, Number(subscription.plans?.included_brokers || 0) + Number(subscription.extra_accesses || 0));
+  }
+
   async function generateSupervisorAccessMessage() {
     const name = String(el.supervisorBrokerName?.value || "").trim();
     const email = String(el.supervisorBrokerEmail?.value || "").trim();
@@ -1800,7 +1827,7 @@
       el.supervisorAccessStatus.textContent = "Acesso criado. Salve o token agora."; el.supervisorAccessStatus.classList.remove("error"); el.supervisorAccessStatus.classList.add("ok");
       el.supervisorBrokerName.value = ""; el.supervisorBrokerEmail.value = ""; el.supervisorBrokerPhone.value = "";
       await loadSupervisorRemoteData(); renderSupervisorMocks();
-    } catch (error) { el.supervisorGeneratedMessage.hidden = true; el.supervisorAccessStatus.textContent = error.message; el.supervisorAccessStatus.classList.add("error"); el.supervisorAccessStatus.classList.remove("ok"); }
+    } catch (error) { el.supervisorGeneratedMessage.hidden = true; el.supervisorAccessStatus.textContent = error.message; el.supervisorAccessStatus.classList.add("error"); el.supervisorAccessStatus.classList.remove("ok"); if (isAccessLimitError(error)) showAccessLimitModal(); }
     finally { el.supervisorGenerateMessageBtn.disabled = false; }
   }
 
@@ -4027,7 +4054,7 @@
 
   function renderAccessTokens() {
     const rows = $("#adminTokenRows"); if (!rows) return;
-    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); const invalid = access.status === "invalid"; const suspended = access.status === "blocked" || access.status === "suspended"; const statusAction = suspended ? `<button class="tiny-btn success" data-token-action="reactivate" data-id="${access.id}">Reativar</button>` : invalid ? "" : `<button class="tiny-btn warning" data-token-action="block" data-id="${access.id}">Bloquear</button>`; const statusLabel = access.status === "active" ? "Ativo" : suspended ? "Suspenso" : "Inválido"; return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><code>${escapeHtml(access.token)}</code>${canCopy ? ` <button class="tiny-btn" data-token-action="copy" data-id="${access.id}">Copiar</button>` : ""}</td><td>${adminMasterStatus(adminStatusClass(access.status), statusLabel)}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-token-action="renew" data-id="${access.id}">Redefinir token</button><button class="tiny-btn ${invalid ? "success" : "danger"}" data-token-action="${invalid ? "validate" : "invalidate"}" data-id="${access.id}">${invalid ? "Validar" : "Invalidar"}</button>${statusAction}</div></td></tr>`; }).join("");
+    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); const invalid = access.status === "invalid"; const suspended = access.status === "blocked" || access.status === "suspended"; const statusLabel = access.status === "active" ? "Ativo" : suspended ? "Suspenso" : "Inválido"; return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><div class="supervisor-token-cell"><code>${escapeHtml(access.token)}</code>${canCopy ? `<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : ""}</div></td><td>${adminMasterStatus(adminStatusClass(access.status), statusLabel)}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${!invalid ? `<button class="tiny-btn icon-action-btn ${suspended ? 'success' : 'warning'}" data-token-action="${suspended ? 'reactivate' : 'block'}" data-id="${access.id}" title="${suspended ? 'Reativar' : 'Bloquear'} acesso" aria-label="${suspended ? 'Reativar' : 'Bloquear'} acesso">${actionIcon(suspended ? 'reactivate' : 'block')}</button>` : ''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Arquivar acesso" aria-label="Arquivar acesso">${actionIcon('archive')}</button></div></td></tr>`; }).join("");
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
     $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
@@ -4205,7 +4232,7 @@
     }
     if (copied) {
       toast(success);
-      if (button) { const original = button.textContent; button.textContent = "Copiado ✓"; button.classList.add("ok"); setTimeout(() => { if (button.isConnected) { button.textContent = original; button.classList.remove("ok"); } }, 1800); }
+      if (button) { const original = button.innerHTML, originalTitle = button.title; if (!button.classList.contains('icon-action-btn')) button.textContent = "Copiado ✓"; else button.title = 'Token copiado'; button.classList.add("ok"); setTimeout(() => { if (button.isConnected) { button.innerHTML = original; button.title = originalTitle; button.classList.remove("ok"); } }, 1800); }
     } else {
       window.prompt("Copie o token abaixo:", text);
       toast("Selecione e copie o token exibido.");
@@ -4409,6 +4436,16 @@
       await copyAdminMasterText(access.token, "Token copiado para a área de transferência.", button);
       return;
     }
+    if (action === "edit") {
+      openAdminFormModal("Editar acesso", access.user, `<form id="adminEditAccessForm" class="admin-modal-form full" data-id="${access.id}"><label>Nome do usuário<input id="adminEditAccessName" value="${escapeHtml(access.user)}" required></label><label>Perfil<select id="adminEditAccessRole"><option value="broker" ${access.profile === 'Corretor' ? 'selected' : ''}>Corretor</option><option value="supervisor" ${access.profile === 'Supervisor' ? 'selected' : ''}>Supervisor</option><option value="admin_master" ${access.profile === 'Admin Master' ? 'selected' : ''}>Admin Master</option></select></label><button class="btn primary" type="submit">Salvar alterações</button></form>`);
+      return;
+    }
+    if (action === "archive") {
+      if (!await popupConfirm(`Arquivar o acesso de ${access.user}? O token será revogado, a vaga liberada e o histórico preservado.`, 'Arquivar acesso', 'Arquivar')) return;
+      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso arquivado e vaga liberada.'); }
+      catch (error) { toast(error.message); }
+      return;
+    }
     try {
       let result;
       if (action === "renew" || action === "validate") result = await window.LungoAdminApi.renewAccess(access.id, {}, adminMasterKey);
@@ -4428,7 +4465,17 @@
 
   async function submitAdminToken(event) {
     event.preventDefault(); const submit = event.currentTarget.querySelector('button[type="submit"]'); if (submit) submit.disabled = true;
-    try { const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado e salvo"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><div class="auth-status ok">✓ Salvo automaticamente no Admin Master</div><p>Não é necessário clicar em Salvar. O token permanecerá disponível na tabela Acessos e tokens.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; toast("Acesso criado e token salvo."); } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); } finally { if (submit?.isConnected) submit.disabled = false; }
+    try { const client = adminClient($("#adminTokenClient").value); if (client && client.activeAccesses >= adminPlanCapacity(client)) { showAccessLimitModal(); return; } const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado e salvo"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><div class="auth-status ok">✓ Salvo automaticamente no Admin Master</div><p>Não é necessário clicar em Salvar. O token permanecerá disponível na tabela Acessos e tokens.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; toast("Acesso criado e token salvo."); } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); if (isAccessLimitError(error)) showAccessLimitModal(); } finally { if (submit?.isConnected) submit.disabled = false; }
+  }
+
+  async function submitAdminAccessEdit(event) {
+    event.preventDefault();
+    const form = event.target, access = adminData.accesses.find((item) => item.id === form.dataset.id);
+    if (!access) return;
+    const submit = form.querySelector('button[type="submit"]'); if (submit) submit.disabled = true;
+    try { await window.LungoAdminApi.updateAccess(access.id, { name: $('#adminEditAccessName').value.trim(), role: $('#adminEditAccessRole').value }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $('#adminMasterModal')?.close(); toast('Acesso atualizado.'); }
+    catch (error) { toast(error.message); }
+    finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function bindAdminMasterEvents() {
@@ -4515,7 +4562,7 @@
       const finance = event.target.closest("[data-admin-master-finance]");
       if (finance) toast("Detalhe financeiro mock aberto visualmente.");
     });
-    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); });
+    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); });
     $("#adminMasterModalBody")?.addEventListener("input", (event) => { if (["adminNewPlan", "adminNewPlanExtras"].includes(event.target.id)) updatePlanChangePreview(adminClient($("#adminPlanChangeForm")?.dataset.id)); });
     $("#adminMasterModalBody")?.addEventListener("click", (event) => {
       const clientView = event.target.closest("[data-admin-client-view]"); if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
@@ -4596,9 +4643,25 @@
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
     $("#supervisorOpenAccessModalBtn")?.addEventListener("click", () => {
+      if (SUPERVISOR_BROKERS.length >= supervisorBrokerCapacity()) { showAccessLimitModal(); return; }
       if (el.supervisorGeneratedMessage) el.supervisorGeneratedMessage.hidden = true;
       if (el.supervisorAccessStatus) { el.supervisorAccessStatus.textContent = "Preencha os dados para gerar o acesso."; el.supervisorAccessStatus.classList.remove("error", "ok"); }
       $("#supervisorAccessModal")?.showModal();
+    });
+    $('#accessLimitModalClose')?.addEventListener('click', () => $('#accessLimitModal')?.close());
+    $('#accessLimitModalCancel')?.addEventListener('click', () => $('#accessLimitModal')?.close());
+    $('#supervisorBrokerEditForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const id = $('#supervisorEditBrokerId')?.value;
+      const name = $('#supervisorEditBrokerName')?.value.trim();
+      const email = $('#supervisorEditBrokerEmail')?.value.trim();
+      const phone = $('#supervisorEditBrokerPhone')?.value.trim();
+      if (!id || !name || !email) return;
+      const submit = event.currentTarget.querySelector('button[type="submit"]');
+      if (submit) submit.disabled = true;
+      try { await window.LungoSupervisorApi.updateBroker(id, { name, email, phone: phone || null }, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); $('#supervisorBrokerEditModal')?.close(); toast('Dados do corretor atualizados.'); }
+      catch (error) { toast(error.message); }
+      finally { if (submit?.isConnected) submit.disabled = false; }
     });
     el.supervisorClientSearch?.addEventListener("input", renderSupervisorCustomers);
     el.supervisorClientStatusFilter?.addEventListener("change", renderSupervisorCustomers);
@@ -4712,6 +4775,20 @@
         if (!broker) return;
         const action = brokerButton.dataset.supervisorBrokerAction;
         if (action === "copy") { await copySupervisorText(broker.token, "Token copiado para a área de transferência."); return; }
+        if (action === "edit") {
+          $('#supervisorEditBrokerId').value = broker.id;
+          $('#supervisorEditBrokerName').value = broker.name || '';
+          $('#supervisorEditBrokerEmail').value = broker.email === '—' ? '' : broker.email || '';
+          $('#supervisorEditBrokerPhone').value = broker.phone || '';
+          $('#supervisorBrokerEditModal')?.showModal();
+          return;
+        }
+        if (action === "archive") {
+          if (!await popupConfirm(`Arquivar o acesso de ${broker.name}? O token será revogado, a vaga liberada e o histórico comercial preservado.`, 'Arquivar corretor', 'Arquivar')) return;
+          try { await window.LungoSupervisorApi.archiveBroker(broker.id, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); toast('Corretor arquivado e vaga liberada.'); }
+          catch (error) { toast(error.message); }
+          return;
+        }
         try {
           let result;
           if (action === "renew") result = await window.LungoSupervisorApi.renewBrokerToken(broker.id, {}, supervisorAccessToken);
