@@ -148,6 +148,7 @@
   let recruitmentData = { vacancy: null, candidates: [] };
   let recruitmentTimer = null;
   let calendarReminderTimer = null;
+  let calendarWeekOffset = 0;
   let rhFormDirty = false;
   let activeBrokerMessage = null;
   let adminMasterAccessType = "individual";
@@ -1344,7 +1345,7 @@
   function calendarToken() { return supervisorAccessToken || state.token; }
   function calendarDateTime(value) { return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 
-  async function renderTeamCalendar(target = 'broker') {
+  async function renderTeamCalendarLegacy(target = 'broker') {
     const container = target === 'supervisor' ? el.supervisorOperationContent : el.views.agenda;
     if (!container) return;
     if (target === 'broker') Array.from(container.children).forEach((child) => { if (!child.classList.contains('team-calendar')) child.hidden = true; });
@@ -1357,6 +1358,36 @@
       host.querySelector('.calendar-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; const status = form.querySelector('.calendar-form-status'); const data = new FormData(form); try { const startsAt = new Date(`${data.get('date')}T${data.get('time')}:00`); if (startsAt <= new Date()) throw new Error('Escolha uma data e hora futuras.'); await window.LungoSupervisorApi.createCalendarEvent({ title: data.get('title'), type: data.get('type'), description: data.get('description'), location: data.get('location'), audience: data.get('audience') || 'self', startsAt: startsAt.toISOString() }, calendarToken()); await renderTeamCalendar(target); toast('Agendamento salvo.'); } catch (error) { status.textContent = error.message; status.className = 'auth-status calendar-form-status error'; } });
       host.querySelector('.calendar-refresh').onclick = () => renderTeamCalendar(target);
       host.querySelector('.calendar-event-list').addEventListener('click', async (event) => { const button = event.target.closest('[data-calendar-delete]'); if (!button || !confirm('Excluir este agendamento?')) return; try { await window.LungoSupervisorApi.deleteCalendarEvent(button.dataset.calendarDelete, calendarToken()); await renderTeamCalendar(target); toast('Agendamento excluído.'); } catch (error) { toast(error.message); } });
+    } catch (error) { host.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
+  }
+
+  function weekDays() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + calendarWeekOffset * 7);
+    return Array.from({ length: 7 }, (_, index) => { const day = new Date(monday); day.setDate(monday.getDate() + index); return day; });
+  }
+  function localDateKey(value) { const date = value instanceof Date ? value : new Date(value); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+
+  function openCalendarEditor(target) {
+    let modal = $('#calendarEditorModal');
+    if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="calendarEditorModal" class="modal calendar-editor-modal"><form class="modal-card calendar-form"><header><div><h2>Novo agendamento</h2><p>Lembretes na tela 24 horas e 2 horas antes.</p></div><button class="btn icon" type="button" data-calendar-editor-close>×</button></header><div class="calendar-form-fields"></div><footer><span class="calendar-form-status auth-status"></span><span class="footer-spacer"></span><button class="btn" type="button" data-calendar-editor-close>Cancelar</button><button class="btn primary" type="submit">Salvar agendamento</button></footer></form></dialog>'); modal = $('#calendarEditorModal'); modal.addEventListener('click', (event) => { if (event.target.closest('[data-calendar-editor-close]')) modal.close(); }); }
+    const canShare = target === 'supervisor'; const form = modal.querySelector('form');
+    form.querySelector('.calendar-form-fields').innerHTML = `<div class="calendar-form-grid"><label><span>Título</span><input name="title" maxlength="160" required autofocus></label><label><span>Tipo</span><select name="type"><option>Visita</option><option>Lembrete</option><option>Treinamento</option><option>Reunião</option><option>Retorno</option></select></label><label><span>Data</span><input name="date" type="date" min="${new Date().toISOString().slice(0, 10)}" required></label><label><span>Hora</span><input name="time" type="time" value="09:00" required></label><label><span>Local ou link</span><input name="location" maxlength="240"></label>${canShare ? '<label><span>Quem visualiza</span><select name="audience"><option value="self">Somente eu</option><option value="team">Toda a equipe</option></select></label>' : ''}<label class="full"><span>Descrição</span><textarea name="description" rows="4" maxlength="2000"></textarea></label></div>`;
+    form.onsubmit = async (event) => { event.preventDefault(); const status = form.querySelector('.calendar-form-status'); const data = new FormData(form); try { const startsAt = new Date(`${data.get('date')}T${data.get('time')}:00`); if (startsAt <= new Date()) throw new Error('Escolha uma data e hora futuras.'); await window.LungoSupervisorApi.createCalendarEvent({ title: data.get('title'), type: data.get('type'), description: data.get('description'), location: data.get('location'), audience: data.get('audience') || 'self', startsAt: startsAt.toISOString() }, calendarToken()); modal.close(); await renderTeamCalendar(target); toast('Agendamento salvo.'); } catch (error) { status.textContent = error.message; status.className = 'calendar-form-status auth-status error'; } };
+    form.reset(); form.querySelector('[name="time"]').value = '09:00'; form.querySelector('.calendar-form-status').textContent = ''; modal.showModal();
+  }
+
+  async function renderTeamCalendar(target = 'broker') {
+    const container = target === 'supervisor' ? el.supervisorOperationContent : el.views.agenda; if (!container) return;
+    let host = container.querySelector(':scope > .team-calendar'); if (!host) { host = document.createElement('section'); host.className = 'team-calendar'; container.appendChild(host); }
+    host.hidden = false; host.innerHTML = '<div class="empty-state">Carregando agenda...</div>';
+    try {
+      const result = await window.LungoSupervisorApi.getCalendarEvents(calendarToken()); const events = result.events || []; const days = weekDays();
+      const weekLabel = `${days[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} a ${days[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+      host.innerHTML = `<section class="calendar-week-panel"><header class="calendar-week-header"><div><h2>Agenda da semana</h2><p>${escapeHtml(weekLabel)} · ${target === 'supervisor' ? 'Equipe completa' : 'Seus compromissos'}</p></div><div><button class="btn" type="button" data-calendar-week="prev">Anterior</button><button class="btn" type="button" data-calendar-week="today">Hoje</button><button class="btn" type="button" data-calendar-week="next">Próxima</button><button class="btn primary" type="button" data-calendar-new>Novo agendamento</button></div></header><div class="calendar-week-grid">${days.map((day) => { const key = localDateKey(day); const dayEvents = events.filter((item) => localDateKey(item.startsAt) === key); const today = new Date().toDateString() === day.toDateString(); return `<section class="calendar-day-column ${today ? 'today' : ''}"><header><span>${day.toLocaleDateString('pt-BR', { weekday: 'short' })}</span><b>${day.getDate()}</b></header><div>${dayEvents.map((item) => `<article class="calendar-week-event"><time>${new Date(item.startsAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time><span class="calendar-event-type">${escapeHtml(item.type)}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.location || item.description || 'Sem detalhes')}</p><small>${escapeHtml(item.creatorName)}${item.audience === 'team' ? ' · Equipe' : ''}</small>${item.canDelete ? `<button class="tiny-btn danger" type="button" data-calendar-delete="${escapeHtml(item.id)}">Excluir</button>` : ''}</article>`).join('') || '<span class="calendar-day-empty">Sem compromissos</span>'}</div></section>`; }).join('')}</div></section>`;
+      host.querySelector('[data-calendar-new]').onclick = () => openCalendarEditor(target);
+      host.querySelectorAll('[data-calendar-week]').forEach((button) => button.onclick = () => { calendarWeekOffset = button.dataset.calendarWeek === 'today' ? 0 : calendarWeekOffset + (button.dataset.calendarWeek === 'next' ? 1 : -1); renderTeamCalendar(target); });
+      host.querySelector('.calendar-week-grid').addEventListener('click', async (event) => { const button = event.target.closest('[data-calendar-delete]'); if (!button || !confirm('Excluir este agendamento?')) return; try { await window.LungoSupervisorApi.deleteCalendarEvent(button.dataset.calendarDelete, calendarToken()); await renderTeamCalendar(target); toast('Agendamento excluído.'); } catch (error) { toast(error.message); } });
     } catch (error) { host.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
   }
 
