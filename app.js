@@ -1559,7 +1559,7 @@
       block: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
       reactivate: '<path d="M7 10V7a4 4 0 0 1 7.5-2"/><rect x="5" y="10" width="14" height="10" rx="2"/>',
       edit: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
-      archive: '<path d="M4 7h16v13H4z"/><path d="M3 4h18v3H3zM9 11h6"/>'
+      archive: '<path d="M6 6l12 12M18 6 6 18"/>'
     };
     return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ''}</svg>`;
   }
@@ -1627,6 +1627,7 @@
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
       <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
+    el.supervisorBrokerRows?.querySelectorAll('[data-supervisor-broker-action="archive"]').forEach((button) => { button.title = 'Excluir corretor'; button.setAttribute('aria-label', 'Excluir corretor'); });
 
     const stages = [
       ["novos", "Novos", "Novos"], ["em_atendimento", "Em atendimento", "Em atendimento"], ["cotacao", "Cotação", "Cotação Enviada"], ["documentacao", "Doc. recebida", "Documentação recebida"],
@@ -4055,6 +4056,7 @@
   function renderAccessTokens() {
     const rows = $("#adminTokenRows"); if (!rows) return;
     rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); const invalid = access.status === "invalid"; const suspended = access.status === "blocked" || access.status === "suspended"; const statusLabel = access.status === "active" ? "Ativo" : suspended ? "Suspenso" : "Inválido"; return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><div class="supervisor-token-cell"><code>${escapeHtml(access.token)}</code>${canCopy ? `<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : ""}</div></td><td>${adminMasterStatus(adminStatusClass(access.status), statusLabel)}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${!invalid ? `<button class="tiny-btn icon-action-btn ${suspended ? 'success' : 'warning'}" data-token-action="${suspended ? 'reactivate' : 'block'}" data-id="${access.id}" title="${suspended ? 'Reativar' : 'Bloquear'} acesso" aria-label="${suspended ? 'Reativar' : 'Bloquear'} acesso">${actionIcon(suspended ? 'reactivate' : 'block')}</button>` : ''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Arquivar acesso" aria-label="Arquivar acesso">${actionIcon('archive')}</button></div></td></tr>`; }).join("");
+    rows.querySelectorAll('[data-token-action="archive"]').forEach((button) => { button.title = 'Excluir acesso'; button.setAttribute('aria-label', 'Excluir acesso'); });
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
     $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
@@ -4441,8 +4443,8 @@
       return;
     }
     if (action === "archive") {
-      if (!await popupConfirm(`Arquivar o acesso de ${access.user}? O token será revogado, a vaga liberada e o histórico preservado.`, 'Arquivar acesso', 'Arquivar')) return;
-      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso arquivado e vaga liberada.'); }
+      if (!await popupConfirm(`Excluir o acesso de ${access.user}? Esta ação não poderá ser desfeita.`, 'Excluir acesso', 'Excluir')) return;
+      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso excluído e vaga liberada.'); }
       catch (error) { toast(error.message); }
       return;
     }
@@ -4784,8 +4786,8 @@
           return;
         }
         if (action === "archive") {
-          if (!await popupConfirm(`Arquivar o acesso de ${broker.name}? O token será revogado, a vaga liberada e o histórico comercial preservado.`, 'Arquivar corretor', 'Arquivar')) return;
-          try { await window.LungoSupervisorApi.archiveBroker(broker.id, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); toast('Corretor arquivado e vaga liberada.'); }
+          if (!await popupConfirm(`Excluir o corretor ${broker.name}? Esta ação não poderá ser desfeita.`, 'Excluir corretor', 'Excluir')) return;
+          try { await window.LungoSupervisorApi.archiveBroker(broker.id, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); toast('Corretor excluído e vaga liberada.'); }
           catch (error) { toast(error.message); }
           return;
         }
