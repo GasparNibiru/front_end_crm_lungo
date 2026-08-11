@@ -9,6 +9,7 @@
   const SUPERVISOR_SESSION_KEY = "lungo-supervisor-session-v1";
   const ACTIVE_PROFILE_KEY = "lungo-active-profile-v1";
   const AUTH_SESSION_KEY = "lungo-auth-session-v1";
+  const TAB_PROFILE_KEY = "lungo-tab-profile-v1";
   const LEAD_SEEN_PREFIX = "lungo-lead-seen-v1";
   const ADMIN_SESSION_KEY = "lungo-admin-master-session-v1";
   const TERMS_VERSION = "mvp-beta-v1-2026-07-31";
@@ -1535,7 +1536,7 @@
       localStorage.setItem(SUPERVISOR_SESSION_KEY, token);
       localStorage.setItem(ACTIVE_PROFILE_KEY, "supervisor");
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "supervisor", token }));
-      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.setItem(TAB_PROFILE_KEY, "supervisor");
       if (!await ensureTermsAccepted()) return;
       await loadSupervisorRemoteData();
       if (el.supervisorEmailInput) el.supervisorEmailInput.value = "";
@@ -1658,7 +1659,7 @@
     localStorage.removeItem(SUPERVISOR_SESSION_KEY);
     localStorage.removeItem(ACTIVE_PROFILE_KEY);
     localStorage.removeItem(AUTH_SESSION_KEY);
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(TAB_PROFILE_KEY);
     if (el.supervisorEmailInput) el.supervisorEmailInput.value = "";
     restoreSupervisorSharedView();
     document.body.classList.remove("supervisor-mode");
@@ -1965,7 +1966,7 @@
       // Uma autenticação válida permanece neste dispositivo até o usuário clicar em Sair.
       saveAccess();
       localStorage.setItem(ACTIVE_PROFILE_KEY, "broker");
-      localStorage.removeItem(SUPERVISOR_SESSION_KEY);
+      sessionStorage.setItem(TAB_PROFILE_KEY, "broker");
       let status = null;
       try { status = await refreshInstanceSilent(); }
       catch { state.connected = false; saveAccess(); renderAccess(); }
@@ -3828,8 +3829,8 @@
     if (state.token) localStorage.removeItem(leadSyncKey());
     [STORAGE_KEY, "lungo-suite-access-v2", "lungo-suite-access-v3", "lungo-suite-access-v4"].forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem(ACTIVE_PROFILE_KEY);
-    localStorage.removeItem(SUPERVISOR_SESSION_KEY);
     localStorage.removeItem(AUTH_SESSION_KEY);
+    sessionStorage.removeItem(TAB_PROFILE_KEY);
     state.token = "";
     state.clientName = "";
     state.instanceName = "";
@@ -4942,8 +4943,10 @@
     const legacySupervisorToken = localStorage.getItem(SUPERVISOR_SESSION_KEY) || "";
     const legacyProfile = localStorage.getItem(ACTIVE_PROFILE_KEY) || (legacySupervisorToken ? "supervisor" : "broker");
     if (!authSession?.token && legacyProfile === "supervisor" && legacySupervisorToken) authSession = { role: "supervisor", token: legacySupervisorToken };
-    const activeProfile = authSession?.role === "supervisor" ? "supervisor" : "broker";
-    const savedSupervisorToken = activeProfile === "supervisor" ? String(authSession?.token || "") : "";
+    const tabProfile = sessionStorage.getItem(TAB_PROFILE_KEY) || "";
+    const hasBrokerSession = Boolean(localStorage.getItem(STORAGE_KEY));
+    const activeProfile = tabProfile === "supervisor" && legacySupervisorToken ? "supervisor" : tabProfile === "broker" && hasBrokerSession ? "broker" : authSession?.role === "supervisor" && legacySupervisorToken ? "supervisor" : "broker";
+    const savedSupervisorToken = activeProfile === "supervisor" ? legacySupervisorToken : "";
     const theme = localStorage.getItem(THEME_KEY) || "dark";
     el.root.dataset.theme = theme;
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
