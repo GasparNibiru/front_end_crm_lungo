@@ -6,7 +6,7 @@
   <title>Lungo Corretores</title>
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <link rel="stylesheet" href="styles.css?v=20260811-3">
+  <link rel="stylesheet" href="styles.css?v=20260811-4">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
@@ -124,13 +124,12 @@
         <button class="supervisor-nav-item" data-supervisor-view="rh" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M17 8h4M19 6v4"/></svg></span><b>Recursos Humanos</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="settings" type="button"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6l-.3-2.6h-4L10.4 6A7 7 0 0 0 9 7L6.6 6l-2 3.4 2 1.5a7 7 0 0 0 0 2L4.6 14.5l2 3.4L9 17a7 7 0 0 0 1.4.9l.3 2.6h4l.3-2.6A7 7 0 0 0 16.5 17l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></span><b>Configurações da Corretora</b></button>
       </nav>
-      <button id="supervisorLogoutBtn" class="supervisor-logout" type="button"><span><svg viewBox="0 0 24 24"><path d="M10 6H6v12h4M14 8l4 4-4 4M8 12h10"/></svg></span><b>Sair</b></button>
     </aside>
 
     <main class="supervisor-main">
       <header class="supervisor-topbar">
         <div><h1 id="supervisorViewTitle">Dashboard</h1><p>Visão consolidada da equipe comercial</p></div>
-        <div class="supervisor-top-actions"><label>Corretora <strong>Lungo Corretores</strong></label><label>Período <select id="supervisorPeriod"><option>Este mês</option><option>Últimos 30 dias</option><option>Este trimestre</option></select></label><button id="supervisorThemeBtn" class="btn" type="button">Tema</button></div>
+        <div class="supervisor-top-actions"><label>Corretora <strong>Lungo Corretores</strong></label><label>Período <select id="supervisorPeriod"><option>Este mês</option><option>Últimos 30 dias</option><option>Este trimestre</option></select></label><button id="supervisorThemeBtn" class="btn" type="button">Tema</button><button id="supervisorLogoutBtn" class="supervisor-top-logout" type="button" aria-label="Sair do painel do supervisor" title="Sair"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6H6v12h4M14 8l4 4-4 4M8 12h10"/></svg></button></div>
       </header>
       <div class="supervisor-content">
         <section id="supervisor-view-dashboard" class="supervisor-view active">

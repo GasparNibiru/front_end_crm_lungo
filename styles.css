@@ -3630,3 +3630,127 @@ body.supervisor-mode .supervisor-screen {
   .admin-master-sidebar,
   .supervisor-sidebar { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 }
+
+/* Segunda passagem visual: contraste noturno, Kanban e neumorfismo claro. */
+:root:not([data-theme="light"]) {
+  --bg: #151817;
+  --bg-soft: #191d1b;
+  --surface: #222624;
+  --surface-2: #292e2b;
+  --surface-3: #313733;
+  --border: rgba(242, 248, 245, .15);
+  --border-strong: rgba(242, 248, 245, .24);
+  --text: #f3f6f4;
+  --muted: #c0c9c4;
+  --muted-2: #929e98;
+  --card-depth: 8px 8px 20px rgba(0, 0, 0, .28), -3px -3px 10px rgba(255, 255, 255, .035);
+}
+
+:root:not([data-theme="light"]) body,
+:root:not([data-theme="light"]) .app,
+:root:not([data-theme="light"]) body.admin-master-mode .admin-master-screen,
+:root:not([data-theme="light"]) body.supervisor-mode .supervisor-screen { background-color: var(--bg); }
+
+:root:not([data-theme="light"]) .metric,
+:root:not([data-theme="light"]) .content-frame,
+:root:not([data-theme="light"]) .flat-panel,
+:root:not([data-theme="light"]) .supervisor-card,
+:root:not([data-theme="light"]) .admin-master-panel,
+:root:not([data-theme="light"]) .kanban-card,
+:root:not([data-theme="light"]) .supervisor-deal { border-color: rgba(245, 250, 247, .16); }
+
+/* Kanban: curvas discretas em colunas, cartões, avatares e controles internos. */
+.kanban-col { border-radius: 9px; overflow: hidden; }
+.kanban-card { border-radius: 8px; overflow: hidden; }
+.kanban-card .avatar { border-radius: 7px; overflow: hidden; }
+.kanban-card .card-meta span,
+.kanban-card .icon-action,
+.kanban-card .tiny-btn,
+.kanban-card button { border-radius: 6px; }
+.kanban-col header,
+.kanban-col header b { min-width: 0; }
+
+/* Os títulos longos passam a ocupar duas linhas sem invadir a coluna vizinha. */
+.kanban-col[data-status="documentacao_recebida"],
+.kanban-col[data-status="venda_cadastrada"] { grid-template-rows: 42px minmax(0, 1fr); }
+.kanban-col[data-status="documentacao_recebida"] header b,
+.kanban-col[data-status="venda_cadastrada"] header b {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.08;
+  font-size: 10px;
+}
+
+.supervisor-lane { border-radius: 9px; }
+.supervisor-deal { border-radius: 7px; }
+.supervisor-deal button { border-radius: 6px; }
+.supervisor-lane > header { min-height: 24px; align-items: start; }
+.supervisor-lane > header b {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+/* Saída discreta no cabeçalho do Supervisor; o mesmo ID mantém a lógica original. */
+.supervisor-top-logout {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  opacity: .72;
+  transition: opacity .15s ease, color .15s ease, background .15s ease;
+}
+.supervisor-top-logout:hover { opacity: 1; color: var(--text); background: var(--surface-2); }
+.supervisor-top-logout svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Tema claro: relevo multicamada mais delicado e superfícies acetinadas. */
+[data-theme="light"] {
+  --card-depth: 10px 10px 24px rgba(54, 78, 67, .13), -7px -7px 18px rgba(255, 255, 255, .88), inset 1px 1px 0 rgba(255, 255, 255, .72);
+}
+
+[data-theme="light"] .metric,
+[data-theme="light"] .content-frame,
+[data-theme="light"] .flat-panel,
+[data-theme="light"] .kanban-card,
+[data-theme="light"] .chart-card,
+[data-theme="light"] .supervisor-card,
+[data-theme="light"] .supervisor-kpis article,
+[data-theme="light"] .supervisor-goal-summary article,
+[data-theme="light"] .training-card,
+[data-theme="light"] .lead-offer-card,
+[data-theme="light"] .lead-wallet-card,
+[data-theme="light"] .admin-master-kpis article,
+[data-theme="light"] .admin-master-panel,
+[data-theme="light"] .admin-master-plan-grid article {
+  background: linear-gradient(145deg, rgba(255, 255, 255, .94), rgba(235, 242, 237, .88));
+  border-color: rgba(255, 255, 255, .78);
+  box-shadow: var(--card-depth);
+}
+
+[data-theme="light"] .kanban-col,
+[data-theme="light"] .supervisor-lane {
+  border-color: rgba(51, 95, 77, .13);
+  background: rgba(230, 238, 233, .7);
+  box-shadow: inset 2px 2px 7px rgba(66, 88, 78, .08), inset -2px -2px 7px rgba(255, 255, 255, .76);
+}
+
+@media (max-width: 560px) {
+  .supervisor-top-logout { width: 30px; min-width: 30px; padding: 0 !important; }
+}
