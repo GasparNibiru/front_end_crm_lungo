@@ -3832,3 +3832,92 @@ body.supervisor-mode .supervisor-lane-cards::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: color-mix(in srgb, var(--border-strong) 72%, transparent);
 }
+
+/* Restauração de sessão acontece antes da primeira pintura, sem exibir o login. */
+html.session-restoring body.auth-locked .auth-screen { display: none !important; }
+html.session-restoring body.auth-locked {
+  background:
+    radial-gradient(circle at 22% 16%, rgba(49, 176, 130, .14), transparent 30%),
+    linear-gradient(145deg, #071c16, #0b2b21 58%, #061510);
+}
+
+/* Login moderno em vidro verde com detalhes brancos. */
+body.auth-locked .auth-screen {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(92, 221, 172, .18), transparent 28%),
+    radial-gradient(circle at 82% 78%, rgba(40, 156, 116, .16), transparent 30%),
+    linear-gradient(145deg, #061b15, #0a3427 52%, #061a14);
+}
+body.auth-locked .auth-screen::before,
+body.auth-locked .auth-screen::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(44vw, 520px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(238, 255, 248, .10);
+  border-radius: 50%;
+  background: rgba(218, 255, 240, .035);
+  filter: blur(1px);
+}
+body.auth-locked .auth-screen::before { top: -24%; right: -10%; }
+body.auth-locked .auth-screen::after { bottom: -32%; left: -12%; }
+
+body.auth-locked .auth-card {
+  border: 1px solid rgba(240, 255, 249, .20);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .11), rgba(255, 255, 255, .035)),
+    rgba(5, 48, 36, .72);
+  color: #f5faf7;
+  box-shadow: 0 26px 70px rgba(0, 18, 13, .42), inset 1px 1px 0 rgba(255, 255, 255, .12);
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+}
+body.auth-locked .auth-brand h1 { color: #fff; }
+body.auth-locked .auth-brand p,
+body.auth-locked .auth-form label > span,
+body.auth-locked .auth-status { color: rgba(241, 250, 246, .72); }
+body.auth-locked .auth-brand img {
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .08);
+}
+body.auth-locked .auth-role-tabs {
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 10px;
+  background: rgba(0, 24, 18, .24);
+}
+body.auth-locked .auth-role-tab {
+  border-radius: 7px;
+  color: rgba(244, 251, 248, .66);
+}
+body.auth-locked .auth-role-tab.active {
+  background: rgba(255, 255, 255, .13);
+  color: #fff;
+  box-shadow: 0 7px 16px rgba(0, 18, 13, .20), inset 0 0 0 1px rgba(255, 255, 255, .10);
+}
+body.auth-locked .auth-form input {
+  border-color: rgba(255, 255, 255, .17);
+  border-radius: 8px;
+  background: rgba(0, 24, 18, .30);
+  color: #fff;
+}
+body.auth-locked .auth-form input::placeholder { color: rgba(241, 250, 246, .42); }
+body.auth-locked .auth-form input:focus {
+  border-color: rgba(185, 247, 220, .62);
+  box-shadow: 0 0 0 3px rgba(87, 207, 161, .14);
+}
+body.auth-locked .auth-login-btn {
+  border-color: rgba(255, 255, 255, .18);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2fc48c, #159464);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(0, 29, 20, .28), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+body.auth-locked .auth-login-btn:hover { filter: brightness(1.06); }

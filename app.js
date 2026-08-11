@@ -1146,6 +1146,7 @@
 
   function setAuthLocked(locked) {
     document.body.classList.toggle("auth-locked", Boolean(locked));
+    if (!locked) el.root.classList.remove("session-restoring");
   }
 
   function formatLastAccess(value) {
@@ -1533,7 +1534,7 @@
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
       supervisorOrganizationName = auth.user.organization?.name || "Corretora";
       openSupervisorArea();
-    } catch (error) { supervisorAccessToken = ""; el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
+    } catch (error) { supervisorAccessToken = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
     finally { el.supervisorLoginBtn.disabled = false; }
   }
 
@@ -1972,6 +1973,7 @@
       loadCrm(true); startCrmRealtime();
       return true;
     } catch (error) {
+      el.root.classList.remove("session-restoring");
       setAuthLocked(true);
       setWhatsappPending(false);
       setAuthStatus(error.message || "Token inválido ou inativo.", "error");
@@ -1982,6 +1984,7 @@
 
   async function bootAccess() {
     if (!state.token) {
+      el.root.classList.remove("session-restoring");
       setAuthLocked(true);
       setWhatsappPending(false);
       setAuthStatus("Informe o token para liberar o sistema.", "");
