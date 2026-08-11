@@ -1510,7 +1510,8 @@
     SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
     SUPERVISOR_BROKERS.forEach((broker) => {
       const closed = SUPERVISOR_DEALS.filter((deal) => deal.stage === 'fechamento' && stripAccents(deal.seller).toLowerCase() === stripAccents(broker.name).toLowerCase());
-      if (closed.length) { broker.sales = closed.length; broker.revenue = closed.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0); }
+      broker.sales = closed.length;
+      broker.revenue = closed.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0);
     });
     const operationalCustomers = (operationalClientsResult.clients || []).map((client) => ({ id: `operational-${client.id}`, client: client.nome || "Cliente", seller: client.brokerName || "Corretor", phone: client.telefone || "—", email: client.email || "", product: client.produto || "Cliente", status: ({ ativo: "Ativo", a_renovar: "A renovar", renovado: "Renovado" })[client.status] || "Ativo", lives: Number(client.qtdVidas || 0), value: client.valorFechado ? formatMoney(client.valorFechado) : "—", date: client.dataContratacao || String(client.createdAt || "").slice(0, 10), renewal: client.dataRenovacao || "—", post: client.posVenda ? "Agendado" : "Pendente", notes: client.observacao || "" }));
     const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `registered-${client.id}`, client: client.name || "Cliente", seller: client.users?.name || "Supervisor", phone: client.phone || "—", email: client.email || "", product: "Cliente importado", status: client.status === "inactive" ? "Inativo" : "Ativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "Pendente", notes: [client.document_number, client.city].filter(Boolean).join(" · ") }));
@@ -1599,7 +1600,7 @@
         <span><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</span>
         <b>${broker.sales} vendas</b>
         <div><div class="supervisor-progress"><i style="width:${broker.goal}%"></i></div><small>${broker.goal}% da meta</small></div>
-        <span>${escapeHtml(broker.login)}</span>
+        <span>${formatCurrency(broker.revenue || 0)} vendidos</span>
       </div>`).join("");
     if (el.supervisorBrokerList) el.supervisorBrokerList.innerHTML = brokerRows;
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
