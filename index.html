@@ -7,13 +7,13 @@
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <script>try{if(localStorage.getItem("lungo-auth-session-v1")||localStorage.getItem("lungo-suite-access-v5")||localStorage.getItem("lungo-supervisor-session-v1"))document.documentElement.classList.add("session-restoring")}catch{}</script>
-  <link rel="stylesheet" href="styles.css?v=20260811-11">
+  <link rel="stylesheet" href="styles.css?v=20260811-12">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260810-10" defer></script>
   <script src="supervisor-api.js?v=20260810-10" defer></script>
-  <script src="app.js?v=20260811-12" defer></script>
+  <script src="app.js?v=20260811-13" defer></script>
 </head>
 <body class="auth-locked">
   <section id="publicVacancyScreen" class="public-vacancy-screen" hidden><main class="public-vacancy-page"><header><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><span>Oportunidade profissional</span></header><section class="public-vacancy-hero"><div><span id="publicVacancyLocation">Vaga comercial</span><h1 id="publicVacancyTitle">Consultor de Planos de Saúde</h1><p id="publicVacancyHeadline"></p></div></section><div class="public-vacancy-content"><article><h2>Sobre a oportunidade</h2><p id="publicVacancyDescription"></p><h3>Requisitos</h3><div id="publicVacancyRequirements" class="public-vacancy-list"></div><h3>Benefícios</h3><div id="publicVacancyBenefits" class="public-vacancy-list"></div></article><form id="publicApplicationForm" class="public-application-form"><h2>Candidate-se</h2><p>Preencha seus dados para participar do processo seletivo.</p><label><span>Nome completo</span><input id="applicationName" required></label><label><span>WhatsApp</span><input id="applicationPhone" required inputmode="tel"></label><label><span>E-mail</span><input id="applicationEmail" type="email"></label><label><span>Cidade</span><input id="applicationCity"></label><label><span>Experiência comercial</span><select id="applicationExperience"><option value="Sem experiência">Sem experiência</option><option value="Até 1 ano">Até 1 ano</option><option value="1 a 3 anos">1 a 3 anos</option><option value="Mais de 3 anos">Mais de 3 anos</option></select></label><label><span>Link do currículo</span><input id="applicationResumeUrl" type="url" placeholder="Google Drive, LinkedIn..."></label><label class="full"><span>Conte um pouco sobre você</span><textarea id="applicationMessage" rows="4"></textarea></label><input id="applicationWebsite" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary" type="submit">Enviar candidatura</button><div id="publicApplicationStatus" class="auth-status">Seus dados serão enviados à equipe responsável.</div></form></div></main></section>
@@ -110,7 +110,6 @@
         <button class="supervisor-nav-item" data-supervisor-view="brokers" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M17 11h4M19 9v4"/></svg></span><b>Corretores</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="funnel" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 5h16M7 10h10M10 15h4M12 15v5"/></svg></span><b>Funil de Vendas</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="customers" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M17 11a4 4 0 0 1 4 4v2"/></svg></span><b>Todos os Clientes</b></button>
-        <button class="supervisor-nav-item" data-supervisor-view="goals" type="button"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M15 9l5-5"/></svg></span><b>Metas</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="reports" type="button"><span><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg></span><b>Relatórios</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="messages" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 5h16v12H7l-3 3zM7 9h10M7 13h7"/></svg></span><b>Mensagens</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="rh" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M17 8h4M19 6v4"/></svg></span><b>Recursos Humanos</b></button>
@@ -125,8 +124,13 @@
       </header>
       <div class="supervisor-content">
         <section id="supervisor-view-dashboard" class="supervisor-view active">
+          <div class="supervisor-dashboard-heading"><div><span>Performance comercial</span><h2>Visão geral da equipe</h2><p>Indicadores, metas e evolução dos corretores em uma única área.</p></div><button id="supervisorOpenGoalModalBtn" class="btn primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M15 9l5-5"/></svg> Configurar meta</button></div>
           <div class="supervisor-kpis">
             <article><span>Equipe ativa</span><b>9</b><small>8 corretores + Supervisor</small></article><article><span>Vendas no mês</span><b>48</b><small>inclui 6 do Supervisor</small></article><article><span>Produção</span><b>R$ 211,5 mil</b><small>equipe + Supervisor</small></article><article><span>Conversão</span><b>25,1%</b><small>resultado consolidado</small></article>
+          </div>
+          <div class="supervisor-dashboard-analytics">
+            <article class="supervisor-card supervisor-dashboard-goal"><header><div><span class="supervisor-card-kicker">Meta consolidada</span><h2>Objetivo da corretora</h2></div><button class="tiny-btn" type="button" data-open-goal-modal>Ajustar</button></header><div class="supervisor-goal-visual"><div id="supervisorGoalRing" class="supervisor-goal-ring"><div><b id="supervisorGoalPercent">0%</b><span>alcançado</span></div></div><div class="supervisor-goal-numbers"><span>Meta da equipe<b id="supervisorGoalTarget">R$ 0</b></span><span>Produção realizada<b id="supervisorGoalRealized">R$ 0</b></span></div></div></article>
+            <article class="supervisor-card supervisor-dashboard-funnel"><header><div><span class="supervisor-card-kicker">Distribuição atual</span><h2>Movimento do funil</h2></div><small>Leads por etapa</small></header><div id="supervisorDashboardFunnel" class="supervisor-dashboard-funnel-bars"></div></article>
           </div>
           <article class="supervisor-card supervisor-grow"><header><div><h2>Desempenho dos corretores</h2><p>Acompanhamento individual da equipe</p></div><span class="supervisor-live">● Atualizado agora</span></header><div class="supervisor-broker-list" id="supervisorBrokerList"></div></article>
         </section>
@@ -157,12 +161,6 @@
               <div class="clients-table-frame supervisor-clients-table-frame"><table class="supervisor-clients-table"><thead><tr><th class="select-col"><input id="supervisorSelectAllClients" type="checkbox" aria-label="Selecionar todos"></th><th>Cliente</th><th>Vendedor responsável</th><th>Produto</th><th>Status</th><th>Vidas</th><th>Valor</th><th>Renovação</th><th>Pós-venda</th><th>Ações</th></tr></thead><tbody id="supervisorCustomerRows"></tbody></table></div>
             </section>
           </div>
-        </section>
-
-        <section id="supervisor-view-goals" class="supervisor-view">
-          <form id="supervisorTeamGoalForm" class="supervisor-goal-editor"><label><span>Meta mensal de vendas da equipe</span><input id="supervisorTeamGoalInput" type="number" min="0" step="100" placeholder="Ex.: 200000" required></label><button class="btn primary" type="submit">Salvar meta</button><div id="supervisorTeamGoalStatus" class="auth-status">Defina a meta comercial da equipe.</div></form>
-          <div class="supervisor-goal-summary"><article><span>Meta da corretora</span><b id="supervisorGoalTarget">R$ 0</b><small id="supervisorGoalRealized">R$ 0 realizados</small></article><article class="supervisor-goal-ring"><b id="supervisorGoalPercent">0%</b><span>alcançado</span></article></div>
-          <article class="supervisor-card supervisor-grow"><header><div><h2>Meta por vendedor</h2><p>Progresso individual no mês atual.</p></div></header><div id="supervisorGoalRows" class="supervisor-goal-rows"></div></article>
         </section>
 
         <section id="supervisor-view-reports" class="supervisor-view supervisor-report-layout">
@@ -575,6 +573,14 @@
       </section>
     </main>
   </div>
+
+  <dialog id="supervisorGoalModal" class="modal small-modal">
+    <form id="supervisorTeamGoalForm" method="dialog" class="modal-card supervisor-goal-modal-card">
+      <header><div><h2>Configurar meta da equipe</h2><p>A meta será dividida igualmente entre os corretores ativos.</p></div><button id="supervisorGoalModalClose" class="btn icon" type="button" aria-label="Fechar">×</button></header>
+      <div class="supervisor-goal-modal-body"><label><span>Meta mensal da corretora</span><div class="supervisor-money-input"><b>R$</b><input id="supervisorTeamGoalInput" type="number" min="0" step="100" placeholder="Ex.: 200000" required></div></label><div class="supervisor-goal-modal-preview"><span>Divisão atual</span><b id="supervisorGoalModalSplit">R$ 0 por corretor</b><small>O valor individual será atualizado automaticamente no Dashboard.</small></div><div id="supervisorTeamGoalStatus" class="auth-status">Defina a meta comercial da equipe.</div></div>
+      <footer><span class="footer-spacer"></span><button id="supervisorGoalModalCancel" class="btn" type="button">Cancelar</button><button class="btn primary" type="submit">Salvar meta</button></footer>
+    </form>
+  </dialog>
 
   <dialog id="leadModal" class="modal">
     <form id="leadForm" method="dialog" class="modal-card" autocomplete="off" data-lpignore="true">

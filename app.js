@@ -1557,14 +1557,16 @@
 
   function renderSupervisorGoalsAndReport() {
     const goal = supervisorTeamGoal();
-    const teamRevenue = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.revenue || 0), 0);
+    const teamRevenue = SUPERVISOR_DEALS.filter((deal) => deal.stage === 'fechamento').reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0);
     const teamSales = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.sales || 0), 0);
-    const revenue = Number(supervisorDashboard?.revenue || 0) || teamRevenue;
+    const revenue = teamRevenue;
     const percent = goal > 0 ? Math.min(999, Math.round((revenue / goal) * 100)) : 0;
     if ($('#supervisorTeamGoalInput')) $('#supervisorTeamGoalInput').value = goal || '';
     if ($('#supervisorGoalTarget')) $('#supervisorGoalTarget').textContent = formatCurrency(goal);
-    if ($('#supervisorGoalRealized')) $('#supervisorGoalRealized').textContent = `${formatCurrency(revenue)} realizados`;
+    if ($('#supervisorGoalRealized')) $('#supervisorGoalRealized').textContent = formatCurrency(revenue);
     if ($('#supervisorGoalPercent')) $('#supervisorGoalPercent').textContent = `${percent}%`;
+    if ($('#supervisorGoalRing')) $('#supervisorGoalRing').style.setProperty('--goal-progress', `${Math.min(100, percent) * 3.6}deg`);
+    if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(goal && SUPERVISOR_BROKERS.length ? goal / SUPERVISOR_BROKERS.length : 0)} por corretor`;
     const identity = loadCompanyIdentity();
     const companyName = identity.name || supervisorOrganizationName || 'Corretora';
     const logo = identity.logo || 'https://imagensconrato.pagecor.com.br/logo-lungo.png';
@@ -1596,13 +1598,19 @@
     dashboardCards.forEach((card, index) => { if (dashboardValues[index]) { card.querySelector("b").textContent = dashboardValues[index][0]; card.querySelector("small").textContent = dashboardValues[index][1]; } });
     const brokerRows = SUPERVISOR_BROKERS.map((broker) => `
       <div class="supervisor-broker-row">
-        <div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}</b></div>
+        <div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}<small class="supervisor-target-badge">Meta ${formatCurrency(brokerTarget)}</small></b></div>
         <span><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</span>
         <b>${broker.sales} vendas</b>
         <div><div class="supervisor-progress"><i style="width:${broker.goal}%"></i></div><small>${broker.goal}% da meta</small></div>
         <span>${formatCurrency(broker.revenue || 0)} vendidos</span>
       </div>`).join("");
     if (el.supervisorBrokerList) el.supervisorBrokerList.innerHTML = brokerRows;
+    const dashboardFunnel = $('#supervisorDashboardFunnel');
+    if (dashboardFunnel) {
+      const funnelStages = [['novos','Novos'],['em_atendimento','Atendimento'],['cotacao','Cotação'],['documentacao','Documentação'],['venda','Venda'],['boleto','Boleto'],['fechamento','Fechamento']];
+      const largestStage = Math.max(1, ...funnelStages.map(([stage]) => SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length));
+      dashboardFunnel.innerHTML = funnelStages.map(([stage, label]) => { const count = SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length; return `<div><span><b>${escapeHtml(label)}</b><small>${count}</small></span><i><em style="width:${Math.max(count ? 8 : 0, (count / largestStage) * 100)}%"></em></i></div>`; }).join('');
+    }
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
@@ -1755,7 +1763,7 @@
 
   function setSupervisorView(name) {
     restoreSupervisorSharedView();
-    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", goals: "Metas", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
+    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
@@ -4625,13 +4633,32 @@
       toast("PDF adicionado visualmente.");
       el.supervisorPdfInput.value = "";
     });
+    const openGoalModal = () => {
+      const modal = $('#supervisorGoalModal');
+      const input = $('#supervisorTeamGoalInput');
+      if (!modal || !input) return;
+      input.value = supervisorTeamGoal() || '';
+      const split = Number(input.value || 0) / Math.max(1, SUPERVISOR_BROKERS.length);
+      if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(split)} por corretor`;
+      modal.showModal();
+      input.focus();
+    };
+    $('#supervisorOpenGoalModalBtn')?.addEventListener('click', openGoalModal);
+    $('[data-open-goal-modal]')?.addEventListener('click', openGoalModal);
+    $('#supervisorGoalModalClose')?.addEventListener('click', () => $('#supervisorGoalModal')?.close());
+    $('#supervisorGoalModalCancel')?.addEventListener('click', () => $('#supervisorGoalModal')?.close());
+    $('#supervisorTeamGoalInput')?.addEventListener('input', (event) => {
+      const split = Math.max(0, Number(event.target.value || 0)) / Math.max(1, SUPERVISOR_BROKERS.length);
+      if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(split)} por corretor`;
+    });
     $('#supervisorTeamGoalForm')?.addEventListener('submit', (event) => {
       event.preventDefault();
       const value = Math.max(0, Number($('#supervisorTeamGoalInput')?.value || 0));
       localStorage.setItem(supervisorTeamGoalKey(), String(value));
-      renderSupervisorGoalsAndReport();
+      renderSupervisorMocks();
       $('#supervisorTeamGoalStatus').textContent = 'Meta da equipe salva.';
       $('#supervisorTeamGoalStatus').classList.add('ok');
+      setTimeout(() => $('#supervisorGoalModal')?.close(), 350);
     });
     el.supervisorGenerateReportBtn?.addEventListener("click", () => {
       renderSupervisorGoalsAndReport();
