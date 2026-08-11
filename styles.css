@@ -3754,3 +3754,26 @@ body.supervisor-mode .supervisor-screen {
 @media (max-width: 560px) {
   .supervisor-top-logout { width: 30px; min-width: 30px; padding: 0 !important; }
 }
+
+/* Alternância de tema compacta: mostra somente a ação disponível. */
+.theme-toggle {
+  width: 32px;
+  min-width: 32px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 7px;
+}
+.theme-icon { display: grid; place-items: center; }
+.theme-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.theme-icon-moon { display: none; }
+[data-theme="light"] .theme-icon-sun { display: none; }
+[data-theme="light"] .theme-icon-moon { display: grid; }
