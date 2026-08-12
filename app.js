@@ -1316,7 +1316,7 @@
   }
 
   function renderSupervisorOperation(name) {
-    const labels = { instance: "Minha Instância", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     const descriptions = { instance: "Status da instância própria do Supervisor.", connect: "Conexão visual da conta WhatsApp do Supervisor.", crm: "Pipeline próprio do Supervisor.", clients: "Carteira própria do Supervisor.", broadcast: "Campanhas próprias do Supervisor.", cotador: "Cotações comerciais.", comprar_leads: "Aquisição de oportunidades.", treinamentos: "Trilhas e materiais comerciais.", agenda: "Compromissos e retornos comerciais." };
     const cards = name === "crm" ? [["Leads próprios", "31"], ["Em atendimento", "12"], ["Fechamentos", "6"]] : name === "clients" ? [["Clientes próprios", "18"], ["Vidas", "37"], ["Pós-vendas", "9"]] : [["Ambiente", "Supervisor"], ["Status", "Mock visual"], ["Integração", "Aguardando backend"]];
     el.supervisorOperationContent.innerHTML = `<header class="supervisor-operation-header"><div><h2>${escapeHtml(labels[name] || "Operação")}</h2><p>${escapeHtml(descriptions[name] || "Módulo operacional")}</p></div><span class="status-mini">Sessão própria · mock</span></header><div class="supervisor-operation-grid">${cards.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("")}</div><section class="supervisor-card"><header><div><h2>Estrutura operacional</h2><p>Esta prévia segue o padrão do corretor sem usar seu token ou chamar endpoints.</p></div></header><div class="toolbar"><input class="search" placeholder="Buscar neste módulo" disabled><button class="btn primary" type="button" disabled>Nova ação</button><button class="btn" type="button" disabled>Atualizar</button></div></section>`;
@@ -1491,7 +1491,7 @@
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
     if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
-    const labels = { instance: "Minha Instância", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
   }
 
@@ -1504,13 +1504,17 @@
       window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
     ]);
     supervisorDashboard = dashboardResult.dashboard || {};
-    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: Number(broker.sales || 0), revenue: Number(broker.revenue || 0), goal: Number(broker.goalPercent || 0), login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
+    SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", phone: broker.phone || "", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: Number(broker.sales || 0), revenue: Number(broker.revenue || 0), goal: Number(broker.goalPercent || 0), login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
     renderSupervisorMessageRecipients();
     const stageMap = { novo: "novos", novo_lead: "novos", em_atendimento: "em_atendimento", cotacao_enviada: "cotacao", documentacao_recebida: "documentacao", venda_cadastrada: "venda", boleto_gerado: "boleto", fechamento: "fechamento", venda_perdida: "perdida" };
-    SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status)).map((lead) => ({ id: lead.id, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
+    const activeBrokerIds = new Set(SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo").map((broker) => String(broker.id)));
+    const activeBrokerNames = new Set(SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo").map((broker) => stripAccents(broker.name).toLowerCase()));
+    const belongsToActiveBroker = (lead) => lead.brokerUserId ? activeBrokerIds.has(String(lead.brokerUserId)) : activeBrokerNames.has(stripAccents(lead.brokerName || "").toLowerCase());
+    SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && belongsToActiveBroker(lead)).map((lead) => ({ id: lead.id, brokerUserId: lead.brokerUserId || null, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
     SUPERVISOR_BROKERS.forEach((broker) => {
       const closed = SUPERVISOR_DEALS.filter((deal) => deal.stage === 'fechamento' && stripAccents(deal.seller).toLowerCase() === stripAccents(broker.name).toLowerCase());
-      if (closed.length) { broker.sales = closed.length; broker.revenue = closed.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0); }
+      broker.sales = closed.length;
+      broker.revenue = closed.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0);
     });
     const operationalCustomers = (operationalClientsResult.clients || []).map((client) => ({ id: `operational-${client.id}`, client: client.nome || "Cliente", seller: client.brokerName || "Corretor", phone: client.telefone || "—", email: client.email || "", product: client.produto || "Cliente", status: ({ ativo: "Ativo", a_renovar: "A renovar", renovado: "Renovado" })[client.status] || "Ativo", lives: Number(client.qtdVidas || 0), value: client.valorFechado ? formatMoney(client.valorFechado) : "—", date: client.dataContratacao || String(client.createdAt || "").slice(0, 10), renewal: client.dataRenovacao || "—", post: client.posVenda ? "Agendado" : "Pendente", notes: client.observacao || "" }));
     const registeredCustomers = (clientsResult.clients || []).map((client) => ({ id: `registered-${client.id}`, client: client.name || "Cliente", seller: client.users?.name || "Supervisor", phone: client.phone || "—", email: client.email || "", product: "Cliente importado", status: client.status === "inactive" ? "Inativo" : "Ativo", lives: 0, value: "—", date: String(client.created_at || "").slice(0, 10), renewal: "—", post: "Pendente", notes: [client.document_number, client.city].filter(Boolean).join(" · ") }));
@@ -1551,19 +1555,33 @@
     return String(name || "").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
   }
 
+  function actionIcon(name) {
+    const paths = {
+      copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+      renew: '<path d="M20 7v5h-5"/><path d="M18.4 16a8 8 0 1 1 .1-8.1L20 12"/>',
+      block: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+      reactivate: '<path d="M7 10V7a4 4 0 0 1 7.5-2"/><rect x="5" y="10" width="14" height="10" rx="2"/>',
+      edit: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+      archive: '<path d="M6 6l12 12M18 6 6 18"/>'
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ''}</svg>`;
+  }
+
   function supervisorTeamGoalKey() { return `lungo-supervisor-team-goal:${supervisorAccessToken || state.token || "sem-token"}`; }
   function supervisorTeamGoal() { return Math.max(0, Number(localStorage.getItem(supervisorTeamGoalKey()) || 0)); }
 
   function renderSupervisorGoalsAndReport() {
     const goal = supervisorTeamGoal();
-    const teamRevenue = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.revenue || 0), 0);
+    const teamRevenue = SUPERVISOR_DEALS.filter((deal) => deal.stage === 'fechamento').reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0);
     const teamSales = SUPERVISOR_BROKERS.reduce((sum, broker) => sum + Number(broker.sales || 0), 0);
-    const revenue = Number(supervisorDashboard?.revenue || 0) || teamRevenue;
+    const revenue = teamRevenue;
     const percent = goal > 0 ? Math.min(999, Math.round((revenue / goal) * 100)) : 0;
     if ($('#supervisorTeamGoalInput')) $('#supervisorTeamGoalInput').value = goal || '';
     if ($('#supervisorGoalTarget')) $('#supervisorGoalTarget').textContent = formatCurrency(goal);
-    if ($('#supervisorGoalRealized')) $('#supervisorGoalRealized').textContent = `${formatCurrency(revenue)} realizados`;
+    if ($('#supervisorGoalRealized')) $('#supervisorGoalRealized').textContent = formatCurrency(revenue);
     if ($('#supervisorGoalPercent')) $('#supervisorGoalPercent').textContent = `${percent}%`;
+    if ($('#supervisorGoalRing')) $('#supervisorGoalRing').style.setProperty('--goal-progress', `${Math.min(100, percent) * 3.6}deg`);
+    if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(goal && SUPERVISOR_BROKERS.length ? goal / SUPERVISOR_BROKERS.length : 0)} por corretor`;
     const identity = loadCompanyIdentity();
     const companyName = identity.name || supervisorOrganizationName || 'Corretora';
     const logo = identity.logo || 'https://imagensconrato.pagecor.com.br/logo-lungo.png';
@@ -1580,27 +1598,39 @@
     const teamGoal = supervisorTeamGoal();
     const brokerTarget = teamGoal && SUPERVISOR_BROKERS.length ? teamGoal / SUPERVISOR_BROKERS.length : 0;
     SUPERVISOR_BROKERS.forEach((broker) => { broker.goal = brokerTarget > 0 ? Math.min(999, Math.round((Number(broker.revenue || 0) / brokerTarget) * 100)) : 0; });
+    const closedDeals = SUPERVISOR_DEALS.filter((deal) => deal.stage === "fechamento");
+    const closedSales = closedDeals.length;
+    const closedRevenue = closedDeals.reduce((sum, deal) => sum + reportMoneyNumber(deal.value), 0);
+    const totalLeads = SUPERVISOR_DEALS.length;
+    const conversion = totalLeads > 0 ? (closedSales / totalLeads) * 100 : 0;
     const dashboardCards = $$("#supervisor-view-dashboard .supervisor-kpis article");
     const dashboardValues = [
       [String((supervisorDashboard?.brokers || 0) + 1), `${supervisorDashboard?.brokers || 0} corretores + Supervisor`],
-      [String(supervisorDashboard?.sales || 0), "vendas neste mês"],
-      [formatCurrency(supervisorDashboard?.revenue || 0), "produção da organização"],
-      [String(supervisorDashboard?.clients || 0), "clientes ativos"]
+      [String(closedSales), "negócios em fechamento"],
+      [formatCurrency(closedRevenue), "produção dos fechamentos"],
+      [`${conversion.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, `${closedSales} fechamentos em ${totalLeads} leads`]
     ];
     dashboardCards.forEach((card, index) => { if (dashboardValues[index]) { card.querySelector("b").textContent = dashboardValues[index][0]; card.querySelector("small").textContent = dashboardValues[index][1]; } });
     const brokerRows = SUPERVISOR_BROKERS.map((broker) => `
       <div class="supervisor-broker-row">
-        <div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}</b></div>
+        <div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}<small class="supervisor-target-badge">Meta ${formatCurrency(brokerTarget)}</small></b></div>
         <span><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</span>
         <b>${broker.sales} vendas</b>
         <div><div class="supervisor-progress"><i style="width:${broker.goal}%"></i></div><small>${broker.goal}% da meta</small></div>
-        <span>${escapeHtml(broker.login)}</span>
+        <span>${formatCurrency(broker.revenue || 0)} vendidos</span>
       </div>`).join("");
     if (el.supervisorBrokerList) el.supervisorBrokerList.innerHTML = brokerRows;
+    const dashboardFunnel = $('#supervisorDashboardFunnel');
+    if (dashboardFunnel) {
+      const funnelStages = [['novos','Novos'],['em_atendimento','Atendimento'],['cotacao','Cotação'],['documentacao','Documentação'],['venda','Venda'],['boleto','Boleto'],['fechamento','Fechamento']];
+      const largestStage = Math.max(1, ...funnelStages.map(([stage]) => SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length));
+      dashboardFunnel.innerHTML = funnelStages.map(([stage, label]) => { const count = SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length; return `<div><span><b>${escapeHtml(label)}</b><small>${count}</small></span><i><em style="width:${Math.max(count ? 8 : 0, (count / largestStage) * 100)}%"></em></i></div>`; }).join('');
+    }
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}">Copiar</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}">Renovar token</button><button class="tiny-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}">${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}</button></div></td></tr>`).join("") + pendingHireRows;
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
+    el.supervisorBrokerRows?.querySelectorAll('[data-supervisor-broker-action="archive"]').forEach((button) => { button.title = 'Excluir corretor'; button.setAttribute('aria-label', 'Excluir corretor'); });
 
     const stages = [
       ["novos", "Novos", "Novos"], ["em_atendimento", "Em atendimento", "Em atendimento"], ["cotacao", "Cotação", "Cotação Enviada"], ["documentacao", "Doc. recebida", "Documentação recebida"],
@@ -1674,7 +1704,7 @@
 
   function recruitmentLink() { const vacancy = recruitmentData.vacancy; return vacancy ? `${location.origin}${location.pathname}?vaga=${encodeURIComponent(vacancy.slug)}` : ''; }
   function candidateWhatsApp(candidate) { const phone = String(candidate.phone || '').replace(/\D/g, ''); const text = `Olá, ${candidate.name}! Recebemos sua candidatura para a vaga de ${recruitmentData.vacancy?.title || 'Consultor de Planos de Saúde'}. Gostaríamos de conversar sobre a oportunidade. Podemos falar agora?`; return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`; }
-  function recruitmentCandidateAction(candidate) { if (candidate.stage === 'recusado') return `<button class="btn small danger" type="button" data-rh-delete="${candidate.id}">Excluir candidato</button>`; if (candidate.stage === 'aprovado' && !candidate.hiredUserId) return candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`; if (candidate.hiredUserId) return '<span class="rh-hire-pending done">Corretor cadastrado</span>'; return ''; }
+  function recruitmentCandidateAction(candidate) { if (candidate.stage === 'aprovado' && !candidate.hiredUserId) return candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`; if (candidate.hiredUserId) return '<span class="rh-hire-pending done">Corretor cadastrado</span>'; return ''; }
 
   function ensureRhEditorModal() {
     let modal = $('#rhEditorModal');
@@ -1690,7 +1720,7 @@
     const vacancy = recruitmentData.vacancy || {}; const fields = { rhVacancyTitle: vacancy.title, rhVacancyHeadline: vacancy.headline, rhVacancyLocation: vacancy.location, rhVacancyWorkModel: vacancy.workModel, rhVacancyDescription: vacancy.description, rhVacancyRequirements: vacancy.requirements, rhVacancyBenefits: vacancy.benefits, rhVacancyActive: String(Boolean(vacancy.active)) };
     if (!preserveForm && !rhFormDirty) Object.entries(fields).forEach(([id, value]) => { if ($(`#${id}`)) $(`#${id}`).value = value || ''; });
     const kanban = $('#rhCandidateKanban'); if (!kanban) return;
-    kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane" data-rh-lane="${stage}"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}" draggable="true" data-rh-candidate="${candidate.id}"><header><b>${escapeHtml(candidate.name)}</b>${candidate.seenAt ? '' : '<span>Novo</span>'}</header><small>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</small><p>${escapeHtml(candidate.phone)}${candidate.email ? ` · ${escapeHtml(candidate.email)}` : ''}</p><select data-rh-stage="${candidate.id}">${RH_STAGES.map(([value, text]) => `<option value="${value}" ${value === candidate.stage ? 'selected' : ''}>${text}</option>`).join('')}</select><div><a class="btn small" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn small" type="button" data-rh-details="${candidate.id}">Detalhes</button>${recruitmentCandidateAction(candidate)}</div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
+    kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane" data-rh-lane="${stage}"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}" draggable="true" data-rh-candidate="${candidate.id}"><header><b>${escapeHtml(candidate.name)}</b><span class="rh-candidate-head-actions">${candidate.seenAt ? '' : '<em>Novo</em>'}<button class="tiny-btn icon-action-btn danger" type="button" data-rh-delete="${candidate.id}" title="Excluir candidato" aria-label="Excluir candidato">${actionIcon('archive')}</button></span></header><small>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</small><p>${escapeHtml(candidate.phone)}${candidate.email ? ` · ${escapeHtml(candidate.email)}` : ''}</p><select data-rh-stage="${candidate.id}">${RH_STAGES.map(([value, text]) => `<option value="${value}" ${value === candidate.stage ? 'selected' : ''}>${text}</option>`).join('')}</select><div><a class="btn small" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn small" type="button" data-rh-details="${candidate.id}">Detalhes</button>${recruitmentCandidateAction(candidate)}</div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
     if ($('#rhVacancyStatus')) $('#rhVacancyStatus').textContent = vacancy.active ? `Vaga publicada: ${recruitmentLink()}` : 'Vaga salva, mas ainda desativada.';
   }
 
@@ -1749,7 +1779,7 @@
 
   function setSupervisorView(name) {
     restoreSupervisorSharedView();
-    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", goals: "Metas", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
+    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
@@ -1765,6 +1795,21 @@
     el.supervisorModalSubtitle.textContent = subtitle || "";
     el.supervisorModalBody.innerHTML = fields.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("");
     el.supervisorDetailModal.showModal();
+  }
+
+  function showAccessLimitModal() {
+    const modal = $('#accessLimitModal');
+    if (modal && !modal.open) modal.showModal();
+  }
+
+  function isAccessLimitError(error) {
+    return /limite de acessos|número máximo|numero maximo|access_limit_reached/i.test(String(error?.message || error || ''));
+  }
+
+  function supervisorBrokerCapacity() {
+    const subscription = supervisorDashboard?.subscription;
+    if (!subscription) return Infinity;
+    return Math.max(0, Number(subscription.plans?.included_brokers || 0) + Number(subscription.extra_accesses || 0));
   }
 
   async function generateSupervisorAccessMessage() {
@@ -1786,7 +1831,7 @@
       el.supervisorAccessStatus.textContent = "Acesso criado. Salve o token agora."; el.supervisorAccessStatus.classList.remove("error"); el.supervisorAccessStatus.classList.add("ok");
       el.supervisorBrokerName.value = ""; el.supervisorBrokerEmail.value = ""; el.supervisorBrokerPhone.value = "";
       await loadSupervisorRemoteData(); renderSupervisorMocks();
-    } catch (error) { el.supervisorGeneratedMessage.hidden = true; el.supervisorAccessStatus.textContent = error.message; el.supervisorAccessStatus.classList.add("error"); el.supervisorAccessStatus.classList.remove("ok"); }
+    } catch (error) { el.supervisorGeneratedMessage.hidden = true; el.supervisorAccessStatus.textContent = error.message; el.supervisorAccessStatus.classList.add("error"); el.supervisorAccessStatus.classList.remove("ok"); if (isAccessLimitError(error)) showAccessLimitModal(); }
     finally { el.supervisorGenerateMessageBtn.disabled = false; }
   }
 
@@ -2020,7 +2065,7 @@
       clients: ["Clientes", "Carteira ativa, clientes em fechamento, pós-venda e faturamento."],
       connect: ["Conectar WhatsApp", "Conecte a instância por QR Code."],
       broadcast: ["Disparos", "Envie mensagens para bases autorizadas."],
-      instance: ["Minha Instância", "Consulte o status da conexão."],
+      instance: ["Meus dados", "Consulte o status da conexão."],
       cotador: ["Cotador", "Cotação de planos e propostas comerciais."],
       comprar_leads: ["Comprar leads", "Aquisição e distribuição de oportunidades."],
       vendedores: ["Vendedores", "Gestão de equipe e acompanhamento comercial."],
@@ -2839,7 +2884,9 @@
       form.append("message", message);
       form.append("file", file);
       const data = await api("/api/campaigns/start", { method: "POST", body: form });
-      state.campaignId = data.campaignId || data.id;
+      const campaign = data.campaign || data;
+      state.campaignId = campaign.campaignId || campaign.id;
+      renderCampaignProgress(campaign);
       el.campaignLog.textContent = "Campanha iniciada.";
       toast("Campanha iniciada.");
       pollCampaign();
@@ -2848,22 +2895,30 @@
     }
   }
 
+  function renderCampaignProgress(payload) {
+    const campaign = payload?.campaign || payload || {};
+    const stats = campaign.stats || campaign.counts || {};
+    const progress = campaign.progress || {};
+    const total = Number(campaign.total ?? stats.total ?? stats.valid ?? 0);
+    const sent = Number(campaign.sent ?? progress.sent ?? stats.sent ?? 0);
+    const errors = Number(campaign.errors ?? progress.errors ?? stats.errors ?? 0);
+    const pending = Number(campaign.pending ?? progress.pending ?? Math.max(total - sent - errors, 0));
+    el.statTotal.textContent = total;
+    el.statSent.textContent = sent;
+    el.statPending.textContent = pending;
+    el.statErrors.textContent = errors;
+    el.progressBar.style.width = total ? `${Math.round(((sent + errors) / total) * 100)}%` : "0";
+    return campaign;
+  }
+
   async function pollCampaign() {
     if (!state.campaignId) return;
     clearTimeout(state.campaignTimer);
     try {
       const data = await api(`/api/campaigns/${encodeURIComponent(state.campaignId)}/status`);
-      const total = data.total || data.counts?.total || 0;
-      const sent = data.sent || data.counts?.sent || 0;
-      const errors = data.errors || data.counts?.errors || 0;
-      const pending = Math.max(total - sent - errors, 0);
-      el.statTotal.textContent = total;
-      el.statSent.textContent = sent;
-      el.statPending.textContent = pending;
-      el.statErrors.textContent = errors;
-      el.progressBar.style.width = total ? `${Math.round(((sent + errors) / total) * 100)}%` : "0";
-      el.campaignLog.textContent = data.status ? `Status: ${data.status}` : "Campanha em andamento.";
-      if (!["finished", "stopped", "completed", "done"].includes(String(data.status || "").toLowerCase())) {
+      const campaign = renderCampaignProgress(data);
+      el.campaignLog.textContent = campaign.status ? `Status: ${campaign.status}` : "Campanha em andamento.";
+      if (!["finished", "stopped", "completed", "done"].includes(String(campaign.status || "").toLowerCase())) {
         state.campaignTimer = setTimeout(pollCampaign, 2500);
       }
     } catch (error) {
@@ -3950,14 +4005,18 @@
   }
 
   async function loadAdminRemoteData() {
-    const [organizationsResult, accessesResult, financialResult, supervisorsResult] = await Promise.all([
+    const [organizationsResult, archivedOrganizationsResult, accessesResult, financialResult, supervisorsResult] = await Promise.all([
       window.LungoAdminApi.getOrganizations(adminMasterKey),
+      window.LungoAdminApi.getArchivedOrganizations(adminMasterKey),
       window.LungoAdminApi.getAccesses(adminMasterKey),
       window.LungoAdminApi.getFinancial(adminMasterKey),
       window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] }))
     ]);
-    const organizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
-    const accesses = Array.isArray(accessesResult) ? accessesResult : accessesResult?.accesses || [];
+    const allOrganizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
+    const archivedOrganizations = Array.isArray(archivedOrganizationsResult) ? archivedOrganizationsResult : archivedOrganizationsResult?.organizations || [];
+    const organizations = allOrganizations.filter((organization) => adminRemoteStatus(organization.status) !== "inactive");
+    const visibleOrganizationIds = new Set(organizations.map((organization) => String(organization.id)));
+    const accesses = (Array.isArray(accessesResult) ? accessesResult : accessesResult?.accesses || []).filter((access) => visibleOrganizationIds.has(String(access.organization_id || access.organizationId || "")));
     const payments = financialResult?.payments || [];
     const clients = organizations.map((organization) => {
       const subscription = organization.subscription || {};
@@ -3976,8 +4035,9 @@
     const clientByName = (name) => clients.find((client) => client.name === name);
     adminData = {
       version: ADMIN_DATA_VERSION, remote: true, clients,
+      archivedClients: archivedOrganizations.map((organization) => ({ id: String(organization.id), name: organization.name || "Organização", type: organization.organization_type === "individual" ? "Individual" : "Corretora / equipe", plan: organization.subscription?.plan_name || "—", createdAt: String(organization.created_at || "").slice(0, 10), status: "Excluído" })),
       accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
-      receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })),
+      receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })).filter((payment) => payment.clientId),
       supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
     };
   }
@@ -4003,7 +4063,7 @@
 
   function adminClientActions(client) {
     const reactivate = client.accountStatus === "suspended" || client.accountStatus === "inactive";
-    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button></div>`;
+    return `<div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-admin-client-action="edit" data-id="${client.id}" title="Ver e editar cliente" aria-label="Ver e editar cliente">${actionIcon('edit')}</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn icon-action-btn danger" data-admin-client-action="remove" data-id="${client.id}" title="Excluir cliente" aria-label="Excluir cliente">${actionIcon('archive')}</button></div>`;
   }
 
   function renderAdminClients() {
@@ -4013,7 +4073,8 @@
 
   function renderAccessTokens() {
     const rows = $("#adminTokenRows"); if (!rows) return;
-    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); const invalid = access.status === "invalid"; const suspended = access.status === "blocked" || access.status === "suspended"; const statusAction = suspended ? `<button class="tiny-btn success" data-token-action="reactivate" data-id="${access.id}">Reativar</button>` : invalid ? "" : `<button class="tiny-btn warning" data-token-action="block" data-id="${access.id}">Bloquear</button>`; const statusLabel = access.status === "active" ? "Ativo" : suspended ? "Suspenso" : "Inválido"; return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><code>${escapeHtml(access.token)}</code>${canCopy ? ` <button class="tiny-btn" data-token-action="copy" data-id="${access.id}">Copiar</button>` : ""}</td><td>${adminMasterStatus(adminStatusClass(access.status), statusLabel)}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn" data-token-action="renew" data-id="${access.id}">Redefinir token</button><button class="tiny-btn ${invalid ? "success" : "danger"}" data-token-action="${invalid ? "validate" : "invalidate"}" data-id="${access.id}">${invalid ? "Validar" : "Invalidar"}</button>${statusAction}</div></td></tr>`; }).join("");
+    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); const invalid = access.status === "invalid"; const suspended = access.status === "blocked" || access.status === "suspended"; const statusLabel = access.status === "active" ? "Ativo" : suspended ? "Suspenso" : "Inválido"; return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><div class="supervisor-token-cell"><code>${escapeHtml(access.token)}</code>${canCopy ? `<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : ""}</div></td><td>${adminMasterStatus(adminStatusClass(access.status), statusLabel)}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${!invalid ? `<button class="tiny-btn icon-action-btn ${suspended ? 'success' : 'warning'}" data-token-action="${suspended ? 'reactivate' : 'block'}" data-id="${access.id}" title="${suspended ? 'Reativar' : 'Bloquear'} acesso" aria-label="${suspended ? 'Reativar' : 'Bloquear'} acesso">${actionIcon(suspended ? 'reactivate' : 'block')}</button>` : ''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Arquivar acesso" aria-label="Arquivar acesso">${actionIcon('archive')}</button></div></td></tr>`; }).join("");
+    rows.querySelectorAll('[data-token-action="archive"]').forEach((button) => { button.title = 'Excluir acesso'; button.setAttribute('aria-label', 'Excluir acesso'); });
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
     $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
@@ -4039,7 +4100,12 @@
     $("#adminFinancialCalendar").innerHTML = html;
   }
 
-  function renderAdminV2() { renderAdminDashboard(); renderAdminClients(); renderAccessTokens(); renderReceivables(); renderFinancialCalendar(); }
+  function renderArchivedAdminClients() {
+    const rows = $("#adminArchivedClientRows"); if (!rows) return;
+    rows.innerHTML = (adminData.archivedClients || []).map((client) => `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.type)}</td><td>${escapeHtml(client.plan)}</td><td>${formatDate(client.createdAt)}</td><td>${adminMasterStatus("inactive", client.status)}</td></tr>`).join("") || '<tr><td colspan="5">Nenhum cliente excluído.</td></tr>';
+  }
+
+  function renderAdminV2() { renderAdminDashboard(); renderAdminClients(); renderAccessTokens(); renderReceivables(); renderFinancialCalendar(); renderArchivedAdminClients(); }
 
   function openAdminClientModal(client) {
     const plan = getPlanDefinition(client.planId), financial = adminData.receivables.filter((item) => item.clientId === client.id), tokens = adminData.accesses.filter((item) => item.clientId === client.id);
@@ -4049,6 +4115,22 @@
   }
 
   function openAdminFormModal(title, subtitle, html) { $("#adminMasterModalTitle").textContent = title; $("#adminMasterModalSubtitle").textContent = subtitle; $("#adminMasterModalBody").innerHTML = html; $("#adminMasterModal").showModal(); }
+
+  function openAdminClientNameEdit(client) {
+    const plan = getPlanDefinition(client.planId), financial = adminData.receivables.filter((item) => item.clientId === client.id), accesses = adminData.accesses.filter((item) => item.clientId === client.id);
+    const pending = financial.filter((item) => item.status !== "paid").reduce((sum, item) => sum + Number(item.expected || 0), 0);
+    const paid = financial.filter((item) => item.status === "paid").reduce((sum, item) => sum + Number(item.paid || 0), 0);
+    openAdminFormModal("Dados do cliente", "Informações da conta, assinatura, financeiro e acessos.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}"><label class="full">Nome do cliente<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><section class="admin-modal-history full"><h3>Assinatura</h3><p><b>Plano:</b> ${escapeHtml(plan.name)} · <b>Mensalidade:</b> ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><p><b>Limite:</b> ${adminPlanCapacity(client)} acessos · <b>Ativos:</b> ${client.activeAccesses} · <b>Extras:</b> ${client.extraAccesses}</p><p><b>Próximo vencimento:</b> ${formatDate(client.nextDue)} · <b>Conta:</b> ${escapeHtml(adminAccountLabel(client.accountStatus))}</p></section><section class="admin-modal-history full"><h3>Financeiro</h3><p><b>Recebido:</b> ${formatCurrency(paid)} · <b>Pendente:</b> ${formatCurrency(pending)}</p>${financial.slice(0, 6).map((item) => `<p>${escapeHtml(item.competence)} · ${formatCurrency(item.expected)} · ${escapeHtml(adminPaymentLabel(item.status))}</p>`).join("") || "<p>Nenhum lançamento financeiro.</p>"}</section><section class="admin-modal-history full"><h3>Acessos</h3>${accesses.map((access) => `<p><b>${escapeHtml(access.user)}</b> · ${escapeHtml(access.profile)} · ${escapeHtml(access.status)}</p>`).join("") || "<p>Nenhum acesso vinculado.</p>"}</section><button class="btn primary" type="submit">Salvar alterações</button></form>`);
+    $("#adminClientEditName")?.focus();
+  }
+
+  async function submitAdminClientNameEdit(event) {
+    event.preventDefault();
+    const form = event.target.closest("form"), client = adminClient(form?.dataset.id), name = $("#adminClientEditName")?.value.trim();
+    if (!client || !name) return;
+    try { await window.LungoAdminApi.updateOrganization(client.id, { name }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Nome do cliente atualizado."); }
+    catch (error) { toast(error.message); }
+  }
 
   function openPaymentModal(receivable) {
     const client = adminClient(receivable.clientId);
@@ -4191,7 +4273,7 @@
     }
     if (copied) {
       toast(success);
-      if (button) { const original = button.textContent; button.textContent = "Copiado ✓"; button.classList.add("ok"); setTimeout(() => { if (button.isConnected) { button.textContent = original; button.classList.remove("ok"); } }, 1800); }
+      if (button) { const original = button.innerHTML, originalTitle = button.title; if (!button.classList.contains('icon-action-btn')) button.textContent = "Copiado ✓"; else button.title = 'Token copiado'; button.classList.add("ok"); setTimeout(() => { if (button.isConnected) { button.innerHTML = original; button.title = originalTitle; button.classList.remove("ok"); } }, 1800); }
     } else {
       window.prompt("Copie o token abaixo:", text);
       toast("Selecione e copie o token exibido.");
@@ -4275,7 +4357,7 @@
   }
 
   function setAdminMasterView(view) {
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
@@ -4380,19 +4462,34 @@
 
   async function handleAdminClientAction(button) {
     const client = adminClient(button.dataset.id), action = button.dataset.adminClientAction; if (!client) return;
-    if (action === "view" || action === "edit") openAdminClientModal(client);
+    if (action === "view") openAdminClientModal(client);
+    if (action === "edit") openAdminClientNameEdit(client);
     if (action === "pay") { const item = adminData.receivables.find((entry) => entry.clientId === client.id && entry.status !== "paid"); if (item) openPaymentModal(item); else toast("Não há lançamento pendente para esta conta."); }
     if (action === "pending") toast("Registre a pendência no lançamento financeiro correspondente.");
     if (action === "suspend" || action === "reactivate") { try { await window.LungoAdminApi.changeOrganizationStatus(client.id, action, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast(action === "suspend" ? "Conta suspensa." : "Conta reativada."); } catch (error) { toast(error.message); } }
     if (action === "plan") openPlanModal(client);
     if (action === "tokens") { setAdminMasterView("tokens"); toast(`Acessos de ${client.name} disponíveis na tabela.`); }
-    if (action === "remove") toast("O backend preserva organizações e histórico. Use Suspender ou Cancelar assinatura.");
+    if (action === "remove") {
+      if (!await popupConfirm(`Excluir o cliente ${client.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, "Excluir cliente", "Excluir")) return;
+      try { await window.LungoAdminApi.changeOrganizationStatus(client.id, "cancel", adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast("Cliente excluído das áreas ativas."); }
+      catch (error) { toast(error.message); }
+    }
   }
 
   async function handleTokenAction(button) {
     const access = adminData.accesses.find((item) => item.id === button.dataset.id); if (!access) return; const client = adminClient(access.clientId), action = button.dataset.tokenAction;
     if (action === "copy") {
       await copyAdminMasterText(access.token, "Token copiado para a área de transferência.", button);
+      return;
+    }
+    if (action === "edit") {
+      openAdminFormModal("Editar acesso", access.user, `<form id="adminEditAccessForm" class="admin-modal-form full" data-id="${access.id}"><label>Nome do usuário<input id="adminEditAccessName" value="${escapeHtml(access.user)}" required></label><label>Perfil<select id="adminEditAccessRole"><option value="broker" ${access.profile === 'Corretor' ? 'selected' : ''}>Corretor</option><option value="supervisor" ${access.profile === 'Supervisor' ? 'selected' : ''}>Supervisor</option><option value="admin_master" ${access.profile === 'Admin Master' ? 'selected' : ''}>Admin Master</option></select></label><button class="btn primary" type="submit">Salvar alterações</button></form>`);
+      return;
+    }
+    if (action === "archive") {
+      if (!await popupConfirm(`Excluir o acesso de ${access.user}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir acesso', 'Excluir')) return;
+      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso excluído e vaga liberada.'); }
+      catch (error) { toast(error.message); }
       return;
     }
     try {
@@ -4414,7 +4511,17 @@
 
   async function submitAdminToken(event) {
     event.preventDefault(); const submit = event.currentTarget.querySelector('button[type="submit"]'); if (submit) submit.disabled = true;
-    try { const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado e salvo"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><div class="auth-status ok">✓ Salvo automaticamente no Admin Master</div><p>Não é necessário clicar em Salvar. O token permanecerá disponível na tabela Acessos e tokens.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; toast("Acesso criado e token salvo."); } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); } finally { if (submit?.isConnected) submit.disabled = false; }
+    try { const client = adminClient($("#adminTokenClient").value); if (client && client.activeAccesses >= adminPlanCapacity(client)) { showAccessLimitModal(); return; } const result = await window.LungoAdminApi.createAccess({ organizationId: $("#adminTokenClient").value, name: $("#adminTokenUser").value.trim(), email: $("#adminTokenEmail").value.trim(), phone: $("#adminTokenPhone").value.trim(), role: $("#adminTokenProfile").value, expiresAt: $("#adminTokenExpiry").value || null }, adminMasterKey); const token = result?.token || result?.plainToken || result?.plain_token || result?.accessToken || result?.access?.token; await loadAdminRemoteData(); renderAdminV2(); if (token) { $("#adminMasterModalTitle").textContent = "Token criado e salvo"; $("#adminMasterModalBody").innerHTML = `<section class="admin-modal-history full"><div class="auth-status ok">✓ Salvo automaticamente no Admin Master</div><p>Não é necessário clicar em Salvar. O token permanecerá disponível na tabela Acessos e tokens.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`; toast("Acesso criado e token salvo."); } else { $("#adminMasterModal").close(); toast("Acesso criado."); } } catch (error) { toast(error.message); if (isAccessLimitError(error)) showAccessLimitModal(); } finally { if (submit?.isConnected) submit.disabled = false; }
+  }
+
+  async function submitAdminAccessEdit(event) {
+    event.preventDefault();
+    const form = event.target, access = adminData.accesses.find((item) => item.id === form.dataset.id);
+    if (!access) return;
+    const submit = form.querySelector('button[type="submit"]'); if (submit) submit.disabled = true;
+    try { await window.LungoAdminApi.updateAccess(access.id, { name: $('#adminEditAccessName').value.trim(), role: $('#adminEditAccessRole').value }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $('#adminMasterModal')?.close(); toast('Acesso atualizado.'); }
+    catch (error) { toast(error.message); }
+    finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function bindAdminMasterEvents() {
@@ -4501,7 +4608,7 @@
       const finance = event.target.closest("[data-admin-master-finance]");
       if (finance) toast("Detalhe financeiro mock aberto visualmente.");
     });
-    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); });
+    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); if (event.target.id === "adminClientNameEditForm") submitAdminClientNameEdit(event); });
     $("#adminMasterModalBody")?.addEventListener("input", (event) => { if (["adminNewPlan", "adminNewPlanExtras"].includes(event.target.id)) updatePlanChangePreview(adminClient($("#adminPlanChangeForm")?.dataset.id)); });
     $("#adminMasterModalBody")?.addEventListener("click", (event) => {
       const clientView = event.target.closest("[data-admin-client-view]"); if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
@@ -4582,9 +4689,25 @@
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
     $("#supervisorOpenAccessModalBtn")?.addEventListener("click", () => {
+      if (SUPERVISOR_BROKERS.length >= supervisorBrokerCapacity()) { showAccessLimitModal(); return; }
       if (el.supervisorGeneratedMessage) el.supervisorGeneratedMessage.hidden = true;
       if (el.supervisorAccessStatus) { el.supervisorAccessStatus.textContent = "Preencha os dados para gerar o acesso."; el.supervisorAccessStatus.classList.remove("error", "ok"); }
       $("#supervisorAccessModal")?.showModal();
+    });
+    $('#accessLimitModalClose')?.addEventListener('click', () => $('#accessLimitModal')?.close());
+    $('#accessLimitModalCancel')?.addEventListener('click', () => $('#accessLimitModal')?.close());
+    $('#supervisorBrokerEditForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const id = $('#supervisorEditBrokerId')?.value;
+      const name = $('#supervisorEditBrokerName')?.value.trim();
+      const email = $('#supervisorEditBrokerEmail')?.value.trim();
+      const phone = $('#supervisorEditBrokerPhone')?.value.trim();
+      if (!id || !name || !email) return;
+      const submit = event.currentTarget.querySelector('button[type="submit"]');
+      if (submit) submit.disabled = true;
+      try { await window.LungoSupervisorApi.updateBroker(id, { name, email, phone: phone || null }, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); $('#supervisorBrokerEditModal')?.close(); toast('Dados do corretor atualizados.'); }
+      catch (error) { toast(error.message); }
+      finally { if (submit?.isConnected) submit.disabled = false; }
     });
     el.supervisorClientSearch?.addEventListener("input", renderSupervisorCustomers);
     el.supervisorClientStatusFilter?.addEventListener("change", renderSupervisorCustomers);
@@ -4619,13 +4742,32 @@
       toast("PDF adicionado visualmente.");
       el.supervisorPdfInput.value = "";
     });
+    const openGoalModal = () => {
+      const modal = $('#supervisorGoalModal');
+      const input = $('#supervisorTeamGoalInput');
+      if (!modal || !input) return;
+      input.value = supervisorTeamGoal() || '';
+      const split = Number(input.value || 0) / Math.max(1, SUPERVISOR_BROKERS.length);
+      if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(split)} por corretor`;
+      modal.showModal();
+      input.focus();
+    };
+    $('#supervisorOpenGoalModalBtn')?.addEventListener('click', openGoalModal);
+    $('[data-open-goal-modal]')?.addEventListener('click', openGoalModal);
+    $('#supervisorGoalModalClose')?.addEventListener('click', () => $('#supervisorGoalModal')?.close());
+    $('#supervisorGoalModalCancel')?.addEventListener('click', () => $('#supervisorGoalModal')?.close());
+    $('#supervisorTeamGoalInput')?.addEventListener('input', (event) => {
+      const split = Math.max(0, Number(event.target.value || 0)) / Math.max(1, SUPERVISOR_BROKERS.length);
+      if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(split)} por corretor`;
+    });
     $('#supervisorTeamGoalForm')?.addEventListener('submit', (event) => {
       event.preventDefault();
       const value = Math.max(0, Number($('#supervisorTeamGoalInput')?.value || 0));
       localStorage.setItem(supervisorTeamGoalKey(), String(value));
-      renderSupervisorGoalsAndReport();
+      renderSupervisorMocks();
       $('#supervisorTeamGoalStatus').textContent = 'Meta da equipe salva.';
       $('#supervisorTeamGoalStatus').classList.add('ok');
+      setTimeout(() => $('#supervisorGoalModal')?.close(), 350);
     });
     el.supervisorGenerateReportBtn?.addEventListener("click", () => {
       renderSupervisorGoalsAndReport();
@@ -4642,7 +4784,7 @@
     $('#rhCandidateKanban')?.addEventListener('click', async (event) => {
       const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]');
       if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await popupConfirm(`${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`, 'Cadastrar novo corretor')) return; await window.LungoSupervisorApi.updateCandidate(candidate.id, { hirePending: true, seen: true }, supervisorAccessToken); await loadRecruitment(false, true); renderSupervisorMocks(); setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
-      if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir definitivamente ${candidate.name}?`, 'Excluir candidato recusado')) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
+      if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir o card de ${candidate.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir candidato', 'Excluir')) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
     });
     $('#rhCandidateKanban')?.addEventListener('dragstart', (event) => { const card = event.target.closest('[data-rh-candidate]'); if (!card) return; event.dataTransfer.setData('text/rh-candidate', card.dataset.rhCandidate); event.dataTransfer.effectAllowed = 'move'; });
     $('#rhCandidateKanban')?.addEventListener('dragover', (event) => { const lane = event.target.closest('[data-rh-lane]'); if (!lane) return; event.preventDefault(); lane.classList.add('drag-over'); });
@@ -4679,6 +4821,20 @@
         if (!broker) return;
         const action = brokerButton.dataset.supervisorBrokerAction;
         if (action === "copy") { await copySupervisorText(broker.token, "Token copiado para a área de transferência."); return; }
+        if (action === "edit") {
+          $('#supervisorEditBrokerId').value = broker.id;
+          $('#supervisorEditBrokerName').value = broker.name || '';
+          $('#supervisorEditBrokerEmail').value = broker.email === '—' ? '' : broker.email || '';
+          $('#supervisorEditBrokerPhone').value = broker.phone || '';
+          $('#supervisorBrokerEditModal')?.showModal();
+          return;
+        }
+        if (action === "archive") {
+          if (!await popupConfirm(`Excluir o corretor ${broker.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir corretor', 'Excluir')) return;
+          try { await window.LungoSupervisorApi.archiveBroker(broker.id, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); toast('Corretor excluído e vaga liberada.'); }
+          catch (error) { toast(error.message); }
+          return;
+        }
         try {
           let result;
           if (action === "renew") result = await window.LungoSupervisorApi.renewBrokerToken(broker.id, {}, supervisorAccessToken);

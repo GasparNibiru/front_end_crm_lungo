@@ -2163,8 +2163,9 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .supervisor-nav::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--border-strong) 70%, transparent); border-radius: 2px; }
 .supervisor-nav-group-title { padding: 5px 9px 1px; color: var(--muted-2); font-size: 8px; font-weight: 700; letter-spacing: .09em; line-height: 1; text-transform: uppercase; }
 .supervisor-nav-item, .supervisor-logout { min-height: 31px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--muted); text-align: left; font-size: 10.5px; }
-.supervisor-nav-item span, .supervisor-logout span { width: 20px; text-align: center; color: var(--primary-2); font-size: 17px; }
-.supervisor-nav-item span svg, .supervisor-logout span svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.supervisor-nav-item span, .supervisor-logout span { width: 20px; height: 20px; display: inline-grid; place-items: center; flex: 0 0 20px; color: var(--primary-2); font-size: 17px; line-height: 0; }
+.supervisor-nav-item span svg, .supervisor-logout span svg { width: 17px; height: 17px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; shape-rendering: geometricPrecision; }
+.supervisor-nav-item span svg *, .supervisor-logout span svg * { vector-effect: non-scaling-stroke; }
 .supervisor-nav-item b, .supervisor-logout b { font-weight: 500; }
 .supervisor-nav-item:hover, .supervisor-logout:hover { background: var(--surface-2); color: var(--text); }
 .supervisor-nav-item.active { background: var(--surface-3); border-color: var(--border); color: var(--text); box-shadow: inset 3px 0 0 var(--primary); }
@@ -2248,6 +2249,42 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .supervisor-goal-ring { text-align: center; place-content: center; border-color: var(--primary) !important; }
 .supervisor-goal-rows { display: grid; gap: 12px; }
 .supervisor-goal-row { display: grid; grid-template-columns: 170px minmax(150px, 1fr) 150px; gap: 12px; align-items: center; }
+.supervisor-dashboard-heading { padding: 2px 2px 4px; display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.supervisor-dashboard-heading > div { display: grid; gap: 3px; }
+.supervisor-dashboard-heading > div > span, .supervisor-card-kicker { color: var(--primary-2); font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.supervisor-dashboard-heading h2 { margin: 0; font-size: 21px; letter-spacing: -.025em; }
+.supervisor-dashboard-heading p { margin: 0; color: var(--muted); font-size: 11px; }
+.supervisor-dashboard-heading .btn { min-height: 34px; border-radius: 8px; }
+.supervisor-dashboard-heading .btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.supervisor-dashboard-analytics { display: grid; grid-template-columns: minmax(290px, .82fr) minmax(360px, 1.18fr); gap: 10px; }
+.supervisor-dashboard-analytics .supervisor-card { min-height: 180px; }
+.supervisor-dashboard-goal { overflow: hidden; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--surface)), var(--surface) 58%); }
+.supervisor-goal-visual { min-height: 118px; display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: center; gap: 18px; }
+.supervisor-goal-ring { --goal-progress: 0deg; width: 108px; height: 108px; padding: 9px; border: 0 !important; border-radius: 50%; background: conic-gradient(var(--primary-2) 0 var(--goal-progress), color-mix(in srgb, var(--border-strong) 55%, transparent) var(--goal-progress) 360deg); display: grid; place-items: center; }
+.supervisor-goal-ring > div { width: 82px; height: 82px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); display: grid; place-content: center; text-align: center; }
+.supervisor-goal-ring b { font-size: 21px; line-height: 1; }
+.supervisor-goal-ring span { margin-top: 3px; color: var(--muted); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.supervisor-goal-numbers { display: grid; gap: 9px; }
+.supervisor-goal-numbers > span { padding: 8px 10px; border-left: 2px solid var(--primary); background: color-mix(in srgb, var(--surface-2) 78%, transparent); color: var(--muted); font-size: 9px; text-transform: uppercase; }
+.supervisor-goal-numbers b { display: block; margin-top: 3px; color: var(--text); font-size: 15px; text-transform: none; }
+.supervisor-dashboard-funnel-bars { display: grid; gap: 7px; }
+.supervisor-dashboard-funnel-bars > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 9px; }
+.supervisor-dashboard-funnel-bars span { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 9px; }
+.supervisor-dashboard-funnel-bars span small { color: var(--primary-2); font-weight: 800; }
+.supervisor-dashboard-funnel-bars i { height: 7px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--border-strong) 45%, transparent); }
+.supervisor-dashboard-funnel-bars em { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary), var(--primary-2)); box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 48%, transparent); }
+.supervisor-person > b { min-width: 0; }
+.supervisor-target-badge { display: inline-flex; margin-left: 7px; padding: 2px 5px; border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border)); border-radius: 999px; background: color-mix(in srgb, var(--primary) 8%, transparent); color: var(--primary-2); font-size: 8px; font-weight: 700; white-space: nowrap; vertical-align: middle; }
+.supervisor-goal-modal-card { width: min(520px, calc(100vw - 28px)); }
+.supervisor-goal-modal-body { display: grid; gap: 14px; }
+.supervisor-goal-modal-body > label { display: grid; gap: 6px; }
+.supervisor-goal-modal-body > label > span { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.supervisor-money-input { height: 46px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-2); }
+.supervisor-money-input b { color: var(--primary-2); }
+.supervisor-money-input input { width: 100%; height: 100%; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 18px; font-weight: 750; }
+.supervisor-goal-modal-preview { padding: 12px; border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border)); border-radius: 8px; background: color-mix(in srgb, var(--primary) 8%, var(--surface)); display: grid; gap: 3px; }
+.supervisor-goal-modal-preview span, .supervisor-goal-modal-preview small { color: var(--muted); font-size: 9px; }
+.supervisor-goal-modal-preview b { font-size: 15px; }
 .supervisor-report-layout { grid-template-columns: 230px minmax(0, 1fr); align-items: stretch; overflow: hidden; }
 .supervisor-view.active.supervisor-report-layout { align-content: stretch; grid-template-rows: minmax(0, 1fr); }
 .supervisor-report-actions { padding: 16px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); display: grid; gap: 12px; align-self: start; }
@@ -2349,6 +2386,8 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .rh-candidate-card { padding: 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); display: grid; gap: 6px; }
 .rh-candidate-card.new { border-color: var(--primary); box-shadow: inset 3px 0 var(--primary); }
 .rh-candidate-card header { display: flex; justify-content: space-between; gap: 5px; }
+.rh-candidate-head-actions { display: flex; align-items: center; gap: 5px; }
+.rh-candidate-head-actions em { color: var(--primary-2); font-size: 8px; font-style: normal; text-transform: uppercase; }
 .rh-candidate-card header span { color: var(--primary-2); font-size: 8px; text-transform: uppercase; }
 .rh-candidate-card small, .rh-candidate-card p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
 .rh-candidate-card > div { display: grid; gap: 5px; }
@@ -2477,6 +2516,16 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .supervisor-access-card { border-top: 3px solid var(--primary); }
 .supervisor-brokers-table { min-width: 900px; }
 .supervisor-broker-actions, .supervisor-client-actions { display: flex; gap: 5px; align-items: center; flex-wrap: nowrap; }
+.icon-action-btn { width: 28px; height: 28px; min-width: 28px; padding: 0 !important; display: inline-grid; place-items: center; border-radius: 6px; }
+.icon-action-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.icon-action-btn:hover { transform: translateY(-1px); }
+.supervisor-token-cell { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.supervisor-token-cell code { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.access-limit-card header > div { display: grid; justify-items: start; gap: 5px; }
+.access-limit-icon { width: 42px; height: 42px; margin-bottom: 3px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--warning) 14%, var(--surface-2)); color: var(--warning); }
+.access-limit-icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.access-limit-body { padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); display: grid; gap: 4px; }
+.access-limit-body p { margin: 0; color: var(--muted); line-height: 1.5; }
 .supervisor-token-cell { min-width: 0; display: flex; align-items: center; gap: 5px; }
 .supervisor-token-cell code { font-size: 10px; white-space: nowrap; }
 .supervisor-token-cell > span { color: var(--muted); font-size: 9px; white-space: normal; }
@@ -2575,6 +2624,7 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .team-upgrade-panel .btn { justify-self: auto; margin-top: 0; }
 @media (max-width: 900px) {
   .supervisor-kpis { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+  .supervisor-dashboard-analytics { grid-template-columns: 1fr; }
   .supervisor-top-actions label:first-child { display: none; }
   .supervisor-report-layout, .supervisor-message-layout { grid-template-columns: 1fr; }
   .supervisor-view.active.supervisor-report-layout { grid-template-rows: auto auto; overflow: auto; }
