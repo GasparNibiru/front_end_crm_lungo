@@ -2884,7 +2884,9 @@
       form.append("message", message);
       form.append("file", file);
       const data = await api("/api/campaigns/start", { method: "POST", body: form });
-      state.campaignId = data.campaignId || data.id;
+      const campaign = data.campaign || data;
+      state.campaignId = campaign.campaignId || campaign.id;
+      renderCampaignProgress(campaign);
       el.campaignLog.textContent = "Campanha iniciada.";
       toast("Campanha iniciada.");
       pollCampaign();
@@ -2893,22 +2895,30 @@
     }
   }
 
+  function renderCampaignProgress(payload) {
+    const campaign = payload?.campaign || payload || {};
+    const stats = campaign.stats || campaign.counts || {};
+    const progress = campaign.progress || {};
+    const total = Number(campaign.total ?? stats.total ?? stats.valid ?? 0);
+    const sent = Number(campaign.sent ?? progress.sent ?? stats.sent ?? 0);
+    const errors = Number(campaign.errors ?? progress.errors ?? stats.errors ?? 0);
+    const pending = Number(campaign.pending ?? progress.pending ?? Math.max(total - sent - errors, 0));
+    el.statTotal.textContent = total;
+    el.statSent.textContent = sent;
+    el.statPending.textContent = pending;
+    el.statErrors.textContent = errors;
+    el.progressBar.style.width = total ? `${Math.round(((sent + errors) / total) * 100)}%` : "0";
+    return campaign;
+  }
+
   async function pollCampaign() {
     if (!state.campaignId) return;
     clearTimeout(state.campaignTimer);
     try {
       const data = await api(`/api/campaigns/${encodeURIComponent(state.campaignId)}/status`);
-      const total = data.total || data.counts?.total || 0;
-      const sent = data.sent || data.counts?.sent || 0;
-      const errors = data.errors || data.counts?.errors || 0;
-      const pending = Math.max(total - sent - errors, 0);
-      el.statTotal.textContent = total;
-      el.statSent.textContent = sent;
-      el.statPending.textContent = pending;
-      el.statErrors.textContent = errors;
-      el.progressBar.style.width = total ? `${Math.round(((sent + errors) / total) * 100)}%` : "0";
-      el.campaignLog.textContent = data.status ? `Status: ${data.status}` : "Campanha em andamento.";
-      if (!["finished", "stopped", "completed", "done"].includes(String(data.status || "").toLowerCase())) {
+      const campaign = renderCampaignProgress(data);
+      el.campaignLog.textContent = campaign.status ? `Status: ${campaign.status}` : "Campanha em andamento.";
+      if (!["finished", "stopped", "completed", "done"].includes(String(campaign.status || "").toLowerCase())) {
         state.campaignTimer = setTimeout(pollCampaign, 2500);
       }
     } catch (error) {
