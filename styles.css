@@ -2386,6 +2386,8 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .rh-candidate-card { padding: 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); display: grid; gap: 6px; }
 .rh-candidate-card.new { border-color: var(--primary); box-shadow: inset 3px 0 var(--primary); }
 .rh-candidate-card header { display: flex; justify-content: space-between; gap: 5px; }
+.rh-candidate-head-actions { display: flex; align-items: center; gap: 5px; }
+.rh-candidate-head-actions em { color: var(--primary-2); font-size: 8px; font-style: normal; text-transform: uppercase; }
 .rh-candidate-card header span { color: var(--primary-2); font-size: 8px; text-transform: uppercase; }
 .rh-candidate-card small, .rh-candidate-card p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
 .rh-candidate-card > div { display: grid; gap: 5px; }
