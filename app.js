@@ -3995,13 +3995,15 @@
   }
 
   async function loadAdminRemoteData() {
-    const [organizationsResult, accessesResult, financialResult, supervisorsResult] = await Promise.all([
+    const [organizationsResult, archivedOrganizationsResult, accessesResult, financialResult, supervisorsResult] = await Promise.all([
       window.LungoAdminApi.getOrganizations(adminMasterKey),
+      window.LungoAdminApi.getArchivedOrganizations(adminMasterKey),
       window.LungoAdminApi.getAccesses(adminMasterKey),
       window.LungoAdminApi.getFinancial(adminMasterKey),
       window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] }))
     ]);
     const allOrganizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
+    const archivedOrganizations = Array.isArray(archivedOrganizationsResult) ? archivedOrganizationsResult : archivedOrganizationsResult?.organizations || [];
     const organizations = allOrganizations.filter((organization) => adminRemoteStatus(organization.status) !== "inactive");
     const visibleOrganizationIds = new Set(organizations.map((organization) => String(organization.id)));
     const accesses = (Array.isArray(accessesResult) ? accessesResult : accessesResult?.accesses || []).filter((access) => visibleOrganizationIds.has(String(access.organization_id || access.organizationId || "")));
@@ -4023,6 +4025,7 @@
     const clientByName = (name) => clients.find((client) => client.name === name);
     adminData = {
       version: ADMIN_DATA_VERSION, remote: true, clients,
+      archivedClients: archivedOrganizations.map((organization) => ({ id: String(organization.id), name: organization.name || "Organização", type: organization.organization_type === "individual" ? "Individual" : "Corretora / equipe", plan: organization.subscription?.plan_name || "—", createdAt: String(organization.created_at || "").slice(0, 10), status: "Excluído" })),
       accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
       receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })).filter((payment) => payment.clientId),
       supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
@@ -4087,7 +4090,12 @@
     $("#adminFinancialCalendar").innerHTML = html;
   }
 
-  function renderAdminV2() { renderAdminDashboard(); renderAdminClients(); renderAccessTokens(); renderReceivables(); renderFinancialCalendar(); }
+  function renderArchivedAdminClients() {
+    const rows = $("#adminArchivedClientRows"); if (!rows) return;
+    rows.innerHTML = (adminData.archivedClients || []).map((client) => `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.type)}</td><td>${escapeHtml(client.plan)}</td><td>${formatDate(client.createdAt)}</td><td>${adminMasterStatus("inactive", client.status)}</td></tr>`).join("") || '<tr><td colspan="5">Nenhum cliente excluído.</td></tr>';
+  }
+
+  function renderAdminV2() { renderAdminDashboard(); renderAdminClients(); renderAccessTokens(); renderReceivables(); renderFinancialCalendar(); renderArchivedAdminClients(); }
 
   function openAdminClientModal(client) {
     const plan = getPlanDefinition(client.planId), financial = adminData.receivables.filter((item) => item.clientId === client.id), tokens = adminData.accesses.filter((item) => item.clientId === client.id);
@@ -4323,7 +4331,7 @@
   }
 
   function setAdminMasterView(view) {
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";

@@ -35,6 +35,7 @@
   const verifyAdminKey = (adminKey) => request("/api/admin/auth/verify", { method: "POST", adminKey, body: {} });
   const getDashboard = (adminKey) => request("/api/admin/dashboard", { adminKey });
   const getOrganizations = (adminKey) => request("/api/admin/organizations", { adminKey });
+  const getArchivedOrganizations = (adminKey) => request("/api/admin/organizations-archived", { adminKey });
   const createSubscription = (payload, adminKey) => request("/api/admin/subscriptions", { method: "POST", adminKey, body: payload });
   const updateOrganization = (id, payload, adminKey) => request(`/api/admin/organizations/${encodeURIComponent(id)}`, { method: "PATCH", adminKey, body: payload });
   const changeOrganizationStatus = (id, action, adminKey) => request(`/api/admin/organizations/${encodeURIComponent(id)}/${action}`, { method: "POST", adminKey, body: {} });
@@ -62,5 +63,5 @@
   const createMarketplaceLead = (payload, adminKey) => request('/api/admin/lead-marketplace/leads', { method: 'POST', adminKey, body: payload });
   const updateMarketplaceLead = (id, payload, adminKey) => request(`/api/admin/lead-marketplace/leads/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
 
-  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, archiveAccess, changeAccess, renewAccess, invalidateAccess, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining, getLeadMarketplace, updateLeadMarketplaceSettings, adjustLeadCredits, createMarketplaceLead, updateMarketplaceLead });
+  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, getArchivedOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, archiveAccess, changeAccess, renewAccess, invalidateAccess, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining, getLeadMarketplace, updateLeadMarketplaceSettings, adjustLeadCredits, createMarketplaceLead, updateMarketplaceLead });
 })();
