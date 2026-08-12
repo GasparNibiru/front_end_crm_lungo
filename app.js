@@ -4001,8 +4001,10 @@
       window.LungoAdminApi.getFinancial(adminMasterKey),
       window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] }))
     ]);
-    const organizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
-    const accesses = Array.isArray(accessesResult) ? accessesResult : accessesResult?.accesses || [];
+    const allOrganizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
+    const organizations = allOrganizations.filter((organization) => adminRemoteStatus(organization.status) !== "inactive");
+    const visibleOrganizationIds = new Set(organizations.map((organization) => String(organization.id)));
+    const accesses = (Array.isArray(accessesResult) ? accessesResult : accessesResult?.accesses || []).filter((access) => visibleOrganizationIds.has(String(access.organization_id || access.organizationId || "")));
     const payments = financialResult?.payments || [];
     const clients = organizations.map((organization) => {
       const subscription = organization.subscription || {};
@@ -4022,7 +4024,7 @@
     adminData = {
       version: ADMIN_DATA_VERSION, remote: true, clients,
       accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
-      receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })),
+      receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })).filter((payment) => payment.clientId),
       supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
     };
   }
@@ -4048,7 +4050,7 @@
 
   function adminClientActions(client) {
     const reactivate = client.accountStatus === "suspended" || client.accountStatus === "inactive";
-    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button></div>`;
+    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button><button class="tiny-btn icon-action-btn danger" data-admin-client-action="remove" data-id="${client.id}" title="Excluir cliente" aria-label="Excluir cliente">${actionIcon('archive')}</button></div>`;
   }
 
   function renderAdminClients() {
@@ -4432,7 +4434,11 @@
     if (action === "suspend" || action === "reactivate") { try { await window.LungoAdminApi.changeOrganizationStatus(client.id, action, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast(action === "suspend" ? "Conta suspensa." : "Conta reativada."); } catch (error) { toast(error.message); } }
     if (action === "plan") openPlanModal(client);
     if (action === "tokens") { setAdminMasterView("tokens"); toast(`Acessos de ${client.name} disponíveis na tabela.`); }
-    if (action === "remove") toast("O backend preserva organizações e histórico. Use Suspender ou Cancelar assinatura.");
+    if (action === "remove") {
+      if (!await popupConfirm(`Excluir o cliente ${client.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, "Excluir cliente", "Excluir")) return;
+      try { await window.LungoAdminApi.changeOrganizationStatus(client.id, "cancel", adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast("Cliente excluído das áreas ativas."); }
+      catch (error) { toast(error.message); }
+    }
   }
 
   async function handleTokenAction(button) {
