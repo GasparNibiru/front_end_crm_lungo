@@ -4053,7 +4053,7 @@
 
   function adminClientActions(client) {
     const reactivate = client.accountStatus === "suspended" || client.accountStatus === "inactive";
-    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn icon-action-btn" data-admin-client-action="edit" data-id="${client.id}" title="Editar nome" aria-label="Editar nome">${actionIcon('edit')}</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button><button class="tiny-btn icon-action-btn danger" data-admin-client-action="remove" data-id="${client.id}" title="Excluir cliente" aria-label="Excluir cliente">${actionIcon('archive')}</button></div>`;
+    return `<div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-admin-client-action="edit" data-id="${client.id}" title="Ver e editar cliente" aria-label="Ver e editar cliente">${actionIcon('edit')}</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn icon-action-btn danger" data-admin-client-action="remove" data-id="${client.id}" title="Excluir cliente" aria-label="Excluir cliente">${actionIcon('archive')}</button></div>`;
   }
 
   function renderAdminClients() {
@@ -4107,13 +4107,16 @@
   function openAdminFormModal(title, subtitle, html) { $("#adminMasterModalTitle").textContent = title; $("#adminMasterModalSubtitle").textContent = subtitle; $("#adminMasterModalBody").innerHTML = html; $("#adminMasterModal").showModal(); }
 
   function openAdminClientNameEdit(client) {
-    openAdminFormModal("Editar cliente", "Altere somente o nome de exibição da conta.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}"><label>Nome do cliente<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><button class="btn primary" type="submit">Salvar nome</button></form>`);
+    const plan = getPlanDefinition(client.planId), financial = adminData.receivables.filter((item) => item.clientId === client.id), accesses = adminData.accesses.filter((item) => item.clientId === client.id);
+    const pending = financial.filter((item) => item.status !== "paid").reduce((sum, item) => sum + Number(item.expected || 0), 0);
+    const paid = financial.filter((item) => item.status === "paid").reduce((sum, item) => sum + Number(item.paid || 0), 0);
+    openAdminFormModal("Dados do cliente", "Informações da conta, assinatura, financeiro e acessos.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}"><label class="full">Nome do cliente<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><section class="admin-modal-history full"><h3>Assinatura</h3><p><b>Plano:</b> ${escapeHtml(plan.name)} · <b>Mensalidade:</b> ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><p><b>Limite:</b> ${adminPlanCapacity(client)} acessos · <b>Ativos:</b> ${client.activeAccesses} · <b>Extras:</b> ${client.extraAccesses}</p><p><b>Próximo vencimento:</b> ${formatDate(client.nextDue)} · <b>Conta:</b> ${escapeHtml(adminAccountLabel(client.accountStatus))}</p></section><section class="admin-modal-history full"><h3>Financeiro</h3><p><b>Recebido:</b> ${formatCurrency(paid)} · <b>Pendente:</b> ${formatCurrency(pending)}</p>${financial.slice(0, 6).map((item) => `<p>${escapeHtml(item.competence)} · ${formatCurrency(item.expected)} · ${escapeHtml(adminPaymentLabel(item.status))}</p>`).join("") || "<p>Nenhum lançamento financeiro.</p>"}</section><section class="admin-modal-history full"><h3>Acessos</h3>${accesses.map((access) => `<p><b>${escapeHtml(access.user)}</b> · ${escapeHtml(access.profile)} · ${escapeHtml(access.status)}</p>`).join("") || "<p>Nenhum acesso vinculado.</p>"}</section><button class="btn primary" type="submit">Salvar alterações</button></form>`);
     $("#adminClientEditName")?.focus();
   }
 
   async function submitAdminClientNameEdit(event) {
     event.preventDefault();
-    const client = adminClient(event.currentTarget.dataset.id), name = $("#adminClientEditName")?.value.trim();
+    const form = event.target.closest("form"), client = adminClient(form?.dataset.id), name = $("#adminClientEditName")?.value.trim();
     if (!client || !name) return;
     try { await window.LungoAdminApi.updateOrganization(client.id, { name }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Nome do cliente atualizado."); }
     catch (error) { toast(error.message); }
