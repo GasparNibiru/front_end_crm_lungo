@@ -4053,7 +4053,7 @@
 
   function adminClientActions(client) {
     const reactivate = client.accountStatus === "suspended" || client.accountStatus === "inactive";
-    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button><button class="tiny-btn icon-action-btn danger" data-admin-client-action="remove" data-id="${client.id}" title="Excluir cliente" aria-label="Excluir cliente">${actionIcon('archive')}</button></div>`;
+    return `<div class="admin-master-actions"><button class="tiny-btn" data-admin-client-action="view" data-id="${client.id}">Ver</button><button class="tiny-btn icon-action-btn" data-admin-client-action="edit" data-id="${client.id}" title="Editar nome" aria-label="Editar nome">${actionIcon('edit')}</button><button class="tiny-btn" data-admin-client-action="pay" data-id="${client.id}">Pagamento</button><button class="tiny-btn ${reactivate ? "success" : "warning"}" data-admin-client-action="${reactivate ? "reactivate" : "suspend"}" data-id="${client.id}">${reactivate ? "Reativar" : "Suspender"}</button><button class="tiny-btn" data-admin-client-action="plan" data-id="${client.id}">Plano</button><button class="tiny-btn" data-admin-client-action="tokens" data-id="${client.id}">Acessos</button><button class="tiny-btn icon-action-btn danger" data-admin-client-action="remove" data-id="${client.id}" title="Excluir cliente" aria-label="Excluir cliente">${actionIcon('archive')}</button></div>`;
   }
 
   function renderAdminClients() {
@@ -4105,6 +4105,19 @@
   }
 
   function openAdminFormModal(title, subtitle, html) { $("#adminMasterModalTitle").textContent = title; $("#adminMasterModalSubtitle").textContent = subtitle; $("#adminMasterModalBody").innerHTML = html; $("#adminMasterModal").showModal(); }
+
+  function openAdminClientNameEdit(client) {
+    openAdminFormModal("Editar cliente", "Altere somente o nome de exibição da conta.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}"><label>Nome do cliente<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><button class="btn primary" type="submit">Salvar nome</button></form>`);
+    $("#adminClientEditName")?.focus();
+  }
+
+  async function submitAdminClientNameEdit(event) {
+    event.preventDefault();
+    const client = adminClient(event.currentTarget.dataset.id), name = $("#adminClientEditName")?.value.trim();
+    if (!client || !name) return;
+    try { await window.LungoAdminApi.updateOrganization(client.id, { name }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Nome do cliente atualizado."); }
+    catch (error) { toast(error.message); }
+  }
 
   function openPaymentModal(receivable) {
     const client = adminClient(receivable.clientId);
@@ -4436,7 +4449,8 @@
 
   async function handleAdminClientAction(button) {
     const client = adminClient(button.dataset.id), action = button.dataset.adminClientAction; if (!client) return;
-    if (action === "view" || action === "edit") openAdminClientModal(client);
+    if (action === "view") openAdminClientModal(client);
+    if (action === "edit") openAdminClientNameEdit(client);
     if (action === "pay") { const item = adminData.receivables.find((entry) => entry.clientId === client.id && entry.status !== "paid"); if (item) openPaymentModal(item); else toast("Não há lançamento pendente para esta conta."); }
     if (action === "pending") toast("Registre a pendência no lançamento financeiro correspondente.");
     if (action === "suspend" || action === "reactivate") { try { await window.LungoAdminApi.changeOrganizationStatus(client.id, action, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast(action === "suspend" ? "Conta suspensa." : "Conta reativada."); } catch (error) { toast(error.message); } }
@@ -4581,7 +4595,7 @@
       const finance = event.target.closest("[data-admin-master-finance]");
       if (finance) toast("Detalhe financeiro mock aberto visualmente.");
     });
-    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); });
+    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); if (event.target.id === "adminClientNameEditForm") submitAdminClientNameEdit(event); });
     $("#adminMasterModalBody")?.addEventListener("input", (event) => { if (["adminNewPlan", "adminNewPlanExtras"].includes(event.target.id)) updatePlanChangePreview(adminClient($("#adminPlanChangeForm")?.dataset.id)); });
     $("#adminMasterModalBody")?.addEventListener("click", (event) => {
       const clientView = event.target.closest("[data-admin-client-view]"); if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
