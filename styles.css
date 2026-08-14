@@ -4084,3 +4084,155 @@ body.supervisor-mode .supervisor-deal > b {
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4'/%3E%3C/svg%3E") center / contain no-repeat;
 }
+
+/* Admin Master mobile — shell de aplicativo, sem alterar o desktop ou a lógica existente. */
+.admin-master-more, .admin-mobile-quick-actions { display: none; }
+@media (max-width: 600px) {
+  body.admin-master-mode { background: var(--bg); }
+  body.admin-master-mode .admin-master-screen,
+  body.admin-master-mode .admin-master-screen.sidebar-collapsed {
+    width: 100%; height: 100dvh; display: block; overflow: hidden; background: var(--bg);
+  }
+  .admin-master-sidebar,
+  .admin-master-screen.sidebar-collapsed .admin-master-sidebar {
+    position: fixed; inset: auto 0 0; z-index: 70; width: 100%; height: calc(68px + env(safe-area-inset-bottom));
+    padding: 6px 8px max(6px, env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(18px);
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; overflow: visible; box-shadow: 0 -10px 30px rgba(0,0,0,.12);
+  }
+  .admin-master-brand { display: none !important; }
+  .admin-master-nav, .admin-master-screen.sidebar-collapsed .admin-master-nav { display: contents; }
+  .admin-master-nav-item,
+  .admin-master-screen.sidebar-collapsed .admin-master-nav-item,
+  .admin-master-more {
+    width: auto; min-width: 0; height: 54px; min-height: 54px; padding: 5px 2px; border: 0; border-radius: 12px;
+    background: transparent; color: var(--muted); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px;
+    font: inherit; text-align: center;
+  }
+  .admin-master-nav-item:nth-child(n+5) { display: none; }
+  .admin-master-nav-item span, .admin-master-more span { width: auto; min-height: 22px; display: grid; place-items: center; color: currentColor; font-size: 17px; line-height: 1; }
+  .admin-master-nav-item b, .admin-master-screen.sidebar-collapsed .admin-master-nav-item b, .admin-master-more b {
+    display: block !important; max-width: 100%; font-size: 9px; line-height: 1.1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .admin-master-nav-item.active { color: var(--primary-2); background: color-mix(in srgb, var(--primary) 10%, transparent); box-shadow: none; }
+  .admin-master-logout { display: none; }
+  .admin-master-screen.mobile-more-open::before { content: ""; position: fixed; inset: 0; z-index: 71; background: rgba(3,10,18,.54); backdrop-filter: blur(2px); }
+  .mobile-more-open .admin-master-nav,
+  .mobile-more-open .admin-master-screen.sidebar-collapsed .admin-master-nav {
+    position: fixed; z-index: 72; left: 10px; right: 10px; bottom: calc(76px + env(safe-area-inset-bottom));
+    padding: 18px 12px 70px; border: 1px solid var(--border); border-radius: 22px; background: var(--surface);
+    display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.28);
+  }
+  .mobile-more-open .admin-master-nav::before { content: "Mais áreas"; grid-column: 1/-1; padding: 0 4px 8px; color: var(--text); font-size: 17px; font-weight: 700; }
+  .mobile-more-open .admin-master-nav-item:nth-child(-n+4) { display: none; }
+  .mobile-more-open .admin-master-nav-item:nth-child(n+5) {
+    display: flex; height: 58px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2);
+    flex-direction: row; justify-content: flex-start; gap: 10px; text-align: left;
+  }
+  .mobile-more-open .admin-master-nav-item b { font-size: 11px; }
+  .mobile-more-open .admin-master-logout {
+    position: fixed; z-index: 73; left: 23px; right: 23px; bottom: calc(89px + env(safe-area-inset-bottom));
+    width: auto; height: 44px; display: flex; justify-content: center; border: 1px solid color-mix(in srgb,#ef4444 35%,var(--border)); border-radius: 12px; background: var(--surface-2); color: #ef6b6b;
+  }
+  .mobile-more-open .admin-master-more { position: relative; z-index: 74; color: var(--primary-2); }
+
+  .admin-master-main, .admin-master-workspace { width: 100%; height: 100dvh; }
+  .admin-master-workspace { grid-template-rows: 62px minmax(0,1fr); }
+  .admin-master-topbar { padding: max(10px,env(safe-area-inset-top)) 16px 9px; border: 0; background: var(--bg); }
+  .admin-master-topbar h1 { font-size: 21px; letter-spacing: -.02em; }
+  .admin-master-topbar .theme-toggle { width: 42px; height: 42px; min-height: 42px; border-radius: 50%; background: var(--surface); border-color: var(--border); }
+  .admin-master-content { padding: 8px 12px calc(82px + env(safe-area-inset-bottom)); overflow: hidden; }
+  .admin-master-view { padding: 0 0 12px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+  .admin-master-view::-webkit-scrollbar { display: none; }
+  .admin-master-view.active { gap: 14px; }
+
+  .admin-master-kpis { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin-inline: -12px; padding: 2px 12px 8px; scrollbar-width: none; }
+  .admin-master-kpis::-webkit-scrollbar { display:none; }
+  .admin-master-kpis article { flex: 0 0 min(76vw,260px); min-height: 112px; padding: 17px; border: 0; border-radius: 18px; scroll-snap-align: start; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+  .admin-master-kpis article::after { width: 34px; height: 3px; margin: 10px 0 0; border-radius: 99px; }
+  .admin-master-kpis span { font-size: 10px; letter-spacing: .06em; }
+  .admin-master-kpis b { font-size: 25px; letter-spacing: -.03em; }
+  .admin-master-kpis small { font-size: 10px; }
+
+  .admin-mobile-quick-actions { display:grid; gap:10px; }
+  .admin-mobile-quick-actions header { display:flex; align-items:end; justify-content:space-between; padding:0 2px; }
+  .admin-mobile-quick-actions h2 { margin:0; font-size:15px; }
+  .admin-mobile-quick-actions header span { color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.06em; }
+  .admin-mobile-quick-actions > div { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+  .admin-mobile-quick-actions button { min-width:0; min-height:76px; padding:9px 3px; border:0; border-radius:16px; background:var(--surface); color:var(--text); display:grid; place-items:center; align-content:center; gap:7px; box-shadow:0 5px 18px rgba(0,0,0,.06); }
+  .admin-mobile-quick-actions button span { width:32px; height:32px; border-radius:11px; display:grid; place-items:center; background:color-mix(in srgb,var(--primary) 12%,var(--surface-2)); color:var(--primary-2); font-size:14px; font-weight:700; }
+  .admin-mobile-quick-actions button b { max-width:100%; font-size:9px; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .admin-mobile-quick-actions button:active { transform:scale(.97); }
+
+  .admin-master-panel { padding: 16px; border: 0; border-radius: 18px; box-shadow: 0 5px 20px rgba(0,0,0,.06); overflow: visible; }
+  .admin-master-panel > header { margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+  .admin-master-panel h2 { font-size: 16px; letter-spacing: -.01em; }
+  .admin-master-panel h3 { margin: 20px 0 10px; font-size: 10px; letter-spacing: .08em; }
+  .admin-master-panel header p { margin-top: 4px; font-size: 11px; line-height: 1.45; }
+  .admin-master-panel .btn, .admin-master-form-actions .btn, .admin-calendar-controls .btn, .tiny-btn { min-height: 44px; padding: 0 14px; border-radius: 12px; font-size: 11px; }
+  .admin-master-dashboard-grid { gap: 12px; }
+  .admin-master-compact-list article { min-height: 56px; padding: 10px 0; gap: 10px; }
+  .admin-master-compact-list article b { font-size: 12px; }
+  .admin-master-compact-list article span { margin-top: 3px; font-size: 10px; white-space: normal; }
+
+  .admin-sales-trend-panel > header { display: grid; gap: 12px; }
+  .admin-trend-filters { width: 100%; gap: 8px; }
+  .admin-trend-filters select { flex: 1; height: 42px; border-radius: 11px; font-size: 11px; }
+  .admin-sales-trend-panel #adminSalesTrend { overflow: hidden; }
+  .admin-trend-chart { width: 100%; min-width: 0; height: 180px; }
+  .admin-trend-summary { margin: 4px 0 8px; }
+  .admin-trend-summary b { font-size: 23px; }
+
+  .admin-master-form-grid, .admin-modal-form { grid-template-columns: 1fr; gap: 12px; }
+  .admin-master-form-grid label span, .admin-modal-form label { font-size: 10px; }
+  .admin-master-login-card input, .admin-master-form-grid input, .admin-master-form-grid select, .admin-master-form-grid textarea,
+  .admin-modal-form input, .admin-modal-form select, .admin-modal-form textarea { min-height: 48px; padding: 10px 12px; border-radius: 12px; font-size: 16px; }
+  .admin-master-form-actions { display: grid; grid-template-columns: 1fr; gap: 9px; }
+  .admin-master-form-actions .btn { width: 100%; }
+  .admin-finance-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .admin-finance-filters > * { width: 100%; min-height: 44px; border-radius: 11px; }
+  .admin-finance-filters > :last-child { grid-column: 1/-1; }
+  .admin-finance-kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .admin-finance-kpis article { min-height: 78px; padding: 12px; border-radius: 14px; }
+
+  .admin-master-table-wrap { max-height: none; overflow: visible; border: 0; }
+  .admin-master-table, .admin-master-table.wide, .admin-clients-table { width:100%; min-width:0; display:block; }
+  .admin-master-table thead { display:none; }
+  .admin-master-table tbody { display:grid; gap:10px; }
+  .admin-master-table tr { display:grid; padding:14px; border:1px solid var(--border); border-radius:15px; background:var(--surface-2); }
+  .admin-master-table td { max-width:none; min-height:34px; padding:7px 0; border-bottom:1px solid var(--border); white-space:normal; overflow:visible; display:flex; justify-content:space-between; align-items:center; gap:14px; text-align:right; font-size:11px; }
+  .admin-master-table td:last-child { border:0; padding-bottom:0; }
+  .admin-master-table td::before { content:"Detalhe"; flex:0 0 auto; color:var(--muted); font-size:9px; font-weight:600; text-transform:uppercase; text-align:left; }
+  .admin-clients-table td:nth-child(1)::before{content:"Cliente"}.admin-clients-table td:nth-child(2)::before{content:"Responsável"}.admin-clients-table td:nth-child(3)::before{content:"Tipo"}.admin-clients-table td:nth-child(4)::before{content:"Plano"}.admin-clients-table td:nth-child(5)::before{content:"Incluídos"}.admin-clients-table td:nth-child(6)::before{content:"Extras"}.admin-clients-table td:nth-child(7)::before{content:"Total"}.admin-clients-table td:nth-child(8)::before{content:"Ativos"}.admin-clients-table td:nth-child(9)::before{content:"Mensalidade"}.admin-clients-table td:nth-child(10)::before{content:"Vencimento"}.admin-clients-table td:nth-child(11)::before{content:"Financeiro"}.admin-clients-table td:nth-child(12)::before{content:"Conta"}.admin-clients-table td:nth-child(13)::before{content:"Ações"}
+  #admin-master-view-receivables .admin-master-table td:nth-child(1)::before{content:"Cliente"}#admin-master-view-receivables .admin-master-table td:nth-child(2)::before{content:"Plano"}#admin-master-view-receivables .admin-master-table td:nth-child(3)::before{content:"Competência"}#admin-master-view-receivables .admin-master-table td:nth-child(4)::before{content:"Vencimento"}#admin-master-view-receivables .admin-master-table td:nth-child(5)::before{content:"Previsto"}#admin-master-view-receivables .admin-master-table td:nth-child(6)::before{content:"Pago"}#admin-master-view-receivables .admin-master-table td:nth-child(7)::before{content:"Pagamento"}#admin-master-view-receivables .admin-master-table td:nth-child(8)::before{content:"Status"}#admin-master-view-receivables .admin-master-table td:nth-child(9)::before{content:"Forma"}#admin-master-view-receivables .admin-master-table td:nth-child(10)::before{content:"Observação"}#admin-master-view-receivables .admin-master-table td:nth-child(11)::before{content:"Ações"}
+  .admin-master-actions { justify-content:flex-end; flex-wrap:wrap; }
+  .admin-master-table td .admin-master-actions { flex:1; }
+
+  .admin-access-person { padding: 12px; border-radius: 13px; grid-template-columns:minmax(0,1fr) auto; }
+  .admin-access-toggle { min-height: 54px; border-radius: 13px 13px 0 0; }
+  .admin-access-group { border-radius: 14px; overflow:hidden; }
+  .admin-access-principal, .admin-access-children { padding:10px; }
+  .admin-calendar-panel { overflow-x:hidden; }
+  .admin-calendar-controls { width:100%; display:grid; grid-template-columns:1fr 1fr 1fr; }
+  .admin-calendar-week, .admin-financial-calendar { min-width:0; }
+  .admin-calendar-day { min-height:54px; padding:4px 2px; }
+  .admin-calendar-day span { display:none; }
+
+  .admin-master-modal { width:100%; max-width:100%; margin:auto 0 0; border-radius:22px 22px 0 0; }
+  .admin-master-modal::backdrop { background:rgba(3,10,18,.58); backdrop-filter:blur(2px); }
+  .admin-master-modal .modal-card { width:100%; max-height:92dvh; border-radius:22px 22px 0 0; }
+  .admin-master-modal .modal-card > header { padding:17px 16px 12px; }
+  .admin-master-modal .modal-card > footer { padding:10px 16px max(12px,env(safe-area-inset-bottom)); }
+  .admin-master-modal-body { max-height:calc(92dvh - 132px); padding:12px 16px 18px; gap:10px; }
+  .admin-master-modal-body article, .admin-modal-history { padding:12px; border-radius:13px; }
+  .toast { left:12px; right:12px; bottom:calc(80px + env(safe-area-inset-bottom)); max-width:none; padding:12px 14px; border-radius:12px; font-size:11px; }
+}
+
+@media (max-width: 350px) {
+  .admin-master-sidebar, .admin-master-screen.sidebar-collapsed .admin-master-sidebar { padding-inline:4px; }
+  .admin-master-nav-item b, .admin-master-more b { font-size:8px; }
+  .admin-master-content { padding-inline:9px; }
+  .admin-master-kpis { margin-inline:-9px; padding-inline:9px; }
+  .admin-finance-filters { grid-template-columns:1fr; }
+  .admin-finance-filters > :last-child { grid-column:auto; }
+}

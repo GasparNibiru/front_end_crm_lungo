@@ -4071,6 +4071,7 @@
     const sales = [...adminData.clients].sort((a, b) => b.saleDate.localeCompare(a.saleDate));
     const metrics = [["Total de clientes ativos", activeClients], ["Clientes inadimplentes", late.length], ["Total de acessos ativos", adminData.accesses.filter((item) => item.status === "active").length], ["Receita mensal recorrente", formatCurrency(recurring)], ["Valores recebidos no mês", formatCurrency(received)], ["Valores pendentes", formatCurrency(pending)], ["Próximos vencimentos", upcoming.length], ["Pagamentos atrasados", late.length], ["Novas vendas realizadas", sales.filter((item) => item.saleDate.startsWith(month)).length]];
     $("#adminMasterKpis").innerHTML = metrics.map(([label, value]) => `<article><span>${label}</span><b>${value}</b></article>`).join("");
+    if (!$("#adminMobileQuickActions")) { $("#adminMasterKpis").insertAdjacentHTML("afterend", `<section id="adminMobileQuickActions" class="admin-mobile-quick-actions" aria-label="Ações rápidas"><header><h2>Ações rápidas</h2><span>Acessos frequentes</span></header><div>${[["new-sale","+","Nova venda"],["clients","◎","Clientes"],["tokens","⌁","Acessos"],["receivables","R$","Receber"]].map(([view,icon,label])=>`<button type="button" data-admin-quick-view="${view}"><span>${icon}</span><b>${label}</b></button>`).join("")}</div></section>`); $$("[data-admin-quick-view]").forEach(button=>button.addEventListener("click",()=>setAdminMasterView(button.dataset.adminQuickView))); }
     const listRow = (item, extra, action = "") => `<article><div><b>${escapeHtml(item.name)}</b><span>${extra}</span></div>${action}</article>`;
     $("#adminUpcomingDue").innerHTML = upcoming.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${formatDate(item.dueDate)}`, adminMasterStatus(adminStatusClass(item.status), adminFinanceLabel(item.status))); }).join("") || "<p>Sem vencimentos próximos.</p>";
     $("#adminLatePayments").innerHTML = late.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; const days = Math.max(0, Math.floor((new Date() - new Date(`${item.dueDate}T12:00:00`)) / 86400000)); return listRow(client, `${days} dias · ${formatCurrency(item.expected)} · ${getPlanDefinition(client.planId).name}`, `<button class="tiny-btn" data-admin-client-view="${client.id}">Ver</button>`); }).join("") || "<p>Sem pagamentos atrasados.</p>";
@@ -4385,6 +4386,8 @@
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
+    $("#adminMasterScreen")?.classList.remove("mobile-more-open");
+    $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", "false");
     if (view === 'trainings') loadAdminTrainings();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
   }
@@ -4557,6 +4560,11 @@
       const collapsed = !screen.classList.contains("sidebar-collapsed");
       screen.classList.toggle("sidebar-collapsed", collapsed);
       localStorage.setItem(ADMIN_MASTER_SIDEBAR_KEY, collapsed ? "1" : "0");
+    });
+    $("#adminMasterMoreBtn")?.addEventListener("click", () => {
+      const screen = $("#adminMasterScreen"), open = !screen?.classList.contains("mobile-more-open");
+      screen?.classList.toggle("mobile-more-open", open);
+      $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", String(open));
     });
     $("#adminMasterThemeBtn")?.addEventListener("click", () => {
       const next = el.root.dataset.theme === "dark" ? "light" : "dark";
