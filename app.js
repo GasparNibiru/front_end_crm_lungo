@@ -25,6 +25,7 @@
   const ADMIN_DATA_VERSION = 2;
   const ADMIN_EXTRA_ACCESS_PRICE = 15.90;
   const ADMIN_PLAN_DEFINITIONS = [
+    { id: "free", name: "Plano Free", price: 0, brokerLimit: 1, managerLimit: 0, description: "1 acesso gratuito" },
     { id: "individual", name: "Plano Individual", price: 25.90, brokerLimit: 1, managerLimit: 0, description: "1 acesso para corretor" },
     { id: "team", name: "Plano Equipe", price: 49.90, brokerLimit: 2, managerLimit: 1, description: "1 supervisor + 2 corretores" },
     { id: "broker10", name: "Plano Corretora 10", price: 149.90, brokerLimit: 10, managerLimit: 1, description: "1 master ou supervisor + 10 corretores" },
@@ -1036,6 +1037,18 @@
       const count = Number(row.funil?.[status] || 0);
       return `<span title="${escapeHtml(labels[status] || status)}"><b>${count}</b>${escapeHtml((labels[status] || status).slice(0, 3))}</span>`;
     }).join("")}</div>`;
+  }
+
+  function adminTrendBuckets(range="month",metric="revenue") {
+    const definitions={day:{days:7,step:1},week:{days:28,step:7},fortnight:{days:90,step:15},month:{days:180,step:30}},definition=definitions[range]||definitions.month,end=new Date();end.setHours(23,59,59,999);
+    const buckets=[];for(let offset=definition.days;offset>0;offset-=definition.step){const start=new Date(end);start.setDate(end.getDate()-offset+1);start.setHours(0,0,0,0);const finish=new Date(start);finish.setDate(start.getDate()+definition.step-1);finish.setHours(23,59,59,999);buckets.push({start,finish:finish>end?end:finish,value:0,count:0})}
+    const source=adminData.salesTimeline?.length?adminData.salesTimeline:adminData.clients.map(client=>({date:client.saleDate,value:calculateSubscriptionTotal(client.planId,client.extraAccesses)}));source.forEach(sale=>{const date=new Date(sale.date);if(Number.isNaN(date.getTime()))return;const bucket=buckets.find(item=>date>=item.start&&date<=item.finish);if(bucket){bucket.count++;bucket.value+=Number(sale.value||0)}});
+    return buckets.map(bucket=>({...bucket,total:metric==="sales"?bucket.count:bucket.value,label:range==="day"?bucket.start.toLocaleDateString("pt-BR",{weekday:"short"}).replace(".",""):range==="month"?bucket.start.toLocaleDateString("pt-BR",{month:"short"}).replace(".",""):bucket.start.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}));
+  }
+
+  function renderAdminSalesTrend() {
+    const target=$("#adminSalesTrend");if(!target)return;const range=$("#adminTrendRange")?.value||"month",metric=$("#adminTrendMetric")?.value||"revenue",data=adminTrendBuckets(range,metric),values=data.map(item=>item.total),max=Math.max(...values,1),width=720,height=170,padX=24,padTop=24,padBottom=28,plotHeight=height-padTop-padBottom,step=(width-padX*2)/Math.max(data.length-1,1),points=data.map((item,index)=>({x:padX+index*step,y:padTop+plotHeight-(item.total/max)*plotHeight,...item})),line=points.map((point,index)=>`${index?"L":"M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" "),area=`${line} L${points.at(-1)?.x||padX} ${height-padBottom} L${points[0]?.x||padX} ${height-padBottom} Z`,total=values.reduce((sum,value)=>sum+value,0),peak=Math.max(...values,0);
+    target.innerHTML=`<div class="admin-trend-summary"><div><small>${metric==="sales"?"Vendas no período":"Faturamento no período"}</small><b>${metric==="sales"?total:formatCurrency(total)}</b></div><span>Pico: ${metric==="sales"?peak:formatCurrency(peak)}</span></div><svg class="admin-trend-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${metric==="sales"?"Vendas":"Faturamento"} por período"><defs><linearGradient id="adminTrendArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--primary)" stop-opacity=".28"/><stop offset="1" stop-color="var(--primary)" stop-opacity="0"/></linearGradient></defs>${[0,.5,1].map(scale=>`<line class="admin-trend-grid" x1="${padX}" y1="${padTop+plotHeight*scale}" x2="${width-padX}" y2="${padTop+plotHeight*scale}"/>`).join("")}<path class="admin-trend-area" d="${area}"/><path class="admin-trend-line" d="${line}"/>${points.map(point=>`<g class="admin-trend-point"><circle cx="${point.x}" cy="${point.y}" r="3"/><title>${point.label}: ${metric==="sales"?point.total:formatCurrency(point.total)}</title>${(point.total>0||data.length<=7)?`<text x="${point.x}" y="${Math.max(12,point.y-9)}" text-anchor="middle">${metric==="sales"?point.total:formatCurrency(point.total)}</text>`:""}<text class="admin-trend-label" x="${point.x}" y="${height-8}" text-anchor="middle">${point.label}</text></g>`).join("")}</svg>`;
   }
 
   function renderAdminDashboard() {
@@ -3924,7 +3937,7 @@
   }
 
   function calculateSubscriptionTotal(planId, extraAccesses = 0) {
-    return getPlanDefinition(planId).price + Math.max(0, Number(extraAccesses) || 0) * ADMIN_EXTRA_ACCESS_PRICE;
+    const plan=getPlanDefinition(planId);return plan.price+(plan.id==="free"?0:Math.max(0,Number(extraAccesses)||0)*ADMIN_EXTRA_ACCESS_PRICE);
   }
 
   function formatCurrency(value) {
@@ -3992,6 +4005,7 @@
   function adminRemotePlanId(subscription = {}) {
     const code = String(subscription.plan_code || subscription.planCode || "").toLowerCase();
     const name = String(subscription.plan_name || subscription.planName || "").toLowerCase();
+    if (code === "free" || name.includes("free")) return "free";
     if (code === "equipe" || name.includes("equipe")) return "team";
     if (code === "corretora10" || name.includes("10")) return "broker10";
     if (code === "corretora16" || name.includes("16")) return "broker16";
@@ -4005,12 +4019,13 @@
   }
 
   async function loadAdminRemoteData() {
-    const [organizationsResult, archivedOrganizationsResult, accessesResult, financialResult, supervisorsResult] = await Promise.all([
+    const [organizationsResult, archivedOrganizationsResult, accessesResult, financialResult, supervisorsResult, dashboardResult] = await Promise.all([
       window.LungoAdminApi.getOrganizations(adminMasterKey),
       window.LungoAdminApi.getArchivedOrganizations(adminMasterKey),
       window.LungoAdminApi.getAccesses(adminMasterKey),
       window.LungoAdminApi.getFinancial(adminMasterKey),
-      window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] }))
+      window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] })),
+      window.LungoAdminApi.getDashboard(adminMasterKey).catch(() => ({ salesTimeline: [] }))
     ]);
     const allOrganizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
     const archivedOrganizations = Array.isArray(archivedOrganizationsResult) ? archivedOrganizationsResult : archivedOrganizationsResult?.organizations || [];
@@ -4038,7 +4053,7 @@
       archivedClients: archivedOrganizations.map((organization) => ({ id: String(organization.id), name: organization.name || "Organização", type: organization.organization_type === "individual" ? "Individual" : "Corretora / equipe", plan: organization.subscription?.plan_name || "—", createdAt: String(organization.created_at || "").slice(0, 10), status: "Excluído" })),
       accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
       receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })).filter((payment) => payment.clientId),
-      supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
+      supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, salesTimeline: dashboardResult?.salesTimeline || [], settings: {}, sequence: 0
     };
   }
 
@@ -4059,6 +4074,7 @@
     $("#adminUpcomingDue").innerHTML = upcoming.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${formatDate(item.dueDate)}`, adminMasterStatus(adminStatusClass(item.status), adminFinanceLabel(item.status))); }).join("") || "<p>Sem vencimentos próximos.</p>";
     $("#adminLatePayments").innerHTML = late.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; const days = Math.max(0, Math.floor((new Date() - new Date(`${item.dueDate}T12:00:00`)) / 86400000)); return listRow(client, `${days} dias · ${formatCurrency(item.expected)} · ${getPlanDefinition(client.planId).name}`, `<button class="tiny-btn" data-admin-client-view="${client.id}">Ver</button>`); }).join("") || "<p>Sem pagamentos atrasados.</p>";
     $("#adminRecentSales").innerHTML = sales.slice(0, 5).map((client) => listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))} · ${formatDate(client.saleDate)} · ${escapeHtml(client.responsible)}`)).join("");
+    renderAdminSalesTrend();
   }
 
   function adminClientActions(client) {
@@ -4073,8 +4089,11 @@
 
   function renderAccessTokens() {
     const rows = $("#adminTokenRows"); if (!rows) return;
-    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); const invalid = access.status === "invalid"; const suspended = access.status === "blocked" || access.status === "suspended"; const statusLabel = access.status === "active" ? "Ativo" : suspended ? "Suspenso" : "Inválido"; return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><div class="supervisor-token-cell"><code>${escapeHtml(access.token)}</code>${canCopy ? `<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : ""}</div></td><td>${adminMasterStatus(adminStatusClass(access.status), statusLabel)}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${!invalid ? `<button class="tiny-btn icon-action-btn ${suspended ? 'success' : 'warning'}" data-token-action="${suspended ? 'reactivate' : 'block'}" data-id="${access.id}" title="${suspended ? 'Reativar' : 'Bloquear'} acesso" aria-label="${suspended ? 'Reativar' : 'Bloquear'} acesso">${actionIcon(suspended ? 'reactivate' : 'block')}</button>` : ''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Arquivar acesso" aria-label="Arquivar acesso">${actionIcon('archive')}</button></div></td></tr>`; }).join("");
-    rows.querySelectorAll('[data-token-action="archive"]').forEach((button) => { button.title = 'Excluir acesso'; button.setAttribute('aria-label', 'Excluir acesso'); });
+    const accessActions=access=>{const invalid=access.status==="invalid",suspended=access.status==="blocked"||access.status==="suspended";return `<div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${!invalid?`<button class="tiny-btn icon-action-btn ${suspended?'success':'warning'}" data-token-action="${suspended?'reactivate':'block'}" data-id="${access.id}" title="${suspended?'Reativar':'Bloquear'} acesso" aria-label="${suspended?'Reativar':'Bloquear'} acesso">${actionIcon(suspended?'reactivate':'block')}</button>`:''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Excluir acesso" aria-label="Excluir acesso">${actionIcon('archive')}</button></div>`};
+    const accessRow=(access,principal=false)=>{const canCopy=access.token?.startsWith("LNG-"),suspended=access.status==="blocked"||access.status==="suspended",statusLabel=access.status==="active"?"Ativo":suspended?"Suspenso":"Inválido";return `<div class="admin-access-person ${principal?'principal':''}"><div><b>${escapeHtml(access.user)}</b><small>${escapeHtml(access.profile)} · ${escapeHtml(access.raw?.email||'Sem e-mail')}</small></div><div class="admin-access-token"><code>${escapeHtml(access.token)}</code>${canCopy?`<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>`:""}</div><span>${adminMasterStatus(adminStatusClass(access.status),statusLabel)}</span><small>${access.lastAccess||"Sem acesso"}</small>${accessActions(access)}</div>`};
+    const groups=adminData.clients.map(client=>{const accesses=adminData.accesses.filter(access=>String(access.clientId)===String(client.id)).sort((a,b)=>{const priority=item=>item.profile==="Admin Master"?0:item.profile==="Supervisor"?1:2;return priority(a)-priority(b)});return {client,principal:accesses[0],children:accesses.slice(1),accesses}}).filter(group=>group.accesses.length);
+    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="false"><span>›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}</small></div><em>${group.children.length}</em></button><div class="admin-access-principal"><label>Acesso principal</label>${accessRow(group.principal,true)}</div><div class="admin-access-children" hidden>${group.children.length?`<label>Acessos vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum acesso adicional vinculado.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
+    rows.querySelectorAll('.admin-access-toggle').forEach(button=>button.addEventListener('click',()=>{const children=button.closest('.admin-access-group').querySelector('.admin-access-children'),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));children.hidden=expanded}));
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
     $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
@@ -4158,7 +4177,7 @@
 
   function updatePlanChangePreview(client) { const plan = getPlanDefinition($("#adminNewPlan")?.value || client.planId), extras = Number($("#adminNewPlanExtras")?.value || 0), limit = plan.brokerLimit + plan.managerLimit + extras, warning = client.activeAccesses > limit ? ` Atenção: existem ${client.activeAccesses - limit} acessos excedentes; bloqueie-os manualmente.` : ""; $("#adminPlanChangePreview").textContent = `Novo limite: ${limit} · Nova mensalidade: ${formatCurrency(calculateSubscriptionTotal(plan.id, extras))}.${warning}`; }
 
-  async function savePlanChange(event) { event.preventDefault(); const form = event.target.closest("form"), client = adminClient(form?.dataset.id), planId = $("#adminNewPlan").value, extras = Number($("#adminNewPlanExtras").value); if (!client) { toast("Organização não encontrada. Atualize a tela e tente novamente."); return; } try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
+  async function savePlanChange(event) { event.preventDefault(); const form = event.target.closest("form"), client = adminClient(form?.dataset.id), planId = $("#adminNewPlan").value, extras = planId==="free"?0:Number($("#adminNewPlanExtras").value); if (!client) { toast("Organização não encontrada. Atualize a tela e tente novamente."); return; } try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
 
   function adminMasterStatusLabel(status) {
     return { active: "Ativo", attention: "Atenção", inactive: "Inativo" }[status] || status;
@@ -4433,9 +4452,10 @@
 
   function updateAdminSaleCalculation() {
     const plan = getPlanDefinition($("#adminSalePlan")?.value), extras = Math.max(0, Number($("#adminSaleExtras")?.value) || 0), paymentDate = $("#adminSalePaymentDate")?.value, dueMode = $("#adminSaleDueMode")?.value || "30days", fixedDay = $("#adminSaleFixedDay")?.value;
+    const isFree=plan.id==="free",extrasField=$("#adminSaleExtras"),paymentStatus=$("#adminSalePaymentStatus");if(extrasField){extrasField.disabled=isFree;if(isFree)extrasField.value="0"}if(paymentStatus){paymentStatus.disabled=isFree;if(isFree)paymentStatus.value="paid"}
     if ($("#adminSaleBaseValue")) $("#adminSaleBaseValue").value = formatCurrency(plan.price);
-    if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(extras * ADMIN_EXTRA_ACCESS_PRICE);
-    if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id, extras));
+    if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(isFree?0:extras*ADMIN_EXTRA_ACCESS_PRICE);
+    if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id,isFree?0:extras));
     if ($("#adminSaleFixedDayField")) $("#adminSaleFixedDayField").hidden = dueMode !== "fixed";
     if ($("#adminSaleNextDue")) $("#adminSaleNextDue").value = paymentDate ? calculateNextDueDate(paymentDate, dueMode, fixedDay) : "";
   }
@@ -4443,14 +4463,14 @@
   async function registerAdminSale(event) {
     event.preventDefault(); if (!event.currentTarget.reportValidity()) return;
     const form = event.currentTarget, submit = event.submitter, planId = $("#adminSalePlan").value, dueMode = $("#adminSaleDueMode").value, fixedDay = Number($("#adminSaleFixedDay").value);
-    const payload = { organizationName: $("#adminSaleClientName").value.trim(), responsibleName: $("#adminSaleResponsible").value.trim(), documentNumber: $("#adminSaleDocument").value.trim(), email: $("#adminSaleEmail").value.trim(), phone: $("#adminSaleWhatsapp").value.trim(), organizationType: $("#adminSaleType").value === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: Math.max(0, Number($("#adminSaleExtras").value) || 0), legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, firstPaymentDate: $("#adminSalePaymentDate").value, firstPaymentStatus: $("#adminSalePaymentStatus").value, dueMode: dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: dueMode === "fixed" ? fixedDay : null };
+    const payload = { organizationName: $("#adminSaleClientName").value.trim(), responsibleName: $("#adminSaleResponsible").value.trim(), documentNumber: $("#adminSaleDocument").value.trim()||null, email: $("#adminSaleEmail").value.trim(), phone: $("#adminSaleWhatsapp").value.trim(), organizationType: $("#adminSaleType").value === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: planId==="free"?0:Math.max(0, Number($("#adminSaleExtras").value) || 0), legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, firstPaymentDate: $("#adminSalePaymentDate").value, firstPaymentStatus: planId==="free"?"paid":$("#adminSalePaymentStatus").value, dueMode: dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: dueMode === "fixed" ? fixedDay : null, generateAccess:true, accessRole:$("#adminSaleType").value==="individual"?"broker":"supervisor" };
     if (submit) submit.disabled = true;
     $("#adminSaleStatus").textContent = "Registrando venda no staging...";
     try {
       const result = await window.LungoAdminApi.createSubscription(payload, adminMasterKey);
       await loadAdminRemoteData(); renderAdminV2(); form.reset(); prepareAdminSaleForm();
-      $("#adminSaleStatus").textContent = "Venda registrada no backend."; $("#adminSaleStatus").classList.add("ok"); toast("Nova venda registrada.");
-      if (submit?.value === "register-access") { const organizationId = result?.organization?.id || result?.data?.organization?.id || result?.subscription?.organizationId; setAdminMasterView("tokens"); generateAdminToken(organizationId); }
+      $("#adminSaleStatus").textContent = "Venda e acesso registrados no backend."; $("#adminSaleStatus").classList.add("ok"); toast("Venda e acesso criados.");
+      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Token criado","Acesso principal gerado automaticamente",`<section class="admin-modal-history full"><p>Copie e envie este token ao cliente.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
     } catch (error) { $("#adminSaleStatus").textContent = error.message; $("#adminSaleStatus").classList.remove("ok"); }
     finally { if (submit?.isConnected) submit.disabled = false; }
   }
@@ -4562,6 +4582,7 @@
     });
     $("#adminNewSaleForm")?.addEventListener("submit", registerAdminSale);
     [$("#adminSalePlan"), $("#adminSaleExtras"), $("#adminSalePaymentDate"), $("#adminSaleDueMode"), $("#adminSaleFixedDay")].forEach((field) => field?.addEventListener("input", updateAdminSaleCalculation));
+    [$("#adminTrendMetric"), $("#adminTrendRange")].forEach((field)=>field?.addEventListener("change",renderAdminSalesTrend));
     $("#adminCancelSale")?.addEventListener("click", () => { $("#adminNewSaleForm").reset(); prepareAdminSaleForm(); });
     $("#adminCalendarPrev")?.addEventListener("click", () => { adminCalendarDate.setMonth(adminCalendarDate.getMonth() - 1); renderFinancialCalendar(); });
     $("#adminCalendarNext")?.addEventListener("click", () => { adminCalendarDate.setMonth(adminCalendarDate.getMonth() + 1); renderFinancialCalendar(); });
