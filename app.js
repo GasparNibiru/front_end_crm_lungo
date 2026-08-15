@@ -4477,8 +4477,8 @@
     try {
       const result = await window.LungoAdminApi.createSubscription(payload, adminMasterKey);
       await loadAdminRemoteData(); renderAdminV2(); form.reset(); prepareAdminSaleForm();
-      $("#adminSaleStatus").textContent = "Venda e acesso registrados no backend."; $("#adminSaleStatus").classList.add("ok"); toast("Venda e acesso criados.");
-      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Token criado","Acesso principal gerado automaticamente",`<section class="admin-modal-history full"><p>Copie e envie este token ao cliente.</p><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
+      const emailSent=result?.emailDelivery?.sent===true;$("#adminSaleStatus").textContent=emailSent?"Venda, acesso e e-mail registrados com sucesso.":"Venda e acesso registrados; o e-mail não pôde ser enviado.";$("#adminSaleStatus").classList.toggle("ok",emailSent);toast(emailSent?"Acesso criado e enviado por e-mail.":"Acesso criado, mas o e-mail falhou.");
+      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Token criado",emailSent?"Acesso enviado automaticamente por e-mail":"E-mail não enviado; copie o token abaixo",`<section class="admin-modal-history full"><div class="auth-status ${emailSent?'ok':'error'}">${emailSent?'E-mail enviado para o cliente.':'Não foi possível enviar o e-mail. O acesso continua válido.'}</div><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
     } catch (error) { $("#adminSaleStatus").textContent = error.message; $("#adminSaleStatus").classList.remove("ok"); }
     finally { if (submit?.isConnected) submit.disabled = false; }
   }
