@@ -4582,8 +4582,8 @@
       return;
     }
     if (action === "archive") {
-      if (!await popupConfirm(`Excluir o acesso de ${access.user}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir acesso', 'Excluir')) return;
-      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso excluído e vaga liberada.'); }
+      if (!await popupConfirm(`Arquivar o acesso de ${access.user}? O token será revogado, a vaga e o e-mail serão liberados para um novo cadastro.`, 'Arquivar acesso', 'Arquivar')) return;
+      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso arquivado; vaga e e-mail liberados.'); }
       catch (error) { toast(error.message); }
       return;
     }
