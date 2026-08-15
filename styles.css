@@ -4587,3 +4587,26 @@ body.supervisor-mode .supervisor-deal > b {
   }
   .admin-access-group .admin-access-children .admin-access-token code { color: #dff4eb; }
 }
+
+/* Cabeçalho de cada empresa e mensagens vazias com contraste consistente. */
+.admin-access-group .admin-access-toggle,
+[data-theme="light"] .admin-access-group .admin-access-toggle {
+  color: var(--sidebar-text);
+  border-color: var(--sidebar-line);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .07), transparent 44%),
+    linear-gradient(180deg, var(--sidebar-glass), var(--sidebar-glass-deep));
+}
+.admin-access-group .admin-access-toggle b { color: var(--sidebar-text); }
+.admin-access-group .admin-access-toggle small { color: var(--sidebar-muted); }
+.admin-access-group .admin-access-toggle > span { color: #82dbc0; }
+.admin-access-group .admin-access-toggle em {
+  color: #dff4eb;
+  border-color: var(--sidebar-line);
+  background: rgba(255, 255, 255, .07);
+}
+.admin-access-group .admin-access-children > p,
+[data-theme="light"] .admin-access-group .admin-access-children > p {
+  color: var(--sidebar-text);
+  opacity: .92;
+}
