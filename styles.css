@@ -4451,3 +4451,24 @@ body.supervisor-mode .supervisor-deal > b {
     background: color-mix(in srgb, var(--primary) 12%, transparent);
   }
 }
+
+/* Desktop compacto: preserva todos os dados e traz as ações para dentro do card. */
+@media (min-width: 761px) and (max-width: 1500px) {
+  .admin-access-person {
+    grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) auto auto;
+    align-items: center;
+  }
+  .admin-access-person > .admin-master-actions {
+    grid-column: 1 / -1;
+    justify-self: end;
+    display: flex;
+    gap: 7px;
+    padding-top: 7px;
+    border-top: 1px solid var(--border);
+  }
+  .admin-access-person > .admin-master-actions .icon-action-btn {
+    width: 31px;
+    min-width: 31px;
+    height: 31px;
+  }
+}

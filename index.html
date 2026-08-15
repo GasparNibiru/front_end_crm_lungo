@@ -7,13 +7,13 @@
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <script>try{if(localStorage.getItem("lungo-auth-session-v1")||localStorage.getItem("lungo-suite-access-v5")||localStorage.getItem("lungo-supervisor-session-v1"))document.documentElement.classList.add("session-restoring")}catch{}</script>
-  <link rel="stylesheet" href="styles.css?v=20260815-2">
+  <link rel="stylesheet" href="styles.css?v=20260815-3">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260814-13" defer></script>
   <script src="supervisor-api.js?v=20260811-11" defer></script>
-  <script src="app.js?v=20260815-2" defer></script>
+  <script src="app.js?v=20260815-3" defer></script>
 </head>
 <body class="auth-locked">
   <section id="publicVacancyScreen" class="public-vacancy-screen" hidden><main class="public-vacancy-page"><header><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><span>Oportunidade profissional</span></header><section class="public-vacancy-hero"><div><span id="publicVacancyLocation">Vaga comercial</span><h1 id="publicVacancyTitle">Consultor de Planos de Saúde</h1><p id="publicVacancyHeadline"></p></div></section><div class="public-vacancy-content"><article><h2>Sobre a oportunidade</h2><p id="publicVacancyDescription"></p><h3>Requisitos</h3><div id="publicVacancyRequirements" class="public-vacancy-list"></div><h3>Benefícios</h3><div id="publicVacancyBenefits" class="public-vacancy-list"></div></article><form id="publicApplicationForm" class="public-application-form"><h2>Candidate-se</h2><p>Preencha seus dados para participar do processo seletivo.</p><label><span>Nome completo</span><input id="applicationName" required></label><label><span>WhatsApp</span><input id="applicationPhone" required inputmode="tel"></label><label><span>E-mail</span><input id="applicationEmail" type="email"></label><label><span>Cidade</span><input id="applicationCity"></label><label><span>Experiência comercial</span><select id="applicationExperience"><option value="Sem experiência">Sem experiência</option><option value="Até 1 ano">Até 1 ano</option><option value="1 a 3 anos">1 a 3 anos</option><option value="Mais de 3 anos">Mais de 3 anos</option></select></label><label><span>Link do currículo</span><input id="applicationResumeUrl" type="url" placeholder="Google Drive, LinkedIn..."></label><label class="full"><span>Conte um pouco sobre você</span><textarea id="applicationMessage" rows="4"></textarea></label><input id="applicationWebsite" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary" type="submit">Enviar candidatura</button><div id="publicApplicationStatus" class="auth-status">Seus dados serão enviados à equipe responsável.</div></form></div></main></section>
