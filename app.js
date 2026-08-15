@@ -4070,6 +4070,11 @@
     const upcoming = adminData.receivables.filter((item) => item.status !== "paid" && item.dueDate >= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     const sales = [...adminData.clients].sort((a, b) => b.saleDate.localeCompare(a.saleDate));
     const metrics = [["Total de clientes ativos", activeClients], ["Clientes inadimplentes", late.length], ["Total de acessos ativos", adminData.accesses.filter((item) => item.status === "active").length], ["Receita mensal recorrente", formatCurrency(recurring)], ["Valores recebidos no mês", formatCurrency(received)], ["Valores pendentes", formatCurrency(pending)], ["Próximos vencimentos", upcoming.length], ["Pagamentos atrasados", late.length], ["Novas vendas realizadas", sales.filter((item) => item.saleDate.startsWith(month)).length]];
+    if (!$("#adminMobileHero")) $("#adminMasterKpis").insertAdjacentHTML("beforebegin", `<section id="adminMobileHero" class="admin-mobile-hero"><div><span>Receita mensal recorrente</span><b></b><small></small></div><i aria-hidden="true">↗</i><footer><span>Recebido <b></b></span><span>Pendente <b></b></span></footer></section>`);
+    const mobileHero = $("#adminMobileHero");
+    mobileHero.querySelector(":scope > div > b").textContent = formatCurrency(recurring);
+    mobileHero.querySelector(":scope > div > small").textContent = `${activeClients} clientes ativos · ${adminData.accesses.filter((item) => item.status === "active").length} acessos`;
+    const heroTotals = mobileHero.querySelectorAll("footer b"); heroTotals[0].textContent = formatCurrency(received); heroTotals[1].textContent = formatCurrency(pending);
     $("#adminMasterKpis").innerHTML = metrics.map(([label, value]) => `<article><span>${label}</span><b>${value}</b></article>`).join("");
     if (!$("#adminMobileQuickActions")) { $("#adminMasterKpis").insertAdjacentHTML("afterend", `<section id="adminMobileQuickActions" class="admin-mobile-quick-actions" aria-label="Ações rápidas"><header><h2>Ações rápidas</h2><span>Acessos frequentes</span></header><div>${[["new-sale","+","Nova venda"],["clients","◎","Clientes"],["tokens","⌁","Acessos"],["receivables","R$","Receber"]].map(([view,icon,label])=>`<button type="button" data-admin-quick-view="${view}"><span>${icon}</span><b>${label}</b></button>`).join("")}</div></section>`); $$("[data-admin-quick-view]").forEach(button=>button.addEventListener("click",()=>setAdminMasterView(button.dataset.adminQuickView))); }
     const listRow = (item, extra, action = "") => `<article><div><b>${escapeHtml(item.name)}</b><span>${extra}</span></div>${action}</article>`;
@@ -4086,7 +4091,7 @@
 
   function renderAdminClients() {
     const rows = $("#adminClientRows"); if (!rows) return;
-    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus))}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
+    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); return `<tr data-mobile-client-card="${client.id}"><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus))}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
   }
 
   function renderAccessTokens() {
@@ -4454,8 +4459,34 @@
     const today = adminIsoDate(new Date());
     $("#adminSaleDate").value = today; $("#adminSalePaymentDate").value = today;
     updateAdminSaleCalculation();
+    prepareAdminMobileSaleFlow(1);
     const filter = $("#adminReceivablePlan");
     if (filter && filter.options.length === 1) ADMIN_PLAN_DEFINITIONS.forEach((plan) => filter.insertAdjacentHTML("beforeend", `<option value="${plan.id}">${plan.name}</option>`));
+  }
+
+  function prepareAdminMobileSaleFlow(activeStep = 1) {
+    const form = $("#adminNewSaleForm"), grids = form?.querySelectorAll(":scope > .admin-master-form-grid");
+    if (!form || grids?.length < 2) return;
+    grids[0].classList.add("admin-sale-step", "admin-sale-step-client");
+    grids[1].classList.add("admin-sale-step", "admin-sale-step-plan");
+    const headings = form.querySelectorAll(":scope > h3");
+    headings[0]?.classList.add("admin-sale-step-heading", "admin-sale-step-client");
+    headings[1]?.classList.add("admin-sale-step-heading", "admin-sale-step-plan");
+    if (!$("#adminMobileSaleFlow")) {
+      form.querySelector(":scope > header").insertAdjacentHTML("afterend", `<nav id="adminMobileSaleFlow" class="admin-mobile-sale-flow" aria-label="Etapas da venda"><button type="button" data-sale-step="1"><span>1</span><b>Cliente</b></button><button type="button" data-sale-step="2"><span>2</span><b>Plano</b></button><button type="button" data-sale-step="3"><span>3</span><b>Revisar</b></button></nav><section id="adminMobileSaleReview" class="admin-mobile-sale-review"></section><div class="admin-mobile-sale-navigation"><button class="btn ghost" type="button" data-sale-step-back>Voltar</button><button class="btn primary" type="button" data-sale-step-next>Continuar</button></div>`);
+      $("#adminMobileSaleFlow").addEventListener("click", (event) => { const button = event.target.closest("[data-sale-step]"); if (button) showAdminMobileSaleStep(Number(button.dataset.saleStep)); });
+      form.querySelector("[data-sale-step-back]").addEventListener("click", () => showAdminMobileSaleStep(Math.max(1, Number(form.dataset.mobileSaleStep || 1) - 1)));
+      form.querySelector("[data-sale-step-next]").addEventListener("click", () => { const step = Number(form.dataset.mobileSaleStep || 1), scope = step === 1 ? grids[0] : grids[1], invalid = [...scope.querySelectorAll("input,select")].find((field) => !field.checkValidity()); if (invalid) return invalid.reportValidity(); showAdminMobileSaleStep(Math.min(3, step + 1)); });
+      grids[1].insertAdjacentElement("afterend", form.querySelector(".admin-mobile-sale-navigation"));
+    }
+    showAdminMobileSaleStep(activeStep);
+  }
+
+  function showAdminMobileSaleStep(step) {
+    const form = $("#adminNewSaleForm"); if (!form) return;
+    form.dataset.mobileSaleStep = String(step);
+    form.querySelectorAll("[data-sale-step]").forEach((button) => button.classList.toggle("active", Number(button.dataset.saleStep) === step));
+    if (step === 3) $("#adminMobileSaleReview").innerHTML = `<h3>Confira antes de registrar</h3><article><span>Cliente</span><b>${escapeHtml($("#adminSaleClientName").value || "—")}</b></article><article><span>Responsável</span><b>${escapeHtml($("#adminSaleResponsible").value || "—")}</b></article><article><span>Plano</span><b>${escapeHtml($("#adminSalePlan").selectedOptions[0]?.textContent || "—")}</b></article><article><span>Mensalidade</span><b>${escapeHtml($("#adminSaleTotalValue").value || "—")}</b></article><article><span>Próximo vencimento</span><b>${escapeHtml($("#adminSaleNextDue").value ? formatDate($("#adminSaleNextDue").value) : "—")}</b></article>`;
   }
 
   function updateAdminSaleCalculation() {
@@ -4613,6 +4644,8 @@
       if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
       const clientAction = event.target.closest("[data-admin-client-action]");
       if (clientAction) { handleAdminClientAction(clientAction); return; }
+      const mobileClientCard = event.target.closest("[data-mobile-client-card]");
+      if (mobileClientCard && window.matchMedia("(max-width: 600px)").matches) { openAdminClientModal(adminClient(mobileClientCard.dataset.mobileClientCard)); return; }
       const tokenAction = event.target.closest("[data-token-action]");
       if (tokenAction) { handleTokenAction(tokenAction); return; }
       const receivableAction = event.target.closest("[data-receivable-action]");
