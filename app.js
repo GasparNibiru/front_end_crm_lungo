@@ -4392,9 +4392,27 @@
     const topbar = $(".admin-master-topbar"); if (!topbar || $("#adminMobileBackBtn")) return;
     topbar.insertAdjacentHTML("afterbegin", `<button id="adminMobileBackBtn" class="admin-mobile-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><img class="admin-mobile-logo" src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo">`);
     $("#adminMobileBackBtn").addEventListener("click", () => {
+      const saleForm = $("#adminNewSaleForm"), saleStep = Number(saleForm?.dataset.mobileSaleStep || 1);
+      if (adminMasterCurrentView === "new-sale" && saleStep > 1) { showAdminMobileSaleStep(saleStep - 1); return; }
       const previous = adminMasterViewHistory.pop() || "dashboard";
       setAdminMasterView(previous, { remember: false });
     });
+  }
+
+  function ensureAdminMobileMoreSheet() {
+    const screen = $("#adminMasterScreen"); if (!screen || $("#adminMobileMoreSheet")) return;
+    const views = ["calendar", "receivables", "archived", "trainings", "lead-marketplace", "settings"];
+    const labels = { calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
+    const items = views.map((view) => { const source = $(`[data-admin-master-view="${view}"]`); return `<button type="button" data-mobile-more-view="${view}"><span>${source?.querySelector("svg")?.outerHTML || ""}</span><b>${labels[view]}</b><svg class="admin-mobile-more-next" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`; }).join("");
+    screen.insertAdjacentHTML("beforeend", `<section id="adminMobileMoreSheet" class="admin-mobile-more-sheet" hidden><header><div><span>Menu</span><h2>Mais funcionalidades</h2></div><button type="button" data-mobile-more-close aria-label="Fechar">×</button></header><nav>${items}</nav><button class="admin-mobile-more-logout" type="button" data-mobile-more-logout>Sair do Admin</button></section>`);
+    const sheet = $("#adminMobileMoreSheet");
+    sheet.addEventListener("click", (event) => { const item = event.target.closest("[data-mobile-more-view]"); if (item) setAdminMasterView(item.dataset.mobileMoreView); if (event.target.closest("[data-mobile-more-close]")) closeAdminMobileMore(); if (event.target.closest("[data-mobile-more-logout]")) logoutAdminMaster(); });
+  }
+
+  function closeAdminMobileMore() {
+    $("#adminMasterScreen")?.classList.remove("mobile-more-open");
+    $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", "false");
+    if ($("#adminMobileMoreSheet")) $("#adminMobileMoreSheet").hidden = true;
   }
 
   function setAdminMasterView(view, options = {}) {
@@ -4406,8 +4424,7 @@
     $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
-    $("#adminMasterScreen")?.classList.remove("mobile-more-open");
-    $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", "false");
+    closeAdminMobileMore();
     $("#adminMobileBackBtn")?.classList.toggle("visible", view !== "dashboard");
     if (view === 'trainings') loadAdminTrainings();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
@@ -4612,8 +4629,10 @@
       localStorage.setItem(ADMIN_MASTER_SIDEBAR_KEY, collapsed ? "1" : "0");
     });
     $("#adminMasterMoreBtn")?.addEventListener("click", () => {
+      ensureAdminMobileMoreSheet();
       const screen = $("#adminMasterScreen"), open = !screen?.classList.contains("mobile-more-open");
       screen?.classList.toggle("mobile-more-open", open);
+      if ($("#adminMobileMoreSheet")) $("#adminMobileMoreSheet").hidden = !open;
       $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", String(open));
     });
     $("#adminMasterThemeBtn")?.addEventListener("click", () => {
@@ -4654,6 +4673,7 @@
     $("#adminReceivableClient")?.addEventListener("input", renderReceivables);
     $("#adminGenerateTokenBtn")?.addEventListener("click", generateAdminToken);
     $("#adminMasterScreen")?.addEventListener("click", async (event) => {
+      if (event.target === $("#adminMasterScreen") && $("#adminMasterScreen").classList.contains("mobile-more-open")) { closeAdminMobileMore(); return; }
       const copyNewToken = event.target.closest("[data-copy-new-token]");
       if (copyNewToken) { await copyAdminMasterText(copyNewToken.dataset.copyNewToken, "Token copiado para a área de transferência.", copyNewToken); return; }
       const clientView = event.target.closest("[data-admin-client-view]");
