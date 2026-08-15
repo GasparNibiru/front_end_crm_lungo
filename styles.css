@@ -2124,6 +2124,10 @@ body.admin-master-mode .admin-master-screen.admin-master-auth { grid-template-co
 .admin-calendar-day.paid { box-shadow: inset 0 3px var(--ok); }.admin-calendar-day.pending { box-shadow: inset 0 3px var(--warning); }.admin-calendar-day.late { box-shadow: inset 0 3px var(--danger); }.admin-calendar-day.future { box-shadow: inset 0 3px var(--primary); }
 .admin-modal-history { padding: 9px; border: 1px solid var(--border); background: var(--surface-2); }
 .admin-modal-history h3 { margin: 0 0 6px; font-size: 11px; }.admin-modal-history p { margin: 4px 0; color: var(--muted); font-size: 10px; }
+.admin-email-success { padding: 26px 18px; text-align: center; }
+.admin-email-success > span { display: grid; width: 58px; height: 58px; margin: 0 auto 14px; border-radius: 50%; background: rgba(34, 197, 94, .14); color: var(--ok); font-size: 32px; font-weight: 800; place-items: center; }
+.admin-email-success h3 { margin: 0 0 7px; font-size: 18px; }
+.admin-email-success p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .admin-master-modal-body .full { grid-column: 1 / -1; }
 .admin-modal-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .admin-modal-form label { display: grid; gap: 4px; color: var(--muted); font-size: 9px; text-transform: uppercase; }
