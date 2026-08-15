@@ -147,6 +147,8 @@
   ];
   let adminMasterLogged = false;
   let adminMasterKey = "";
+  let adminMasterCurrentView = "dashboard";
+  const adminMasterViewHistory = [];
   let adminTrainings = [];
   let brokerMessageTimer = null;
   let supervisorMessageTimer = null;
@@ -4386,13 +4388,27 @@
     renderAdminMasterSettings();
   }
 
-  function setAdminMasterView(view) {
+  function ensureAdminMobileHeader() {
+    const topbar = $(".admin-master-topbar"); if (!topbar || $("#adminMobileBackBtn")) return;
+    topbar.insertAdjacentHTML("afterbegin", `<button id="adminMobileBackBtn" class="admin-mobile-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><img class="admin-mobile-logo" src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo">`);
+    $("#adminMobileBackBtn").addEventListener("click", () => {
+      const previous = adminMasterViewHistory.pop() || "dashboard";
+      setAdminMasterView(previous, { remember: false });
+    });
+  }
+
+  function setAdminMasterView(view, options = {}) {
+    ensureAdminMobileHeader();
+    if (window.matchMedia("(max-width: 600px)").matches && options.remember !== false && view !== adminMasterCurrentView) adminMasterViewHistory.push(adminMasterCurrentView);
+    adminMasterCurrentView = view;
     const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
+    $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
     $("#adminMasterScreen")?.classList.remove("mobile-more-open");
     $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", "false");
+    $("#adminMobileBackBtn")?.classList.toggle("visible", view !== "dashboard");
     if (view === 'trainings') loadAdminTrainings();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
   }
@@ -4403,7 +4419,7 @@
     screen.classList.toggle("admin-master-auth", !adminMasterLogged);
     $("#adminMasterLoginPanel").hidden = adminMasterLogged;
     $("#adminMasterWorkspace").hidden = !adminMasterLogged;
-    if (adminMasterLogged) { await renderAdminMaster(); setAdminMasterView("dashboard"); }
+    if (adminMasterLogged) { adminMasterViewHistory.length = 0; adminMasterCurrentView = "dashboard"; await renderAdminMaster(); setAdminMasterView("dashboard", { remember: false }); }
   }
 
   function syncAdminMasterHash() {
