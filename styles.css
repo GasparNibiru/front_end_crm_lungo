@@ -4349,3 +4349,105 @@ body.supervisor-mode .supervisor-deal > b {
   .admin-finance-filters { grid-template-columns:1fr; }
   .admin-finance-filters > :last-child { grid-column:auto; }
 }
+
+/* Admin claro: relevo suave e contraste sem perder a aparência limpa. */
+[data-theme="light"] .admin-master-screen {
+  --bg: #e1e7ed;
+  --bg-soft: #e7ecf1;
+  --surface: #f7f9fb;
+  --surface-2: #edf1f5;
+  --surface-3: #e2e8ee;
+  --border: #c4ced8;
+  --border-strong: #9facb9;
+  background: linear-gradient(145deg, #e8edf2, #dbe2e9);
+}
+[data-theme="light"] .admin-master-panel,
+[data-theme="light"] .admin-master-kpis article,
+[data-theme="light"] .admin-finance-kpis article,
+[data-theme="light"] .admin-master-table tr,
+[data-theme="light"] .admin-mobile-hero,
+[data-theme="light"] .admin-mobile-quick-actions {
+  border-color: rgba(151, 165, 179, .62);
+  box-shadow: 9px 9px 22px rgba(145, 157, 169, .25), -7px -7px 18px rgba(255, 255, 255, .82);
+}
+[data-theme="light"] .admin-master-panel,
+[data-theme="light"] .admin-master-table tr { background: #f5f7f9; }
+[data-theme="light"] .admin-master-form-grid input,
+[data-theme="light"] .admin-master-form-grid select,
+[data-theme="light"] .admin-master-form-grid textarea,
+[data-theme="light"] .admin-modal-form input,
+[data-theme="light"] .admin-modal-form select,
+[data-theme="light"] .admin-modal-form textarea {
+  background: #edf1f4;
+  border-color: #b8c3ce;
+  box-shadow: inset 2px 2px 5px rgba(152, 164, 176, .18), inset -2px -2px 5px rgba(255, 255, 255, .8);
+}
+
+/* Acessos: sanfona nativa, resistente a novas renderizações. */
+.admin-access-group { border-radius: 14px; overflow: hidden; }
+.admin-access-group > summary { list-style: none; }
+.admin-access-group > summary::-webkit-details-marker { display: none; }
+.admin-access-group[open] > .admin-access-toggle > span { transform: rotate(90deg); }
+.admin-access-group:not([open]) > .admin-access-toggle { border-bottom-color: transparent; }
+.admin-access-group .admin-access-toggle { cursor: pointer; user-select: none; }
+.admin-access-group .admin-access-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
+.admin-access-group .admin-access-toggle em {
+  min-width: 28px;
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  color: var(--primary-2);
+  font-weight: 800;
+}
+.admin-access-group .admin-access-principal { border-bottom: 1px solid var(--border); }
+.admin-access-group .admin-access-children { border-top: 0; }
+.admin-access-person > .admin-master-actions .icon-action-btn {
+  color: var(--text);
+  opacity: 1;
+}
+.admin-access-person > .admin-master-actions .icon-action-btn svg {
+  display: block;
+  stroke: currentColor;
+  fill: none;
+}
+[data-theme="light"] .admin-access-groups .admin-access-group {
+  background: #f4f7f9;
+  border: 1px solid #aebbc7;
+  box-shadow: 8px 8px 18px rgba(145, 157, 169, .27), -6px -6px 15px rgba(255, 255, 255, .78);
+}
+[data-theme="light"] .admin-access-group .admin-access-toggle {
+  background: linear-gradient(145deg, #e9f0ed, #dce7e2);
+  color: #182820;
+}
+[data-theme="light"] .admin-access-group .admin-access-principal { background: #f7f9fa; }
+[data-theme="light"] .admin-access-group .admin-access-children {
+  background: #dfe7e4;
+  box-shadow: inset 0 5px 12px rgba(113, 130, 122, .13);
+}
+[data-theme="light"] .admin-access-group .admin-access-children .admin-access-person {
+  background: #f4f7f6;
+  border-color: #aebdb6;
+  box-shadow: 4px 4px 10px rgba(132, 148, 141, .18), -3px -3px 8px rgba(255, 255, 255, .8);
+}
+
+@media (max-width: 760px) {
+  .admin-access-person > .admin-master-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+  .admin-access-person > .admin-master-actions .icon-action-btn {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 6px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+  }
+  .admin-access-person > .admin-master-actions .icon-action-btn:hover,
+  .admin-access-person > .admin-master-actions .icon-action-btn:focus-visible {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+  }
+}
