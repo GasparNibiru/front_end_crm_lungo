@@ -4557,4 +4557,33 @@ body.supervisor-mode .supervisor-deal > b {
     width: 15px;
     height: 15px;
   }
+
+  /* Equipe expandida usa o mesmo verde da sidebar para separar a hierarquia. */
+  .admin-access-group .admin-access-children,
+  [data-theme="light"] .admin-access-group .admin-access-children {
+    color: var(--sidebar-text);
+    border-color: var(--sidebar-line);
+    border-left-color: var(--primary-2);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, .06), transparent 44%),
+      linear-gradient(180deg, var(--sidebar-glass), var(--sidebar-glass-deep));
+  }
+  .admin-access-group .admin-access-children > label { color: #82dbc0; }
+  .admin-access-group .admin-access-children .admin-access-person {
+    color: var(--sidebar-text);
+    border-bottom-color: var(--sidebar-line);
+  }
+  .admin-access-group .admin-access-children .admin-access-person small,
+  .admin-access-group .admin-access-children .admin-access-person > span {
+    color: var(--sidebar-muted);
+  }
+  .admin-access-group .admin-access-children .admin-access-person > .admin-master-actions {
+    border-top-color: var(--sidebar-line);
+  }
+  .admin-access-group .admin-access-children .icon-action-btn {
+    color: var(--sidebar-text);
+    border-color: var(--sidebar-line);
+    background: rgba(255, 255, 255, .07);
+  }
+  .admin-access-group .admin-access-children .admin-access-token code { color: #dff4eb; }
 }
