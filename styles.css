@@ -2129,6 +2129,29 @@ body.admin-master-mode .admin-master-screen.admin-master-auth { grid-template-co
 .admin-email-success h3 { margin: 0 0 7px; font-size: 18px; }
 .admin-email-success p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .admin-master-modal-body .full { grid-column: 1 / -1; }
+
+/* Contraste consistente para textos auxiliares no tema claro. */
+[data-theme="light"] .auth-status:not(.error):not(.ok),
+[data-theme="light"] .admin-master-login-card p,
+[data-theme="light"] .admin-master-login-card label > span,
+[data-theme="light"] .auth-form label > span,
+[data-theme="light"] .modal-card header p,
+[data-theme="light"] .admin-master-panel header p,
+[data-theme="light"] .admin-sale-access-note span { color: #435466; }
+[data-theme="light"] .auth-status.error { color: #a42534; }
+[data-theme="light"] .auth-status.ok { color: #087544; }
+
+/* A conta principal e sua equipe permanecem visualmente agrupadas nos dois temas. */
+.admin-access-groups .admin-access-group { border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--border-strong)); border-radius: 10px; overflow: hidden; box-shadow: 0 7px 18px rgba(5, 35, 31, .08); }
+.admin-access-groups .admin-access-group + .admin-access-group { margin-top: 5px; }
+.admin-access-group .admin-access-toggle { background: color-mix(in srgb, var(--primary) 9%, var(--surface-2)); border-bottom-color: color-mix(in srgb, var(--primary) 22%, var(--border)); }
+.admin-access-group .admin-access-toggle em { border-radius: 999px; background: var(--surface); }
+.admin-access-group .admin-access-principal { background: var(--surface); border-left: 3px solid var(--primary); }
+.admin-access-group .admin-access-children { background: color-mix(in srgb, var(--surface-3) 76%, var(--surface-2)); border-left: 3px solid color-mix(in srgb, var(--primary) 42%, var(--border-strong)); }
+.admin-access-group .admin-access-children .admin-access-person { background: var(--surface-2); border-color: var(--border-strong); box-shadow: 0 3px 9px rgba(0,0,0,.06); }
+[data-theme="light"] .admin-access-groups .admin-access-group { box-shadow: 0 8px 20px rgba(38, 71, 60, .11); }
+[data-theme="light"] .admin-access-group .admin-access-children { background: #e9f0ec; }
+[data-theme="light"] .admin-access-group .admin-access-children .admin-access-person { background: #fff; }
 .admin-modal-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .admin-modal-form label { display: grid; gap: 4px; color: var(--muted); font-size: 9px; text-transform: uppercase; }
 .admin-modal-form input, .admin-modal-form select, .admin-modal-form textarea { width: 100%; min-height: 34px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); padding: 7px; }

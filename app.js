@@ -790,6 +790,29 @@
     return digits;
   }
 
+  function formatBrazilPhone(value) {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.length > 11 && digits.startsWith("55")) digits = digits.slice(2);
+    digits = digits.slice(0, 11);
+    if (!digits) return "";
+    if (digits.length < 3) return `(${digits}`;
+    const ddd = digits.slice(0, 2), number = digits.slice(2);
+    if (number.length <= 4) return `(${ddd}) ${number}`;
+    const split = number.length > 8 ? 5 : 4;
+    return `(${ddd}) ${number.slice(0, split)}${number.length > split ? `-${number.slice(split)}` : ""}`;
+  }
+
+  function isContactPhoneField(field) {
+    if (!(field instanceof HTMLInputElement) || field.id === "connectPhone") return false;
+    return field.inputMode === "tel" || /(phone|telefone|whatsapp)/i.test(`${field.id} ${field.name || ""}`);
+  }
+
+  function bindBrazilPhoneMasks() {
+    document.addEventListener("focusin", (event) => { if (isContactPhoneField(event.target)) { event.target.placeholder ||= "(DDD) 99999-9999"; if (event.target.value) event.target.value = formatBrazilPhone(event.target.value); } });
+    document.addEventListener("input", (event) => { if (isContactPhoneField(event.target)) event.target.value = formatBrazilPhone(event.target.value); });
+    document.querySelectorAll("input").forEach((field) => { if (isContactPhoneField(field)) { field.placeholder ||= "(DDD) 99999-9999"; if (field.value) field.value = formatBrazilPhone(field.value); } });
+  }
+
   function formatMoney(value) {
     const text = String(value || "").trim();
     if (!text) return "—";
@@ -800,6 +823,7 @@
 
   function formatDate(value) {
     if (!value) return "—";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) { const [year, month, day] = String(value).split("-"); return `${day}/${month}/${year}`; }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "—";
     return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -4066,7 +4090,7 @@
     const currentReceivables = adminData.receivables.filter((item) => item.dueDate.startsWith(month));
     const activeClients = adminData.clients.filter((item) => item.accountStatus === "active").length;
     const late = adminData.receivables.filter((item) => item.status === "late");
-    const received = currentReceivables.filter((item) => item.status === "paid").reduce((sum, item) => sum + item.paid, 0);
+    const received = adminData.receivables.filter((item) => item.status === "paid" && item.paymentDate.startsWith(month)).reduce((sum, item) => sum + item.paid, 0);
     const pending = currentReceivables.filter((item) => item.status !== "paid").reduce((sum, item) => sum + item.expected, 0);
     const recurring = adminData.clients.filter((item) => item.accountStatus !== "inactive").reduce((sum, item) => sum + calculateSubscriptionTotal(item.planId, item.extraAccesses), 0);
     const upcoming = adminData.receivables.filter((item) => item.status !== "paid" && item.dueDate >= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
@@ -4101,7 +4125,7 @@
     const accessActions=access=>{const invalid=access.status==="invalid",suspended=access.status==="blocked"||access.status==="suspended",canEmail=access.token?.startsWith("LNG-")&&access.raw?.email;return `<div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${canEmail?`<button class="tiny-btn icon-action-btn" data-token-action="email" data-id="${access.id}" title="Reenviar acesso por e-mail" aria-label="Reenviar acesso por e-mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg></button>`:''}${!invalid?`<button class="tiny-btn icon-action-btn ${suspended?'success':'warning'}" data-token-action="${suspended?'reactivate':'block'}" data-id="${access.id}" title="${suspended?'Reativar':'Bloquear'} acesso" aria-label="${suspended?'Reativar':'Bloquear'} acesso">${actionIcon(suspended?'reactivate':'block')}</button>`:''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Excluir acesso" aria-label="Excluir acesso">${actionIcon('archive')}</button></div>`};
     const accessRow=(access,principal=false)=>{const canCopy=access.token?.startsWith("LNG-"),suspended=access.status==="blocked"||access.status==="suspended",statusLabel=access.status==="active"?"Ativo":suspended?"Suspenso":"Inválido";return `<div class="admin-access-person ${principal?'principal':''}"><div><b>${escapeHtml(access.user)}</b><small>${escapeHtml(access.profile)} · ${escapeHtml(access.raw?.email||'Sem e-mail')}</small></div><div class="admin-access-token"><code>${escapeHtml(access.token)}</code>${canCopy?`<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>`:""}</div><span>${adminMasterStatus(adminStatusClass(access.status),statusLabel)}</span><small>${access.lastAccess||"Sem acesso"}</small>${accessActions(access)}</div>`};
     const groups=adminData.clients.map(client=>{const accesses=adminData.accesses.filter(access=>String(access.clientId)===String(client.id)).sort((a,b)=>{const priority=item=>item.profile==="Admin Master"?0:item.profile==="Supervisor"?1:2;return priority(a)-priority(b)});return {client,principal:accesses[0],children:accesses.slice(1),accesses}}).filter(group=>group.accesses.length);
-    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="false"><span>›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}</small></div><em>${group.children.length}</em></button><div class="admin-access-principal"><label>Acesso principal</label>${accessRow(group.principal,true)}</div><div class="admin-access-children" hidden>${group.children.length?`<label>Acessos vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum acesso adicional vinculado.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
+    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="false"><span>›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.principal.profile==="Supervisor"?"Supervisor e equipe":"Acesso individual"} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}</small></div><em>${group.children.length}</em></button><div class="admin-access-principal"><label>${group.principal.profile==="Supervisor"?"Supervisor / acesso principal":"Acesso principal"}</label>${accessRow(group.principal,true)}</div><div class="admin-access-children" hidden>${group.children.length?`<label>Equipe / corretores vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum corretor vinculado a este supervisor.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
     rows.querySelectorAll('.admin-access-toggle').forEach(button=>button.addEventListener('click',()=>{const children=button.closest('.admin-access-group').querySelector('.admin-access-children'),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));children.hidden=expanded}));
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
@@ -4113,14 +4137,14 @@
     const filtered = adminData.receivables.filter((item) => { const client = adminClient(item.clientId); return (status === "all" || item.status === status) && (plan === "all" || client.planId === plan) && (!query || client.name.toLowerCase().includes(query)) && (period === "all" || item.dueDate.startsWith(month)); });
     const totals = { expected: filtered.reduce((s, i) => s + i.expected, 0), paid: filtered.reduce((s, i) => s + i.paid, 0), pending: filtered.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: filtered.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
     $("#adminReceivableKpis").innerHTML = [["Previsto", totals.expected], ["Recebido", totals.paid], ["Pendente", totals.pending], ["Atrasado", totals.late]].map(([label, value]) => `<article><span>${label}</span><b>${formatCurrency(value)}</b></article>`).join("");
-    $("#adminReceivableRows").innerHTML = filtered.map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${getPlanDefinition(client.planId).name}</td><td>${item.competence}</td><td>${formatDate(item.dueDate)}</td><td>${formatCurrency(item.expected)}</td><td>${formatCurrency(item.paid)}</td><td>${formatDate(item.paymentDate)}</td><td>${adminMasterStatus(adminStatusClass(item.status), adminPaymentLabel(item.status))}</td><td>${item.method}</td><td title="${escapeHtml(item.note)}">${escapeHtml(item.note || "—")}</td><td><div class="admin-master-actions">${item.status !== "paid" ? `<button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar pagamento</button>` : ""}<button class="tiny-btn" data-receivable-action="history" data-id="${item.id}">Histórico</button></div></td></tr>`; }).join("");
+    $("#adminReceivableRows").innerHTML = filtered.map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${getPlanDefinition(client.planId).name}</td><td>${item.competence}</td><td>${formatDate(item.dueDate)}</td><td>${formatCurrency(item.expected)}</td><td>${formatCurrency(item.paid)}</td><td>${formatDate(item.paymentDate)}</td><td>${adminMasterStatus(adminStatusClass(item.status), adminPaymentLabel(item.status))}</td><td>${item.method}</td><td title="${escapeHtml(item.note)}">${escapeHtml(item.note || "—")}</td><td><div class="admin-master-actions">${item.status !== "paid" ? `<button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar pagamento</button>` : `<button class="tiny-btn" data-receivable-action="edit-date" data-id="${item.id}">Editar data</button>`}<button class="tiny-btn" data-receivable-action="history" data-id="${item.id}">Histórico</button></div></td></tr>`; }).join("");
   }
 
   function renderFinancialCalendar() {
     const year = adminCalendarDate.getFullYear(), monthIndex = adminCalendarDate.getMonth(), prefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
     const entries = adminData.receivables.filter((item) => item.dueDate.startsWith(prefix));
     $("#adminCalendarTitle").textContent = new Date(year, monthIndex, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-    const sums = { expected: entries.reduce((s, i) => s + i.expected, 0), paid: entries.reduce((s, i) => s + i.paid, 0), pending: entries.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: entries.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
+    const sums = { expected: entries.reduce((s, i) => s + i.expected, 0), paid: adminData.receivables.filter((item) => item.status === "paid" && item.paymentDate.startsWith(prefix)).reduce((s, i) => s + i.paid, 0), pending: entries.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: entries.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
     $("#adminCalendarSummary").innerHTML = [["Previsto no mês", sums.expected], ["Recebido", sums.paid], ["Pendente", sums.pending], ["Atrasado", sums.late]].map(([label, value]) => `<article><span>${label}</span><b>${formatCurrency(value)}</b></article>`).join("");
     const firstDay = new Date(year, monthIndex, 1).getDay(), days = new Date(year, monthIndex + 1, 0).getDate(); let html = "";
     for (let blank = 0; blank < firstDay; blank++) html += `<div class="admin-calendar-day empty"></div>`;
@@ -4397,6 +4421,21 @@
       const previous = adminMasterViewHistory.pop() || "dashboard";
       setAdminMasterView(previous, { remember: false });
     });
+  }
+
+  function openPaymentDateModal(receivable) {
+    const client = adminClient(receivable.clientId);
+    openAdminFormModal("Editar data de recebimento", client.name, `<form id="adminPaymentDateForm" class="admin-modal-form full" data-id="${receivable.id}"><label>Competência<input value="${escapeHtml(receivable.competence)}" readonly></label><label>Valor recebido<input value="${formatCurrency(receivable.paid)}" readonly></label><label class="full">Data de recebimento<input id="adminPaymentEditDate" type="date" value="${escapeHtml(receivable.paymentDate || adminIsoDate(new Date()))}" required></label><div class="auth-status full">A alteração atualizará os indicadores de recebimento e o histórico financeiro.</div><button class="btn primary" type="submit">Salvar nova data</button></form>`);
+  }
+
+  async function updateAdminPaymentDate(event) {
+    event.preventDefault();
+    const form = event.target.closest("form"), receivable = adminData.receivables.find((item) => item.id === form?.dataset.id), submit = form?.querySelector('button[type="submit"]');
+    if (!receivable) return toast("Recebimento não encontrado.");
+    if (submit) submit.disabled = true;
+    try { await window.LungoAdminApi.updatePayment(receivable.id, { paidAt: $("#adminPaymentEditDate").value }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal").close(); toast("Data de recebimento atualizada."); }
+    catch (error) { toast(error.message); }
+    finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
   function ensureAdminMobileMoreSheet() {
@@ -4689,6 +4728,7 @@
         const item = adminData.receivables.find((entry) => entry.id === receivableAction.dataset.id), action = receivableAction.dataset.receivableAction;
         if (!item) return;
         if (action === "pay") openPaymentModal(item);
+        if (action === "edit-date") openPaymentDateModal(item);
         if (action === "history") openAdminClientModal(adminClient(item.clientId));
         return;
       }
@@ -4714,7 +4754,7 @@
       const finance = event.target.closest("[data-admin-master-finance]");
       if (finance) toast("Detalhe financeiro mock aberto visualmente.");
     });
-    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); if (event.target.id === "adminClientNameEditForm") submitAdminClientNameEdit(event); });
+    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPaymentDateForm") updateAdminPaymentDate(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); if (event.target.id === "adminClientNameEditForm") submitAdminClientNameEdit(event); });
     $("#adminMasterModalBody")?.addEventListener("input", (event) => { if (["adminNewPlan", "adminNewPlanExtras"].includes(event.target.id)) updatePlanChangePreview(adminClient($("#adminPlanChangeForm")?.dataset.id)); });
     $("#adminMasterModalBody")?.addEventListener("click", (event) => {
       const clientView = event.target.closest("[data-admin-client-view]"); if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
@@ -5230,6 +5270,7 @@
     updateTodayLabel();
     setInterval(updateTodayLabel, 60000);
     hardenAutocomplete();
+    bindBrazilPhoneMasks();
     renderCompanyIdentity();
     toggleCustomPeriodFields();
     toggleClientCustomPeriodFields();
