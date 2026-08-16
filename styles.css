@@ -20,17 +20,17 @@
 }
 
 [data-theme="light"] {
-  --bg: #e8edf4;
-  --bg-soft: #dfe6ef;
-  --surface: #ffffff;
-  --surface-2: #f4f7fb;
-  --surface-3: #e8edf5;
-  --border: #c9d2df;
-  --border-strong: #aebaca;
+  --bg: #dfe6ee;
+  --bg-soft: #e7edf4;
+  --surface: #f2f6fa;
+  --surface-2: #e9eff5;
+  --surface-3: #dde6ef;
+  --border: #c1ccd8;
+  --border-strong: #9fadc0;
   --text: #17202b;
   --muted: #4f5f72;
   --muted-2: #667689;
-  --shadow: 0 14px 40px rgba(31,45,61,.16);
+  --shadow: 11px 11px 25px rgba(73, 91, 111, .2), -9px -9px 22px rgba(255, 255, 255, .92);
 }
 
 * { box-sizing: border-box; }
@@ -3826,7 +3826,9 @@ body.supervisor-mode .supervisor-screen {
 
 /* Tema claro: relevo multicamada mais delicado e superfícies acetinadas. */
 [data-theme="light"] {
-  --card-depth: 10px 10px 24px rgba(54, 78, 67, .13), -7px -7px 18px rgba(255, 255, 255, .88), inset 1px 1px 0 rgba(255, 255, 255, .72);
+  --card-depth: 11px 11px 24px rgba(72, 89, 108, .2), -9px -9px 22px rgba(255, 255, 255, .94), inset 1px 1px 0 rgba(255, 255, 255, .9), inset -1px -1px 0 rgba(150, 166, 184, .16);
+  --card-depth-hover: 14px 14px 29px rgba(72, 89, 108, .23), -10px -10px 25px rgba(255, 255, 255, .96), inset 1px 1px 0 #fff;
+  --inset-depth: inset 4px 4px 9px rgba(104, 121, 140, .16), inset -4px -4px 9px rgba(255, 255, 255, .92);
 }
 
 [data-theme="light"] .metric,
@@ -3843,9 +3845,73 @@ body.supervisor-mode .supervisor-screen {
 [data-theme="light"] .admin-master-kpis article,
 [data-theme="light"] .admin-master-panel,
 [data-theme="light"] .admin-master-plan-grid article {
-  background: linear-gradient(145deg, rgba(255, 255, 255, .94), rgba(235, 242, 237, .88));
-  border-color: rgba(255, 255, 255, .78);
+  background: linear-gradient(145deg, #fbfdff 0%, #e8eef4 100%);
+  border-color: rgba(255, 255, 255, .9);
   box-shadow: var(--card-depth);
+}
+
+[data-theme="light"] .modal-card,
+[data-theme="light"] .client-folder-layout > details,
+[data-theme="light"] .product-contract-card,
+[data-theme="light"] .lead-assignment-list label,
+[data-theme="light"] .supervisor-dashboard-heading,
+[data-theme="light"] .supervisor-report-actions,
+[data-theme="light"] .broker-branding-banner {
+  border-color: rgba(255, 255, 255, .88);
+  background: linear-gradient(145deg, #fafdff, #e5ecf3);
+  box-shadow: var(--card-depth);
+}
+
+[data-theme="light"] .metric:hover,
+[data-theme="light"] .kanban-card:hover,
+[data-theme="light"] .supervisor-card:hover,
+[data-theme="light"] .training-card:hover,
+[data-theme="light"] .lead-offer-card:hover {
+  box-shadow: var(--card-depth-hover);
+}
+
+[data-theme="light"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+[data-theme="light"] select,
+[data-theme="light"] textarea,
+[data-theme="light"] .table-wrap,
+[data-theme="light"] .admin-master-table-wrap,
+[data-theme="light"] .supervisor-table-wrap,
+[data-theme="light"] .client-charts-panel {
+  border-color: rgba(157, 174, 192, .48);
+  background: #e8eef4;
+  box-shadow: var(--inset-depth);
+}
+
+[data-theme="light"] .btn:not(.primary):not(.danger),
+[data-theme="light"] .icon-action,
+[data-theme="light"] .supervisor-row-action,
+[data-theme="light"] .product-icon-button,
+[data-theme="light"] .supervisor-top-logout {
+  border-color: rgba(255, 255, 255, .88);
+  background: linear-gradient(145deg, #f9fcff, #dfe7ef);
+  box-shadow: 4px 4px 9px rgba(79, 96, 115, .18), -4px -4px 9px rgba(255, 255, 255, .9);
+}
+
+[data-theme="light"] .btn:not(.primary):not(.danger):active,
+[data-theme="light"] .icon-action:active,
+[data-theme="light"] .supervisor-row-action:active,
+[data-theme="light"] .product-icon-button:active {
+  box-shadow: inset 3px 3px 7px rgba(82, 99, 118, .2), inset -3px -3px 7px rgba(255, 255, 255, .9);
+  transform: translateY(1px);
+}
+
+[data-theme="light"] .sidebar,
+[data-theme="light"] .supervisor-sidebar,
+[data-theme="light"] .admin-master-sidebar {
+  background: linear-gradient(145deg, #eaf0f6, #d8e1ea);
+  box-shadow: inset -7px 0 16px rgba(91, 108, 127, .12), 7px 0 18px rgba(91, 108, 127, .1);
+}
+
+[data-theme="light"] .topbar,
+[data-theme="light"] .supervisor-topbar,
+[data-theme="light"] .admin-master-topbar {
+  background: rgba(238, 244, 249, .94);
+  box-shadow: 0 7px 18px rgba(77, 94, 113, .14), inset 0 1px 0 rgba(255, 255, 255, .95);
 }
 
 [data-theme="light"] .kanban-col,
