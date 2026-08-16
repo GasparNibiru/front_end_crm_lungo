@@ -1538,6 +1538,8 @@
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
     if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
+    if (name === "crm") { loadCrm(true); startCrmRealtime(); }
+    else stopCrmRealtime();
     const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
   }
@@ -1589,7 +1591,7 @@
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "supervisor", token }));
       sessionStorage.setItem(TAB_PROFILE_KEY, "supervisor");
       if (!await ensureTermsAccepted()) return;
-      await loadSupervisorRemoteData();
+      await Promise.all([loadSupervisorRemoteData(), loadCrm(true)]);
       if (el.supervisorEmailInput) el.supervisorEmailInput.value = "";
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
       supervisorOrganizationName = auth.user.organization?.name || "Corretora";
@@ -2176,6 +2178,7 @@
     }
     if (el.clientProduto) el.clientProduto.innerHTML = productSelectOptions(el.clientProduto.value || "Saúde");
     if (el.baseSaleProduto) el.baseSaleProduto.innerHTML = productSelectOptions(el.baseSaleProduto.value || "Saúde");
+    if (el.leadPlanoInteresse) el.leadPlanoInteresse.innerHTML = productSelectOptions(el.leadPlanoInteresse.value || "Saúde");
   }
 
   function whatsappConversationWindowKey() {
@@ -2481,7 +2484,9 @@
     el.leadCnpjOuPf.value = item.cnpjOuPf || "";
     el.leadQtdVidas.value = item.qtdVidas || "";
     el.leadValorNegocio.value = item.valorNegocio || "";
-    el.leadPlanoInteresse.value = item.planoInteresse || "";
+    const selectedProduct = cleanProduct(item.planoInteresse || "Saúde") || "Saúde";
+    el.leadPlanoInteresse.innerHTML = productSelectOptions(selectedProduct);
+    el.leadPlanoInteresse.value = selectedProduct;
     el.leadCidade.value = item.cidade || "";
     el.leadStatus.value = normalizeStatus(item.status);
     el.leadObservacao.value = item.observacao || "";
