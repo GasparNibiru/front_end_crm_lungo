@@ -402,6 +402,8 @@
     clientDocumento: $("#clientDocumento"),
     clientCidade: $("#clientCidade"),
     clientProduto: $("#clientProduto"),
+    supervisorClientOwnerLabel: $("#supervisorClientOwnerLabel"),
+    supervisorClientOwner: $("#supervisorClientOwner"),
     productSuggestions: $("#productSuggestions"),
     clientQtdVidas: $("#clientQtdVidas"),
     clientValorFechado: $("#clientValorFechado"),
@@ -1832,6 +1834,23 @@
     const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
+    if (name === "customers") {
+      const node = el.views.clients;
+      const target = $("#supervisor-view-customers");
+      if (node && target) {
+        let stateEntry = supervisorSharedViewState.get(node);
+        if (!stateEntry) {
+          const placeholder = document.createComment("supervisor-shared-clients");
+          node.parentNode.insertBefore(placeholder, node);
+          stateEntry = { placeholder, wasActive: node.classList.contains("active") };
+          supervisorSharedViewState.set(node, stateEntry);
+        }
+        target.replaceChildren(node);
+        node.classList.add("active", "supervisor-shared-view");
+        supervisorMountedView = node;
+        loadClients(true);
+      }
+    }
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
     if (name === "settings") renderCompanyIdentity();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
@@ -3343,7 +3362,7 @@
       const whatsapp = phone ? `https://wa.me/${phone}` : "#";
       const email = client.email ? `mailto:${encodeURIComponent(client.email)}` : "#";
       return `<tr>
-        <td><div class="client-name-cell"><div class="contact-main client-name-only"><b>${postSaleClockHtml(client)}${escapeHtml(client.nome || "Cliente")}</b><span>${escapeHtml(phone || "—")}</span></div></div></td>
+        <td><div class="client-name-cell"><div class="contact-main client-name-only"><b>${postSaleClockHtml(client)}${escapeHtml(client.nome || "Cliente")}</b><span>${escapeHtml(phone || "—")}${supervisorAccessToken && client.brokerName ? ` · ${escapeHtml(client.brokerName)}` : ""}</span></div></div></td>
         <td class="product-icons-cell">${productIconsHtml(client)}</td>
         <td><span class="status-badge status-${escapeHtml(normalizeClientStatus(client.status))}">${escapeHtml(client.statusLabel || CLIENT_STATUS_LABEL[normalizeClientStatus(client.status)] || "Ativo")}</span></td>
         <td>${escapeHtml(client.qtdVidas || "—")}</td>
@@ -3362,12 +3381,14 @@
   async function syncClosedClients(silent = false) {
     try {
       if (!state.token) { if (!silent) toast("Informe e salve o token do usuário."); return; }
-      const data = await api("/api/clientes/sync-fechamentos", {
+      const tokens = supervisorAccessToken ? SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo" && broker.token).map((broker) => broker.token) : [state.token];
+      const results = await Promise.all(tokens.map((token) => api("/api/clientes/sync-fechamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: state.token })
-      });
-      if (!silent) toast(`Fechamentos atualizados: ${data.sync?.created || 0} novos, ${data.sync?.updated || 0} atualizados.`);
+        body: JSON.stringify({ token })
+      })));
+      const sync = results.reduce((total, result) => ({ created: total.created + Number(result.sync?.created || 0), updated: total.updated + Number(result.sync?.updated || 0) }), { created: 0, updated: 0 });
+      if (!silent) toast(`Fechamentos atualizados: ${sync.created} novos, ${sync.updated} atualizados.`);
       await loadClients(true);
     } catch (error) {
       if (!silent) toast(error.message);
@@ -3378,8 +3399,16 @@
     try {
       if (!state.token) { if (!silent) toast("Informe e salve o token do usuário."); return; }
       if (!state.leads.length) await loadCrm(true);
-      const data = await api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`);
-      const savedClients = (data.clientes || []).map((client) => ({ ...client, status: normalizeClientStatus(client.status), source: client.source || "clientes" }));
+      const data = supervisorAccessToken
+        ? await window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
+        : await api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`);
+      const sourceClients = supervisorAccessToken ? (data.clients || []) : (data.clientes || []);
+      const savedClients = sourceClients.map((client) => ({
+        ...client,
+        status: normalizeClientStatus(client.status),
+        source: client.source || "clientes",
+        _brokerToken: supervisorAccessToken ? (SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client.brokerUserId))?.token || "") : ""
+      }));
       state.clients = mergeClosingLeadsWithClients(savedClients, state.leads);
       state.clientMetrics = calculateClientMetrics(state.clients);
       if (data.client) {
@@ -3461,6 +3490,15 @@
 
   function openClientModal(client = null) {
     const item = client || { status: "ativo", produto: "Saúde" };
+    if (el.supervisorClientOwnerLabel && el.supervisorClientOwner) {
+      el.supervisorClientOwnerLabel.hidden = !supervisorAccessToken;
+      if (supervisorAccessToken) {
+        const available = SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo" && broker.token);
+        el.supervisorClientOwner.innerHTML = available.map((broker) => `<option value="${escapeHtml(broker.id)}">${escapeHtml(broker.name)}</option>`).join("");
+        el.supervisorClientOwner.value = item.brokerUserId || available[0]?.id || "";
+        el.supervisorClientOwner.disabled = Boolean(item.id && !String(item.id).startsWith("lead-"));
+      }
+    }
     state.clientDocumentPending = null;
     el.clientId.value = item.id || "";
     el.clientNome.value = item.nome || "";
@@ -3490,9 +3528,21 @@
     el.clientModal.close();
   }
 
-  function clientPayload() {
+  function clientAccessToken(clientOrId) {
+    if (!supervisorAccessToken) return state.token;
+    const client = typeof clientOrId === "object" ? clientOrId : state.clients.find((item) => String(item.id) === String(clientOrId));
+    const token = client?._brokerToken || SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client?.brokerUserId))?.token;
+    if (!token) throw new Error("O token do corretor responsável não está disponível. Renove o acesso dele antes de alterar este cliente.");
+    return token;
+  }
+
+  function clientTokenQuery(clientOrId) {
+    return encodeURIComponent(clientAccessToken(clientOrId));
+  }
+
+  function clientPayload(token = state.token) {
     return {
-      token: state.token,
+      token,
       nome: el.clientNome.value.trim(),
       telefone: normalizePhone(el.clientTelefone.value),
       email: el.clientEmail.value.trim(),
@@ -3519,7 +3569,7 @@
       await api(`/api/clientes/${encodeURIComponent(id)}/documentacao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: state.token, documentacaoPdf })
+        body: JSON.stringify({ token: clientAccessToken(id), documentacaoPdf })
       });
       state.clientDocumentPending = null;
       el.clientDocumentName.textContent = documentacaoPdf.fileName;
@@ -3535,7 +3585,7 @@
     const id = el.clientId.value;
     if (!id || String(id).startsWith("lead-")) return toast("Salve o cliente antes de baixar a documentação.");
     try {
-      const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${tokenQuery()}`);
+      const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${clientTokenQuery(id)}`);
       downloadBase64Pdf(data.documentacaoPdf);
     } catch (error) { toast(error.message); }
   }
@@ -3546,7 +3596,10 @@
       const id = el.clientId.value;
       const shouldCreate = !id || String(id).startsWith("lead-");
       const path = shouldCreate ? "/api/clientes" : `/api/clientes/${encodeURIComponent(id)}`;
-      await api(path, { method: shouldCreate ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clientPayload()) });
+      const selectedBroker = supervisorAccessToken && shouldCreate ? SUPERVISOR_BROKERS.find((broker) => broker.id === el.supervisorClientOwner?.value) : null;
+      if (supervisorAccessToken && shouldCreate && !selectedBroker?.token) throw new Error("Escolha um corretor ativo para receber o cliente.");
+      const accessToken = shouldCreate ? (selectedBroker?.token || state.token) : clientAccessToken(id);
+      await api(path, { method: shouldCreate ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clientPayload(accessToken)) });
       closeClientModal();
       toast("Cliente salvo.");
       await loadClients();
@@ -3579,7 +3632,7 @@
       await api(`/api/clientes/${encodeURIComponent(id)}/post-sale`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: state.token, tipo: el.postSaleTipo.value, data: el.postSaleData.value, hora: el.postSaleHora?.value || "09:00", recorrencia: el.postSaleRecorrencia.value, mensagem: el.postSaleMensagem.value.trim() })
+        body: JSON.stringify({ token: clientAccessToken(id), tipo: el.postSaleTipo.value, data: el.postSaleData.value, hora: el.postSaleHora?.value || "09:00", recorrencia: el.postSaleRecorrencia.value, mensagem: el.postSaleMensagem.value.trim() })
       });
       closePostSaleModal();
       toast("Pós-venda agendado.");
@@ -3634,7 +3687,7 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token: state.token,
+          token: clientAccessToken(id),
           produto: el.baseSaleProduto.value.trim(),
           qtdVidas: el.baseSaleVidas.value.trim(),
           valor: el.baseSaleValor.value.trim(),
@@ -3677,7 +3730,7 @@
     const cur = state.currentSaleView;
     if (!cur) return;
     try {
-      const data = await api(`/api/clientes/${encodeURIComponent(cur.clientId)}/base-sale/${encodeURIComponent(cur.saleId)}/documentacao?token=${tokenQuery()}`);
+      const data = await api(`/api/clientes/${encodeURIComponent(cur.clientId)}/base-sale/${encodeURIComponent(cur.saleId)}/documentacao?token=${clientTokenQuery(cur.clientId)}`);
       downloadBase64Pdf(data.documentacaoPdf);
     } catch (error) { toast(error.message); }
   }
@@ -3690,10 +3743,10 @@
     for (const item of checked) {
       try {
         if (item.dataset.docSelect === "client") {
-          const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${tokenQuery()}`);
+          const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${clientTokenQuery(id)}`);
           downloadBase64Pdf(data.documentacaoPdf);
         } else if (item.dataset.docSelect === "sale") {
-          const data = await api(`/api/clientes/${encodeURIComponent(id)}/base-sale/${encodeURIComponent(item.value)}/documentacao?token=${tokenQuery()}`);
+          const data = await api(`/api/clientes/${encodeURIComponent(id)}/base-sale/${encodeURIComponent(item.value)}/documentacao?token=${clientTokenQuery(id)}`);
           downloadBase64Pdf(data.documentacaoPdf);
         }
       } catch (error) {
@@ -3734,7 +3787,7 @@
   }
 
   async function fetchClientProducts(clientId) {
-    return api(`${productFolderEndpoint(clientId)}?token=${tokenQuery()}&_=${Date.now()}`);
+    return api(`${productFolderEndpoint(clientId)}?token=${clientTokenQuery(clientId)}&_=${Date.now()}`);
   }
 
   function renderProductFolderDocs(product) {
@@ -3794,7 +3847,7 @@
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token: state.token,
+          token: clientAccessToken(current.clientId),
           produto: el.productFolderProduto.value,
           qtdVidas: el.productFolderVidas.value.trim(),
           valor: el.productFolderValor.value.trim(),
@@ -3820,7 +3873,7 @@
         await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: state.token, documento })
+          body: JSON.stringify({ token: clientAccessToken(current.clientId), documento })
         });
       }
       toast(files.length === 1 ? "PDF anexado." : `${files.length} PDFs anexados.`);
@@ -3835,7 +3888,7 @@
     const current = state.currentProductFolder;
     if (!current || !docId) return;
     try {
-      const data = await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${tokenQuery()}`);
+      const data = await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${clientTokenQuery(current.clientId)}`);
       downloadBase64Pdf(data.documentacaoPdf || data.documento);
     } catch (error) { toast(error.message); }
   }
@@ -3846,7 +3899,7 @@
     const ok = await popupConfirm("Excluir este PDF da pasta do produto?", "Excluir documento", "Excluir");
     if (!ok) return;
     try {
-      await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${tokenQuery()}`, { method: "DELETE" });
+      await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${clientTokenQuery(current.clientId)}`, { method: "DELETE" });
       toast("Documento excluído.");
       const client = getClient(current.clientId) || { id: current.clientId };
       await openProductFolder(client, current.productId);
@@ -5007,7 +5060,7 @@
       if (dealButton) {
         const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
         const stageLabels = { novos: "Novos", em_atendimento: "Em atendimento", cotacao: "Cotação Enviada", documentacao: "Documentação recebida", venda: "Venda cadastrada", boleto: "Boleto Gerado", fechamento: "Fechamento", perdida: "Venda Perdida" };
-        if (deal) openSupervisorModal(deal.client, "Ficha completa do lead", [["Nome", deal.client], ["Telefone", deal.phone || "—"], ["E-mail", deal.email || "—"], ["CNPJ ou PF", deal.personType || "PF"], ["Número CNPJ/CPF", deal.document || "—"], ["Qtd. de vidas", String(deal.lives || 1)], ["Valor do negócio", deal.value || "—"], ["Plano de interesse", deal.product || "—"], ["Cidade", deal.city || "—"], ["Vendedor responsável", deal.seller], ["Etapa atual", stageLabels[deal.stage] || deal.stage], ["Observações", deal.notes || "Sem observações."]]);
+        if (deal) openSupervisorModal(deal.client, "Ficha completa do lead", [["Nome", deal.client], ["Telefone", deal.phone || "—"], ["E-mail", deal.email || "—"], ["CNPJ ou PF", deal.personType || "PF"], ["Número CNPJ/CPF", deal.document || "—"], ["Qtd. de vidas", String(deal.lives || 1)], ["Valor do negócio", deal.value || "—"], ["Produto de interesse", deal.product || "—"], ["Cidade", deal.city || "—"], ["Vendedor responsável", deal.seller], ["Etapa atual", stageLabels[deal.stage] || deal.stage], ["Observações", deal.notes || "Sem observações."]]);
         return;
       }
       const brokerButton = event.target.closest("[data-supervisor-broker-action]");
@@ -5237,7 +5290,7 @@
       if (button.dataset.saleAction === "view") openSaleView(client, sale);
       if (button.dataset.saleAction === "download-doc") {
         try {
-          const data = await api(`/api/clientes/${encodeURIComponent(button.dataset.clientId)}/base-sale/${encodeURIComponent(button.dataset.saleId)}/documentacao?token=${tokenQuery()}`);
+          const data = await api(`/api/clientes/${encodeURIComponent(button.dataset.clientId)}/base-sale/${encodeURIComponent(button.dataset.saleId)}/documentacao?token=${clientTokenQuery(button.dataset.clientId)}`);
           downloadBase64Pdf(data.documentacaoPdf);
         } catch (error) { toast(error.message); }
       }
