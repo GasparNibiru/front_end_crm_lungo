@@ -431,21 +431,34 @@ input:focus, select:focus, textarea:focus { border-color: var(--primary); box-sh
 .footer-spacer { flex: 1; }
 .toast {
   position: fixed;
-  right: 14px;
-  bottom: 14px;
-  padding: 10px 12px;
-  background: #0b1118;
+  right: 22px;
+  top: 22px;
+  bottom: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 18px;
+  background: #17202b;
   color: #fff;
-  border: 1px solid #2a3645;
-  box-shadow: var(--shadow);
-  transform: translateY(12px);
+  border: 1px solid #334155;
+  border-left: 5px solid #38bdf8;
+  border-radius: 12px;
+  box-shadow: 0 18px 52px rgba(0,0,0,.34);
+  transform: translateY(-14px) scale(.98);
   opacity: 0;
   pointer-events: none;
   transition: .16s ease;
-  max-width: 360px;
-  z-index: 50;
+  width: min(430px, calc(100vw - 44px));
+  min-height: 58px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  z-index: 10000;
 }
-.toast.show { transform: translateY(0); opacity: 1; }
+.toast.show { transform: translateY(0) scale(1); opacity: 1; }
+.toast[data-tone="success"] { background: #063c2d; border-color: #15805f; border-left-color: #34d399; }
+.toast[data-tone="error"] { background: #4b151b; border-color: #a9323e; border-left-color: #fb7185; }
+.toast-icon { flex: 0 0 auto; display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: rgba(255,255,255,.16); font-size: 18px; font-weight: 900; }
 .empty-state {
   color: var(--muted);
   padding: 24px;
@@ -998,8 +1011,7 @@ select:-webkit-autofill {
 .confirm-modal .modal-card { width: min(420px, calc(100vw - 28px)); }
 .confirm-modal .modal-card > p { padding: 0 16px 14px; margin: 0; color: var(--muted); }
 .toast {
-  border-color: rgba(14,165,165,.45);
-  box-shadow: 0 18px 48px rgba(0,0,0,.28);
+  box-shadow: 0 18px 52px rgba(0,0,0,.34);
 }
 input[placeholder^="R$"], #leadValorNegocio, #clientValorFechado, #baseSaleValor { font-variant-numeric: tabular-nums; }
 
@@ -3270,7 +3282,7 @@ body.admin-mode .admin-screen {
   .admin-master-modal-body b, .admin-master-modal-body code, .admin-modal-history p { overflow-wrap: anywhere; word-break: break-word; }
   .admin-calendar-detail article { align-items: flex-start; flex-direction: column; }
 
-  .toast { max-width: calc(100vw - 70px); left: auto; right: 8px; font-size: 10px; overflow-wrap: anywhere; }
+  .toast { max-width: calc(100vw - 32px); left: auto; right: 16px; font-size: 13px; overflow-wrap: anywhere; }
 }
 .terms-alert {
   display: grid;
@@ -3532,7 +3544,7 @@ body.admin-mode .admin-screen {
   body:not(.admin-master-mode):not(.supervisor-mode) code,
   body:not(.admin-master-mode):not(.supervisor-mode) pre { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
   body.supervisor-mode .toast,
-  body:not(.admin-master-mode):not(.supervisor-mode) .toast { max-width: calc(100vw - 70px); left: auto; right: 8px; font-size: 10px; overflow-wrap: anywhere; }
+  body:not(.admin-master-mode):not(.supervisor-mode) .toast { max-width: calc(100vw - 32px); left: auto; right: 16px; font-size: 13px; overflow-wrap: anywhere; }
 }
 /* Refinamento visual Lungo — vidro verde e profundidade suave */
 :root {
@@ -4338,7 +4350,7 @@ body.supervisor-mode .supervisor-deal > b {
   .admin-master-modal .modal-card > footer { padding:10px 16px max(12px,env(safe-area-inset-bottom)); }
   .admin-master-modal-body { max-height:calc(92dvh - 132px); padding:12px 16px 18px; gap:10px; }
   .admin-master-modal-body article, .admin-modal-history { padding:12px; border-radius:13px; }
-  .toast { left:12px; right:12px; bottom:calc(80px + env(safe-area-inset-bottom)); max-width:none; padding:12px 14px; border-radius:12px; font-size:11px; }
+  .toast { left:12px; right:12px; top:auto; bottom:calc(80px + env(safe-area-inset-bottom)); max-width:none; width:auto; padding:14px 16px; border-radius:12px; font-size:13px; }
 }
 
 @media (max-width: 350px) {

@@ -538,11 +538,18 @@
     toast: $("#toast")
   };
 
-  function toast(message) {
-    el.toast.textContent = message;
+  function toast(message, tone = "auto") {
+    const text = String(message || "");
+    const normalized = text.toLocaleLowerCase("pt-BR");
+    const resolvedTone = tone === "auto"
+      ? (/erro|inválid|não foi possível|não encontrado|falhou|selecione|informe|atenção/.test(normalized) ? "error"
+        : /salv|atualiz|cadastr|criad|confirm|conclu|adicion|exclu|removid|restaur|enviad|copiad|conectad|registrad|gerad|realizad/.test(normalized) ? "success" : "info")
+      : tone;
+    el.toast.dataset.tone = resolvedTone;
+    el.toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${resolvedTone === "success" ? "✓" : resolvedTone === "error" ? "!" : "i"}</span><span>${escapeHtml(text)}</span>`;
     el.toast.classList.add("show");
     clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => el.toast.classList.remove("show"), 2600);
+    toast._timer = setTimeout(() => el.toast.classList.remove("show"), 4600);
   }
 
   function popupConfirm(message, title = "Confirmar ação", okText = "Confirmar") {
@@ -4173,7 +4180,7 @@
     const principal = accesses.find((access) => access.profile === "Supervisor") || accesses.find((access) => access.profile === "Corretor") || accesses[0];
     const pending = financial.filter((item) => item.status !== "paid").reduce((sum, item) => sum + Number(item.expected || 0), 0);
     const paid = financial.filter((item) => item.status === "paid").reduce((sum, item) => sum + Number(item.paid || 0), 0);
-    openAdminFormModal("Editar cliente", "Dados do cliente, contato e vencimento da assinatura.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}" data-access-id="${principal?.id||""}"><label class="full">Nome do cliente ou corretora<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><label>Responsável<input id="adminClientEditResponsible" value="${escapeHtml(principal?.user||client.responsible||"")}" maxlength="160" ${principal?"required":"disabled"}></label><label>E-mail<input id="adminClientEditEmail" type="email" value="${escapeHtml(principal?.raw?.email||client.email||"")}" ${principal?"required":"disabled"}></label><label>WhatsApp / telefone<input id="adminClientEditPhone" value="${escapeHtml(principal?.raw?.phone||client.whatsapp||"")}" ${principal?"":"disabled"}></label><label>Regra de vencimento<select id="adminClientEditDueMode"><option value="thirty_days" ${client.dueMode==="30days"?"selected":""}>30 dias após pagamento</option><option value="fixed_day" ${client.dueMode==="fixed"?"selected":""}>Dia fixo do mês</option></select></label><label>Próximo vencimento<input id="adminClientEditNextDue" type="date" value="${escapeHtml(client.nextDue||"")}" required></label><label id="adminClientEditFixedDayField" ${client.dueMode==="fixed"?"":"hidden"}>Dia fixo<select id="adminClientEditFixedDay">${[1,5,10,15,20,25].map(day=>`<option value="${day}" ${Number(client.fixedDay)===day?"selected":""}>${day}</option>`).join("")}</select></label>${principal?"":'<div class="auth-status full">Este cliente ainda não possui um acesso principal; crie um acesso para editar responsável e contato.</div>'}<section class="admin-modal-history full"><h3>Resumo da assinatura</h3><p><b>Plano:</b> ${escapeHtml(plan.name)} · <b>Mensalidade:</b> ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><p><b>Recebido:</b> ${formatCurrency(paid)} · <b>Pendente:</b> ${formatCurrency(pending)} · <b>Acessos:</b> ${client.activeAccesses}/${adminPlanCapacity(client)}</p></section><button class="btn primary" type="submit">Salvar alterações</button></form>`);
+    openAdminFormModal("Editar cliente", "Dados do cliente, contato, acessos e vencimento da assinatura.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}" data-access-id="${principal?.id||""}"><label class="full">Nome do cliente ou corretora<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><label>Responsável<input id="adminClientEditResponsible" value="${escapeHtml(principal?.user||client.responsible||"")}" maxlength="160" ${principal?"required":"disabled"}></label><label>E-mail<input id="adminClientEditEmail" type="email" value="${escapeHtml(principal?.raw?.email||client.email||"")}" ${principal?"required":"disabled"}></label><label>WhatsApp / telefone<input id="adminClientEditPhone" value="${escapeHtml(principal?.raw?.phone||client.whatsapp||"")}" ${principal?"":"disabled"}></label><label>Acessos adicionais do supervisor<input id="adminClientEditExtraAccesses" type="number" min="0" step="1" value="${Math.max(0, Number(client.extraAccesses)||0)}" required><small>Quantidade além dos acessos incluídos no plano.</small></label><label>Regra de vencimento<select id="adminClientEditDueMode"><option value="thirty_days" ${client.dueMode==="30days"?"selected":""}>30 dias após pagamento</option><option value="fixed_day" ${client.dueMode==="fixed"?"selected":""}>Dia fixo do mês</option></select></label><label>Próximo vencimento<input id="adminClientEditNextDue" type="date" value="${escapeHtml(client.nextDue||"")}" required></label><label id="adminClientEditFixedDayField" ${client.dueMode==="fixed"?"":"hidden"}>Dia fixo<select id="adminClientEditFixedDay">${[1,5,10,15,20,25].map(day=>`<option value="${day}" ${Number(client.fixedDay)===day?"selected":""}>${day}</option>`).join("")}</select></label>${principal?"":'<div class="auth-status full">Este cliente ainda não possui um acesso principal; crie um acesso para editar responsável e contato.</div>'}<section class="admin-modal-history full"><h3>Resumo da assinatura</h3><p><b>Plano:</b> ${escapeHtml(plan.name)} · <b>Mensalidade atual:</b> ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><p><b>Recebido:</b> ${formatCurrency(paid)} · <b>Pendente:</b> ${formatCurrency(pending)} · <b>Acessos em uso:</b> ${client.activeAccesses} de ${adminPlanCapacity(client)}</p></section><button class="btn primary" type="submit">Salvar alterações</button></form>`);
     $("#adminClientEditDueMode")?.addEventListener("change",event=>{$("#adminClientEditFixedDayField").hidden=event.target.value!=="fixed_day"});
     $("#adminClientEditName")?.focus();
   }
@@ -4182,9 +4189,11 @@
     event.preventDefault();
     const form = event.target.closest("form"), client = adminClient(form?.dataset.id), name = $("#adminClientEditName")?.value.trim(),dueMode=$("#adminClientEditDueMode")?.value,nextDueDate=$("#adminClientEditNextDue")?.value;
     if (!client || !name) return;
+    const extraAccesses = Number($("#adminClientEditExtraAccesses")?.value);
+    if (!Number.isInteger(extraAccesses) || extraAccesses < 0) { toast("Informe uma quantidade válida de acessos adicionais.", "error"); return; }
     const submit=form.querySelector('button[type="submit"]');if(submit)submit.disabled=true;
-    try { const updates=[window.LungoAdminApi.updateOrganization(client.id, { name,nextDueDate,dueMode,fixedDueDay:dueMode==="fixed_day"?Number($("#adminClientEditFixedDay")?.value):null }, adminMasterKey)];if(form.dataset.accessId)updates.push(window.LungoAdminApi.updateAccess(form.dataset.accessId,{name:$("#adminClientEditResponsible")?.value.trim(),email:$("#adminClientEditEmail")?.value.trim(),phone:$("#adminClientEditPhone")?.value.trim()||null},adminMasterKey));await Promise.all(updates); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Dados do cliente atualizados."); }
-    catch (error) { toast(error.message); }
+    try { const updates=[window.LungoAdminApi.updateOrganization(client.id, { name,nextDueDate,dueMode,fixedDueDay:dueMode==="fixed_day"?Number($("#adminClientEditFixedDay")?.value):null,extraAccesses }, adminMasterKey)];if(form.dataset.accessId)updates.push(window.LungoAdminApi.updateAccess(form.dataset.accessId,{name:$("#adminClientEditResponsible")?.value.trim(),email:$("#adminClientEditEmail")?.value.trim(),phone:$("#adminClientEditPhone")?.value.trim()||null},adminMasterKey));await Promise.all(updates); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Cliente e limite de acessos atualizados com sucesso.", "success"); }
+    catch (error) { toast(error.message, "error"); }
     finally{if(submit?.isConnected)submit.disabled=false}
   }
 
