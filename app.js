@@ -1714,7 +1714,7 @@
       window.LungoSupervisorApi.getClients(supervisorAccessToken),
       window.LungoSupervisorApi.getLeads(supervisorAccessToken),
       window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken),
-      window.LungoSupervisorApi.getTeamGoal(supervisorAccessToken)
+      window.LungoSupervisorApi.getTeamGoal(supervisorAccessToken).catch(() => ({ teamGoal: supervisorTeamGoal() }))
     ]);
     localStorage.setItem(supervisorTeamGoalKey(), String(goalResult.teamGoal || 0));
     supervisorDashboard = dashboardResult.dashboard || {};
