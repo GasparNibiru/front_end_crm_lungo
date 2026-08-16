@@ -1605,6 +1605,7 @@
   function actionIcon(name) {
     const paths = {
       copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+      email: '<path d="M3 6h18v12H3z"/><path d="m3 7 9 7 9-7"/>',
       renew: '<path d="M20 7v5h-5"/><path d="M18.4 16a8 8 0 1 1 .1-8.1L20 12"/>',
       block: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
       reactivate: '<path d="M7 10V7a4 4 0 0 1 7.5-2"/><rect x="5" y="10" width="14" height="10" rx="2"/>',
@@ -1676,7 +1677,7 @@
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
     el.supervisorBrokerRows?.querySelectorAll('[data-supervisor-broker-action="archive"]').forEach((button) => { button.title = 'Excluir corretor'; button.setAttribute('aria-label', 'Excluir corretor'); });
 
     const stages = [
@@ -1875,7 +1876,7 @@
       const result = await window.LungoSupervisorApi.createBroker({ name, email, phone: phone || null, expiresAt: null }, supervisorAccessToken);
       const message = supervisorAccessMessage(name, result.token);
       el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector("p").textContent = message;
-      el.supervisorAccessStatus.textContent = "Acesso criado. Salve o token agora."; el.supervisorAccessStatus.classList.remove("error"); el.supervisorAccessStatus.classList.add("ok");
+      el.supervisorAccessStatus.textContent = result.emailDelivery?.sent ? `Acesso criado e enviado para ${email}.` : "Acesso criado, mas o e-mail não pôde ser enviado. Use o botão de reenvio."; el.supervisorAccessStatus.classList.toggle("error", !result.emailDelivery?.sent); el.supervisorAccessStatus.classList.toggle("ok", Boolean(result.emailDelivery?.sent));
       el.supervisorBrokerName.value = ""; el.supervisorBrokerEmail.value = ""; el.supervisorBrokerPhone.value = "";
       await loadSupervisorRemoteData(); renderSupervisorMocks();
     } catch (error) { el.supervisorGeneratedMessage.hidden = true; el.supervisorAccessStatus.textContent = error.message; el.supervisorAccessStatus.classList.add("error"); el.supervisorAccessStatus.classList.remove("ok"); if (isAccessLimitError(error)) showAccessLimitModal(); }
@@ -4967,7 +4968,7 @@
       const candidateTokenButton = event.target.closest('[data-rh-generate-token]');
       if (candidateTokenButton) {
         const candidate = recruitmentData.candidates.find((item) => item.id === candidateTokenButton.dataset.rhGenerateToken); if (!candidate) return;
-        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); await window.LungoSupervisorApi.updateCandidate(candidate.id, { hiredUserId: result.broker?.id || result.user?.id || '', hirePending: false, seen: true }, supervisorAccessToken); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast('Corretor cadastrado e token gerado.'); } }
+        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); await window.LungoSupervisorApi.updateCandidate(candidate.id, { hiredUserId: result.broker?.id || result.user?.id || '', hirePending: false, seen: true }, supervisorAccessToken); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast(result.emailDelivery?.sent ? 'Corretor cadastrado e acesso enviado por e-mail.' : 'Corretor cadastrado, mas o e-mail não pôde ser enviado.'); } }
         catch (error) { toast(error.message); }
         return;
       }
@@ -4976,6 +4977,13 @@
         if (!broker) return;
         const action = brokerButton.dataset.supervisorBrokerAction;
         if (action === "copy") { await copySupervisorText(broker.token, "Token copiado para a área de transferência."); return; }
+        if (action === "email") {
+          brokerButton.disabled = true;
+          try { await window.LungoSupervisorApi.resendBrokerAccessEmail(broker.id, supervisorAccessToken); toast(`Token reenviado para ${broker.email}.`, "success"); }
+          catch (error) { toast(error.message, "error"); }
+          finally { if (brokerButton.isConnected) brokerButton.disabled = false; }
+          return;
+        }
         if (action === "edit") {
           $('#supervisorEditBrokerId').value = broker.id;
           $('#supervisorEditBrokerName').value = broker.name || '';
