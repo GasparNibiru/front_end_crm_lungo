@@ -3409,10 +3409,22 @@
     try {
       if (!state.token) { if (!silent) toast("Informe e salve o token do usuário."); return; }
       if (!state.leads.length) await loadCrm(true);
-      const data = supervisorAccessToken
-        ? await window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
-        : await api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`);
-      const sourceClients = supervisorAccessToken ? (data.clients || []) : (data.clientes || []);
+      let data;
+      let sourceClients;
+      if (supervisorAccessToken) {
+        const [teamData, supervisorData] = await Promise.all([
+          window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken),
+          api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`)
+        ]);
+        data = teamData;
+        const consolidated = new Map();
+        (teamData.clients || []).forEach((client) => consolidated.set(String(client.id), client));
+        (supervisorData.clientes || []).forEach((client) => consolidated.set(String(client.id), { ...client, brokerUserId: supervisorUserId, brokerName: "Supervisor", ownerRole: "supervisor" }));
+        sourceClients = [...consolidated.values()];
+      } else {
+        data = await api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`);
+        sourceClients = data.clientes || [];
+      }
       const savedClients = sourceClients.map((client) => ({
         ...client,
         status: normalizeClientStatus(client.status),
