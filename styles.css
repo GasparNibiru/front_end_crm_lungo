@@ -2286,6 +2286,8 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .supervisor-deal > b, .supervisor-deal > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .supervisor-deal > b { font-size: 10px; }
 .supervisor-deal > span { color: var(--muted); font-size: 8.5px; }
+.supervisor-deal-seller { display: flex; align-items: center; gap: 5px; }
+.supervisor-deal-seller > i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--broker-marker); border: 1px solid color-mix(in srgb, var(--broker-marker) 65%, white); box-shadow: 0 0 0 2px color-mix(in srgb, var(--broker-marker) 18%, transparent), 0 0 7px color-mix(in srgb, var(--broker-marker) 55%, transparent); }
 .supervisor-deal > div { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 3px; }
 .supervisor-deal small { min-width: 0; color: var(--primary-2); font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .supervisor-deal button { min-height: 21px; padding: 0 5px; font-size: 8px; flex: 0 0 auto; }

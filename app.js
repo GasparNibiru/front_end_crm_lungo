@@ -1770,6 +1770,14 @@
     return String(name || "").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
   }
 
+  function supervisorBrokerMarkerColor(deal) {
+    const identity = String(deal?.brokerUserId || deal?.seller || "corretor");
+    let hash = 0;
+    for (let index = 0; index < identity.length; index += 1) hash = ((hash << 5) - hash + identity.charCodeAt(index)) | 0;
+    const palette = ["#22c55e", "#38bdf8", "#f59e0b", "#a78bfa", "#fb7185", "#2dd4bf", "#f97316", "#60a5fa", "#e879f9", "#84cc16"];
+    return palette[Math.abs(hash) % palette.length];
+  }
+
   function actionIcon(name) {
     const paths = {
       copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
@@ -1873,7 +1881,7 @@
       const deals = SUPERVISOR_DEALS.filter((deal) => deal.stage === key);
       const total = deals.reduce((sum, deal) => sum + Number(String(deal.value || "").replace(/[^0-9,]/g, "").replace(",", ".") || 0), 0);
       const totalLabel = ["novos", "em_atendimento"].includes(key) ? "Valor especulativo" : key === "fechamento" ? "Realizado" : key === "perdida" ? "Perdido" : "Previsto";
-      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b><span title="Responsável: ${escapeHtml(deal.seller)}">${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
+      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b><span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
     }).join("");
 
     renderSupervisorCustomers();
