@@ -334,6 +334,7 @@
       vendedores: $("#view-vendedores"),
       agenda: $("#view-agenda"),
       comprar_leads: $("#view-comprar_leads"),
+      settings: $("#view-settings"),
       soon: $("#view-soon")
     },
     viewTitle: $("#viewTitle"),
@@ -2268,7 +2269,8 @@
       vendedores: ["Vendedores", "Gestão de equipe e acompanhamento comercial."],
       treinamentos: ["Treinamentos", "Materiais e trilhas para capacitação da equipe."],
       relatorios: ["Relatórios", "Indicadores comerciais e relatórios avançados."],
-      agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
+      agenda: ["Agenda", "Compromissos, retornos e programação comercial."],
+      settings: ["Configurações", "Personalize individualmente a aparência do seu acesso."]
     };
     const isSoon = ["cotador"].includes(name);
     const activeView = isSoon ? "soon" : name;
