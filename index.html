@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <script>try{if(localStorage.getItem("lungo-auth-session-v1")||localStorage.getItem("lungo-suite-access-v5")||localStorage.getItem("lungo-supervisor-session-v1"))document.documentElement.classList.add("session-restoring")}catch{}</script>
-  <link rel="stylesheet" href="styles.css?v=20260816-11">
+  <link rel="stylesheet" href="styles.css?v=20260816-12">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
@@ -184,7 +184,7 @@
 
         <section id="supervisor-view-settings" class="supervisor-view">
           <form id="companySettingsForm" class="company-settings-form company-identity-form">
-            <section class="company-settings-section"><header><h2>Identidade da Corretora</h2><p>Nome e foto exibidos no painel Supervisor e nos acessos vinculados.</p></header><div class="company-settings-grid company-identity-grid"><label><span>Nome da Corretora</span><input id="companyNameInput" type="text" placeholder="Nome da corretora" required></label><label class="company-upload-field"><span>Foto/logo da Corretora</span><input id="companyLogoInput" type="file" accept="image/*"><button type="button" class="btn" data-company-upload="companyLogoInput">Upload</button><small id="companyLogoName">Nenhum arquivo</small></label><div id="companyLogoPreview" class="company-logo-preview"><img alt="Prévia da logo"><span>Prévia da identidade</span></div></div></section>
+            <section class="company-settings-section"><header><h2>Identidade da Corretora</h2><p>Nome e foto exibidos no painel Supervisor e nos acessos vinculados.</p></header><div class="company-settings-grid company-identity-grid"><label><span>Nome da Corretora</span><input id="companyNameInput" type="text" placeholder="Nome da corretora" required><small>Nome exibido no cabeçalho e nos relatórios.</small></label><label class="company-upload-field"><span>Foto/logo da Corretora</span><input id="companyLogoInput" type="file" accept="image/*"><button type="button" class="btn" data-company-upload="companyLogoInput">Selecionar imagem</button><small id="companyLogoName">Nenhum arquivo</small></label><div class="company-preview-field"><span>Prévia da identidade</span><div id="companyLogoPreview" class="company-logo-preview"><img alt="Prévia da logo"><b>Logo atual</b></div><small>Formato quadrado ou horizontal.</small></div></div></section>
             <div class="company-settings-actions"><div id="companySettingsStatus" class="auth-status" aria-live="polite">Identidade local pronta para edição.</div><button id="saveCompanySettingsBtn" class="btn primary" type="submit">Salvar identidade</button></div>
           </form>
         </section>

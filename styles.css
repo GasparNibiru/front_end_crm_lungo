@@ -2637,32 +2637,37 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .supervisor-operation-grid article { min-width: 0; padding: 12px; border: 1px solid var(--border); background: var(--surface); display: grid; gap: 5px; }
 .supervisor-operation-grid span { color: var(--muted); font-size: 10px; }
 .company-settings-form { width: 100%; display: grid; gap: 8px; }
-.company-settings-section { padding: 12px; border: 1px solid var(--border); background: var(--surface); }
-.company-settings-section > header { margin-bottom: 10px; }
+.company-settings-section { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.company-settings-section > header { margin-bottom: 16px; padding-bottom: 11px; border-bottom: 1px solid var(--border); }
 .company-settings-section h2 { margin: 0; font-size: 14px; }
 .company-settings-section header p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
 .company-settings-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .company-settings-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .company-identity-form { max-width: none; }
-.company-identity-grid { grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) 180px; align-items: end; }
-.company-logo-preview { min-height: 74px; padding: 8px; border: 1px solid var(--border); background: var(--surface-2); display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; align-items: center; }
-.company-logo-preview img { width: 54px; height: 54px; object-fit: contain; }
-.company-logo-preview span { color: var(--muted); font-size: 10px; }
+.company-identity-grid { grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr) minmax(190px, .55fr); gap: 14px; align-items: stretch; }
+.company-identity-grid > label, .company-preview-field { grid-template-rows: 14px 38px 16px; align-content: start; }
+.company-identity-grid small { color: var(--muted-2); font-size: 9px; line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.company-preview-field { min-width: 0; display: grid; gap: 4px; }
+.company-preview-field > span { color: var(--muted); font-size: 10px; line-height: 14px; text-transform: uppercase; letter-spacing: .04em; }
+.company-logo-preview { min-height: 38px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 8px; align-items: center; }
+.company-logo-preview img { width: 42px; height: 28px; object-fit: contain; }
+.company-logo-preview b { color: var(--text); font-size: 10px; font-weight: 600; }
 .company-settings-grid label, .company-message-field { min-width: 0; display: grid; gap: 4px; }
 .company-settings-grid label > span, .company-message-field > span, .company-appearance-grid label > span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
 .company-settings-grid input, .company-message-field textarea { width: 100%; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); padding: 0 9px; outline: none; }
-.company-settings-grid input { height: 36px; }
+.company-settings-grid input { height: 38px; border-radius: 6px; }
 .company-message-field textarea { padding-block: 8px; resize: vertical; }
-.company-upload-field { grid-template-columns: 1fr auto; align-items: end; }
-.company-upload-field > span { grid-column: 1 / -1; }
+.company-upload-field { grid-template-columns: 1fr; align-items: start; }
 .company-upload-field input { display: none; }
-.company-upload-field small { grid-column: 1 / -1; color: var(--muted-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.company-upload-field .btn { width: 100%; min-height: 38px; border-radius: 6px; }
 .company-appearance-grid { display: grid; grid-template-columns: 180px 180px minmax(220px, 1fr); gap: 12px; align-items: end; }
 .company-appearance-grid > label { display: grid; grid-template-columns: 1fr 44px; gap: 8px; align-items: center; }
 .company-appearance-grid input[type="color"] { width: 44px; height: 34px; border: 1px solid var(--border); background: var(--surface-2); }
 .company-appearance-grid fieldset { min-height: 42px; display: flex; align-items: center; gap: 18px; border: 1px solid var(--border); }
 .company-appearance-grid legend { color: var(--muted); font-size: 10px; }
-.company-settings-actions { position: sticky; bottom: 0; padding: 9px 12px; border: 1px solid var(--border); background: var(--bg-soft); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.company-settings-actions { position: sticky; bottom: 0; min-height: 58px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.company-settings-actions .auth-status { margin: 0; min-height: 34px; display: flex; align-items: center; }
+.company-settings-actions .btn { min-height: 38px; padding-inline: 18px; }
 .broker-branding-banner { height: 62px; position: relative; overflow: hidden; border: 1px solid var(--border); background: var(--surface); display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 12px; }
 .broker-branding-banner[hidden] { display: none; }
 .broker-branding-banner > img { width: 44px; height: 44px; object-fit: contain; position: relative; z-index: 1; }
@@ -3984,6 +3989,20 @@ body.supervisor-mode .supervisor-screen {
 [data-theme="light"] .admin-master-topbar {
   background: rgba(238, 244, 249, .94);
   box-shadow: 0 7px 18px rgba(77, 94, 113, .14), inset 0 1px 0 rgba(255, 255, 255, .95);
+}
+
+[data-theme="light"] #saveTokenBtn {
+  color: #fff;
+  border-color: rgba(3, 75, 55, .72);
+  background: linear-gradient(145deg, #11956d, #086047 58%, #064737);
+  box-shadow: 6px 6px 13px rgba(55, 77, 70, .28), -4px -4px 10px rgba(255, 255, 255, .88), inset 1px 1px 0 rgba(207, 255, 236, .28);
+  text-shadow: 0 1px 2px rgba(0, 35, 25, .55);
+}
+
+[data-theme="light"] #saveTokenBtn:hover {
+  border-color: #21bd8a;
+  background: linear-gradient(145deg, #16aa7c, #08694d 62%, #054233);
+  box-shadow: 8px 8px 16px rgba(55, 77, 70, .32), -5px -5px 12px rgba(255, 255, 255, .92), 0 0 0 2px rgba(22, 170, 124, .14);
 }
 
 [data-theme="light"] .kanban-col,
