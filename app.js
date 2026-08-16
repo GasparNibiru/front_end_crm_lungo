@@ -121,6 +121,7 @@
     { id: "c-d10", leadId: "d10", client: "Otávio Ramos", seller: "Diego Alves", phone: "(41) 99777-1212", email: "otavio@exemplo.com", product: "Auto", status: "Ativo", lives: 1, value: "R$ 2.640", date: "08/08/2026", renewal: "08/08/2027", post: "Contato agendado", notes: "Originado do fechamento d10." }
   ];
   let supervisorAccessToken = "";
+  let supervisorUserId = "";
   let supervisorDashboard = null;
   let supervisorOrganizationName = "";
   const supervisorSelectedClientIds = new Set();
@@ -426,6 +427,8 @@
     baseSaleClientId: $("#baseSaleClientId"),
     baseSaleClientName: $("#baseSaleClientName"),
     baseSaleProduto: $("#baseSaleProduto"),
+    baseSaleSellerLabel: $("#baseSaleSellerLabel"),
+    baseSaleSeller: $("#baseSaleSeller"),
     baseSaleVidas: $("#baseSaleVidas"),
     baseSaleValor: $("#baseSaleValor"),
     baseSaleData: $("#baseSaleData"),
@@ -1585,6 +1588,7 @@
       const auth = await window.LungoSupervisorApi.verify(token);
       if (auth.user?.role !== "supervisor") throw new Error("Este token não pertence a um Supervisor.");
       supervisorAccessToken = token;
+      supervisorUserId = auth.user.id || "";
       state.token = token;
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
@@ -1598,7 +1602,7 @@
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
       supervisorOrganizationName = auth.user.organization?.name || "Corretora";
       openSupervisorArea();
-    } catch (error) { supervisorAccessToken = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
+    } catch (error) { supervisorAccessToken = ""; supervisorUserId = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
     finally { el.supervisorLoginBtn.disabled = false; }
   }
 
@@ -1735,6 +1739,7 @@
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     clearInterval(recruitmentTimer); recruitmentTimer = null;
     supervisorAccessToken = "";
+    supervisorUserId = "";
     supervisorDashboard = null;
     supervisorOrganizationName = "";
     state.token = ""; state.clientName = ""; state.instanceName = ""; state.connected = false; state.leads = [];
@@ -3147,6 +3152,11 @@
     return Array.isArray(client.vendasBase) ? client.vendasBase : [];
   }
 
+  function saleResponsibilityLabel(sale = {}) {
+    if (sale.responsavelVendaTipo === "supervisor" || sale.responsavelVendaTipo === "administrativo") return "Venda administrativa";
+    return sale.responsavelVendaNome ? `Venda realizada por ${sale.responsavelVendaNome}` : "Venda do corretor";
+  }
+
   function baseSaleValue(sale) {
     return moneyNumber(sale.valor || sale.valorFechado || sale.valorVenda || "");
   }
@@ -3407,7 +3417,7 @@
         ...client,
         status: normalizeClientStatus(client.status),
         source: client.source || "clientes",
-        _brokerToken: supervisorAccessToken ? (SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client.brokerUserId))?.token || "") : ""
+        _brokerToken: supervisorAccessToken ? (client.ownerRole === "supervisor" || String(client.brokerUserId) === String(supervisorUserId) ? supervisorAccessToken : (SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client.brokerUserId))?.token || "")) : ""
       }));
       state.clients = mergeClosingLeadsWithClients(savedClients, state.leads);
       state.clientMetrics = calculateClientMetrics(state.clients);
@@ -3475,6 +3485,7 @@
             <article><span>Vidas</span><b>${escapeHtml(sale.qtdVidas || "—")}</b></article>
             <article><span>Data</span><b>${escapeHtml(formatDateOnly(sale.dataVenda))}</b></article>
           </div>
+          <p class="contract-note"><b>${escapeHtml(saleResponsibilityLabel(sale))}</b></p>
           <div class="product-doc-download-row">
             <span>Documento deste produto</span>
             ${docButton}
@@ -3493,10 +3504,12 @@
     if (el.supervisorClientOwnerLabel && el.supervisorClientOwner) {
       el.supervisorClientOwnerLabel.hidden = !supervisorAccessToken;
       if (supervisorAccessToken) {
-        const available = SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo" && broker.token);
-        el.supervisorClientOwner.innerHTML = available.map((broker) => `<option value="${escapeHtml(broker.id)}">${escapeHtml(broker.name)}</option>`).join("");
-        el.supervisorClientOwner.value = item.brokerUserId || available[0]?.id || "";
-        el.supervisorClientOwner.disabled = Boolean(item.id && !String(item.id).startsWith("lead-"));
+        const owner = SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(item.brokerUserId));
+        const supervisorOwned = !item.id || item.ownerRole === "supervisor" || String(item.brokerUserId || supervisorUserId) === String(supervisorUserId);
+        el.supervisorClientOwner.innerHTML = supervisorOwned
+          ? `<option value="${escapeHtml(supervisorUserId)}">Supervisor · carteira exclusiva</option>`
+          : `<option value="${escapeHtml(owner?.id || item.brokerUserId || "")}">${escapeHtml(owner?.name || item.brokerName || "Corretor responsável")}</option>`;
+        el.supervisorClientOwner.disabled = true;
       }
     }
     state.clientDocumentPending = null;
@@ -3531,7 +3544,7 @@
   function clientAccessToken(clientOrId) {
     if (!supervisorAccessToken) return state.token;
     const client = typeof clientOrId === "object" ? clientOrId : state.clients.find((item) => String(item.id) === String(clientOrId));
-    const token = client?._brokerToken || SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client?.brokerUserId))?.token;
+    const token = client?._brokerToken || (client?.ownerRole === "supervisor" || String(client?.brokerUserId) === String(supervisorUserId) ? supervisorAccessToken : SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client?.brokerUserId))?.token);
     if (!token) throw new Error("O token do corretor responsável não está disponível. Renove o acesso dele antes de alterar este cliente.");
     return token;
   }
@@ -3596,10 +3609,13 @@
       const id = el.clientId.value;
       const shouldCreate = !id || String(id).startsWith("lead-");
       const path = shouldCreate ? "/api/clientes" : `/api/clientes/${encodeURIComponent(id)}`;
-      const selectedBroker = supervisorAccessToken && shouldCreate ? SUPERVISOR_BROKERS.find((broker) => broker.id === el.supervisorClientOwner?.value) : null;
-      if (supervisorAccessToken && shouldCreate && !selectedBroker?.token) throw new Error("Escolha um corretor ativo para receber o cliente.");
-      const accessToken = shouldCreate ? (selectedBroker?.token || state.token) : clientAccessToken(id);
-      await api(path, { method: shouldCreate ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clientPayload(accessToken)) });
+      const accessToken = shouldCreate ? (supervisorAccessToken || state.token) : clientAccessToken(id);
+      const payload = clientPayload(accessToken);
+      if (shouldCreate) {
+        payload.responsavelVendaTipo = supervisorAccessToken ? "supervisor" : "broker";
+        payload.responsavelVendaNome = supervisorAccessToken ? "Supervisor" : (state.clientName || "Corretor");
+      }
+      await api(path, { method: shouldCreate ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       closeClientModal();
       toast("Cliente salvo.");
       await loadClients();
@@ -3654,6 +3670,15 @@
     el.baseSaleVidas.value = "";
     el.baseSaleValor.value = "R$ ";
     el.baseSaleData.value = new Date().toISOString().slice(0, 10);
+    if (el.baseSaleSellerLabel && el.baseSaleSeller) {
+      el.baseSaleSellerLabel.hidden = !supervisorAccessToken;
+      if (supervisorAccessToken) {
+        const owner = SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(item.brokerUserId));
+        const brokerOption = item.ownerRole === "broker" && owner ? `<option value="broker:${escapeHtml(owner.id)}">${escapeHtml(owner.name)} · Corretor</option>` : "";
+        el.baseSaleSeller.innerHTML = `<option value="supervisor">Administrativo · Supervisor</option>${brokerOption}`;
+        el.baseSaleSeller.value = "supervisor";
+      }
+    }
     el.baseSaleObs.value = "";
     el.baseSaleDocumentName.textContent = "Nenhum PDF anexado";
     if (el.baseSaleDocumentFile) el.baseSaleDocumentFile.value = "";
@@ -3683,6 +3708,9 @@
     event.preventDefault();
     try {
       const id = await ensurePersistedClientForBaseSale();
+      const client = getClient(id) || {};
+      const sellerChoice = supervisorAccessToken ? (el.baseSaleSeller?.value || "supervisor") : "broker";
+      const selectedBroker = sellerChoice.startsWith("broker:") ? SUPERVISOR_BROKERS.find((broker) => broker.id === sellerChoice.slice(7)) : null;
       await api(`/api/clientes/${encodeURIComponent(id)}/base-sale`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3693,6 +3721,8 @@
           valor: el.baseSaleValor.value.trim(),
           dataVenda: el.baseSaleData.value,
           observacao: el.baseSaleObs.value.trim(),
+          responsavelVendaTipo: sellerChoice === "supervisor" ? "supervisor" : "broker",
+          responsavelVendaNome: sellerChoice === "supervisor" ? "Supervisor" : (selectedBroker?.name || client.brokerName || state.clientName || "Corretor"),
           ...(state.baseSaleDocumentPending ? { documentacaoPdf: state.baseSaleDocumentPending } : {})
         })
       });
@@ -3714,6 +3744,7 @@
       <article><span>Valor</span><b>${escapeHtml(formatMoney(sale.valor || ""))}</b></article>
       <article><span>Qtd. de vidas</span><b>${escapeHtml(sale.qtdVidas || "—")}</b></article>
       <article><span>Data da venda</span><b>${escapeHtml(formatDateOnly(sale.dataVenda))}</b></article>
+      <article><span>Responsável pela venda</span><b>${escapeHtml(saleResponsibilityLabel(sale))}</b></article>
       <article class="full"><span>Observação</span><b>${escapeHtml(sale.observacao || "—")}</b></article>
       <article class="full"><span>Documentação</span><b>${escapeHtml(sale.documentacaoPdf?.fileName || "Nenhum PDF anexado")}</b></article>
     `;
@@ -3821,7 +3852,7 @@
       el.productFolderClientId.value = realClientId;
       el.productFolderProductId.value = product.id;
       el.productFolderTitle.innerHTML = `<span class="inline-product-svg">${productIconSvg(product.produto)}</span>${escapeHtml(product.produto || "Produto")}`;
-      el.productFolderSubtitle.textContent = `${client.nome || "Cliente"} · pasta do produto`;
+      el.productFolderSubtitle.textContent = `${client.nome || "Cliente"} · ${saleResponsibilityLabel(product)}`;
       el.productFolderProduto.innerHTML = productSelectOptions(product.produto || "Saúde");
       el.productFolderProduto.value = product.produto || "Saúde";
       el.productFolderVidas.value = product.qtdVidas || "";
