@@ -127,6 +127,7 @@
   const supervisorSelectedClientIds = new Set();
   let supervisorActiveClientId = "";
   let pendingCompanyLogo = "";
+  let pendingBrokerProfilePhoto = "";
   let pendingCompanyBanner = "";
   const supervisorSharedViewState = new Map();
   let supervisorMountedView = null;
@@ -347,6 +348,17 @@
     topStatus: $("#topStatus"),
     topLogoutBtn: $("#topLogoutBtn"),
     sidebarClient: $("#sidebarClient"),
+    brokerPersonalizationForm: $("#brokerPersonalizationForm"),
+    brokerFixedCompanyName: $("#brokerFixedCompanyName"),
+    brokerProfilePhotoInput: $("#brokerProfilePhotoInput"),
+    brokerProfilePhotoButton: $("#brokerProfilePhotoButton"),
+    brokerProfilePhotoName: $("#brokerProfilePhotoName"),
+    brokerProfilePhotoPreview: $("#brokerProfilePhotoPreview"),
+    brokerProfileInitials: $("#brokerProfileInitials"),
+    brokerSidebarColor: $("#brokerSidebarColor"),
+    brokerThemeSelect: $("#brokerThemeSelect"),
+    brokerBackgroundPicker: $("#brokerBackgroundPicker"),
+    brokerPersonalizationStatus: $("#brokerPersonalizationStatus"),
 
     metricsBar: $("#metricsBar"),
     listModeBtn: $("#listModeBtn"),
@@ -1334,6 +1346,56 @@
     return background;
   }
 
+  function brokerPreferenceKey(token = state.token) {
+    let hash = 2166136261;
+    for (const char of String(token || "")) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); }
+    return `lungo-broker-appearance-v1-${(hash >>> 0).toString(36)}`;
+  }
+
+  function loadBrokerPersonalization() {
+    if (!state.token) return { photo: "", sidebarColor: "", background: "none", theme: "" };
+    const stored = readLocalObject(brokerPreferenceKey());
+    return { photo: String(stored.photo || ""), sidebarColor: String(stored.sidebarColor || ""), background: String(stored.background || "none"), theme: stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : "" };
+  }
+
+  function brokerInitials() {
+    return String(state.clientName || "Corretor").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  }
+
+  function applyBrokerPersonalization(preferences = loadBrokerPersonalization()) {
+    const company = loadCompanyIdentity();
+    const color = preferences.sidebarColor || company.sidebarColor || "#0b7658";
+    const background = applyCompanyBackground(preferences.background || "none");
+    const theme = preferences.theme || localStorage.getItem(THEME_KEY) || "dark";
+    applyCompanySidebarColor(color);
+    el.root.dataset.theme = theme;
+    if (el.brokerFixedCompanyName) el.brokerFixedCompanyName.value = company.name || "Lungo";
+    if (el.brokerSidebarColor) el.brokerSidebarColor.value = color;
+    if (el.brokerThemeSelect) el.brokerThemeSelect.value = theme;
+    const radio = document.querySelector(`input[name="brokerBackground"][value="${background}"]`) || document.querySelector('input[name="brokerBackground"][value="none"]');
+    if (radio) radio.checked = true;
+    pendingBrokerProfilePhoto = preferences.photo || "";
+    if (el.brokerCompanyLogo) {
+      el.brokerCompanyLogo.src = pendingBrokerProfilePhoto || company.logo || "https://imagensconrato.pagecor.com.br/logo-lungo.png";
+      el.brokerCompanyLogo.alt = pendingBrokerProfilePhoto ? `Foto de ${state.clientName || "corretor"}` : company.name || "Lungo";
+      el.brokerCompanyLogo.classList.toggle("broker-personal-photo", Boolean(pendingBrokerProfilePhoto));
+    }
+    if (el.brokerProfilePhotoPreview) { el.brokerProfilePhotoPreview.src = pendingBrokerProfilePhoto; el.brokerProfilePhotoPreview.hidden = !pendingBrokerProfilePhoto; }
+    if (el.brokerProfileInitials) { el.brokerProfileInitials.textContent = brokerInitials(); el.brokerProfileInitials.hidden = Boolean(pendingBrokerProfilePhoto); }
+    if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = pendingBrokerProfilePhoto ? "Foto pessoal salva" : "Nenhuma foto";
+  }
+
+  function saveBrokerPersonalization(event) {
+    event.preventDefault();
+    if (!state.token) return;
+    const preferences = { photo: pendingBrokerProfilePhoto, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
+    try { localStorage.setItem(brokerPreferenceKey(), JSON.stringify(preferences)); }
+    catch { toast("Não foi possível salvar. Tente uma foto menor."); return; }
+    applyBrokerPersonalization(preferences);
+    if (el.brokerPersonalizationStatus) { el.brokerPersonalizationStatus.textContent = "Personalização salva para o seu acesso."; el.brokerPersonalizationStatus.className = "auth-status ok"; }
+    toast("Personalização atualizada com sucesso.");
+  }
+
   function sidebarColorData(value) {
     const hex = /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#0b7658";
     const rgb = [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
@@ -2156,6 +2218,7 @@
         return false;
       }
       setAuthLocked(false);
+      applyBrokerPersonalization();
       startBrokerMessagePolling();
       startCalendarReminders();
       setWhatsappPending(false);
@@ -4987,11 +5050,26 @@
       localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
     });
     el.themeBtn.addEventListener("click", () => {
-      const current = localStorage.getItem(THEME_KEY) || "dark";
+      const current = el.root.dataset.theme || localStorage.getItem(THEME_KEY) || "dark";
       const next = current === "dark" ? "light" : "dark";
-      localStorage.setItem(THEME_KEY, next);
       el.root.dataset.theme = next;
+      if (state.token && !document.body.classList.contains("supervisor-mode")) {
+        const preferences = loadBrokerPersonalization(); preferences.theme = next;
+        try { localStorage.setItem(brokerPreferenceKey(), JSON.stringify(preferences)); } catch {}
+        if (el.brokerThemeSelect) el.brokerThemeSelect.value = next;
+      }
     });
+    el.brokerProfilePhotoButton?.addEventListener("click", () => el.brokerProfilePhotoInput?.click());
+    el.brokerProfilePhotoInput?.addEventListener("change", () => {
+      const file = el.brokerProfilePhotoInput.files?.[0];
+      if (!file || !String(file.type).startsWith("image/")) return toast("Selecione uma imagem válida.");
+      if (file.size > 1200000) return toast("Use uma foto de até 1,2 MB.");
+      const reader = new FileReader(); reader.onload = () => { pendingBrokerProfilePhoto = String(reader.result || ""); if (el.brokerProfilePhotoPreview) { el.brokerProfilePhotoPreview.src = pendingBrokerProfilePhoto; el.brokerProfilePhotoPreview.hidden = false; } if (el.brokerProfileInitials) el.brokerProfileInitials.hidden = true; if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = file.name; }; reader.readAsDataURL(file);
+    });
+    el.brokerSidebarColor?.addEventListener("input", () => applyCompanySidebarColor(el.brokerSidebarColor.value));
+    el.brokerThemeSelect?.addEventListener("change", () => { el.root.dataset.theme = el.brokerThemeSelect.value; });
+    el.brokerBackgroundPicker?.addEventListener("change", (event) => { if (event.target.matches('input[name="brokerBackground"]')) applyCompanyBackground(event.target.value); });
+    el.brokerPersonalizationForm?.addEventListener("submit", saveBrokerPersonalization);
     el.toggleTokenBtn?.addEventListener("click", () => {
       el.globalToken.type = el.globalToken.type === "password" ? "text" : "password";
     });
