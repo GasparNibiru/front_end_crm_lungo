@@ -2204,11 +2204,14 @@ body.supervisor-mode .auth-screen,
 body.supervisor-mode .app { display: none !important; }
 body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-template-columns: 238px minmax(0, 1fr); background: linear-gradient(90deg, rgba(14,165,165,.08), transparent 350px), var(--bg); transition: grid-template-columns .18s ease; }
 .supervisor-sidebar { width: 100%; min-width: 0; height: 100vh; padding: 12px; background: var(--bg-soft); border-right: 1px solid var(--border); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; overflow: hidden; }
-.supervisor-brand { min-height: 48px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 32px; gap: 9px; align-items: center; }
-.supervisor-brand img { width: 48px; height: 48px; object-fit: contain; }
+.supervisor-brand { min-height: 56px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 32px; gap: 7px; align-items: center; }
+.supervisor-brand img { width: 48px; height: 48px; min-width: 48px; object-fit: contain; }
+.supervisor-brand-text { min-width: 0; align-self: center; }
 .supervisor-brand-text b, .supervisor-brand-text span { display: block; }
-.supervisor-brand-text b { font-size: 15px; }
-.supervisor-brand-text span { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.supervisor-brand-text b { max-width: 100%; font-size: 14px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: break-word; }
+.supervisor-brand-text b.medium-name { font-size: 12.5px; }
+.supervisor-brand-text b.long-name { font-size: 11px; line-height: 1.15; }
+.supervisor-brand-text span { margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .supervisor-icon-btn { width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-2); color: var(--text); display: grid; place-items: center; }
 .supervisor-icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .18s ease; }
 .supervisor-nav { min-height: 0; display: grid; align-content: start; gap: 2px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--border-strong) 70%, transparent) transparent; }

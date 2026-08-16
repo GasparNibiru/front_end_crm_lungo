@@ -1347,7 +1347,12 @@
     const supervisorReportLogo = document.querySelector("#supervisor-view-reports .supervisor-report-sheet header img");
     [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo], [supervisorReportLogo, logo], [el.brokerReportLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
     if (el.brokerCompanyName) el.brokerCompanyName.textContent = name;
-    if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = name;
+    if (el.supervisorCompanyName) {
+      el.supervisorCompanyName.textContent = name;
+      el.supervisorCompanyName.title = name;
+      el.supervisorCompanyName.classList.toggle("medium-name", name.length > 16 && name.length <= 27);
+      el.supervisorCompanyName.classList.toggle("long-name", name.length > 27);
+    }
     if (el.brokerReportCompany) el.brokerReportCompany.textContent = name;
     if (el.companyNameInput) el.companyNameInput.value = identity.name || "";
     pendingCompanyLogo = identity.logo || pendingCompanyLogo;
