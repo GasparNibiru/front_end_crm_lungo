@@ -1708,13 +1708,15 @@
   }
 
   async function loadSupervisorRemoteData() {
-    const [dashboardResult, brokersResult, clientsResult, leadsResult, operationalClientsResult] = await Promise.all([
+    const [dashboardResult, brokersResult, clientsResult, leadsResult, operationalClientsResult, goalResult] = await Promise.all([
       window.LungoSupervisorApi.getDashboard(supervisorAccessToken),
       window.LungoSupervisorApi.getBrokers(supervisorAccessToken),
       window.LungoSupervisorApi.getClients(supervisorAccessToken),
       window.LungoSupervisorApi.getLeads(supervisorAccessToken),
-      window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
+      window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken),
+      window.LungoSupervisorApi.getTeamGoal(supervisorAccessToken)
     ]);
+    localStorage.setItem(supervisorTeamGoalKey(), String(goalResult.teamGoal || 0));
     supervisorDashboard = dashboardResult.dashboard || {};
     SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", phone: broker.phone || "", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: Number(broker.sales || 0), revenue: Number(broker.revenue || 0), goal: Number(broker.goalPercent || 0), login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
     renderSupervisorMessageRecipients();
@@ -1783,6 +1785,19 @@
 
   function supervisorTeamGoalKey() { return `lungo-supervisor-team-goal:${supervisorAccessToken || state.token || "sem-token"}`; }
   function supervisorTeamGoal() { return Math.max(0, Number(localStorage.getItem(supervisorTeamGoalKey()) || 0)); }
+
+  async function refreshBrokerHeaderGoal() {
+    if (!state.token || supervisorAccessToken) return;
+    try {
+      const goal = await window.LungoSupervisorApi.getTeamGoal(state.token);
+      if ($("#brokerHeaderGoal")) $("#brokerHeaderGoal").textContent = formatCurrency(goal.target || 0);
+      if ($("#brokerHeaderGoalPercent")) $("#brokerHeaderGoalPercent").textContent = `${Number(goal.percent || 0)}%`;
+      if ($("#brokerHeaderGoalBar")) $("#brokerHeaderGoalBar").style.width = `${Math.min(100, Math.max(0, Number(goal.percent || 0)))}%`;
+    } catch (_) {
+      if ($("#brokerHeaderGoal")) $("#brokerHeaderGoal").textContent = "Não definida";
+      if ($("#brokerHeaderGoalPercent")) $("#brokerHeaderGoalPercent").textContent = "0%";
+    }
+  }
 
   function renderSupervisorGoalsAndReport() {
     const goal = supervisorTeamGoal();
@@ -2256,6 +2271,7 @@
       }
       setAuthLocked(false);
       applyBrokerPersonalization();
+      refreshBrokerHeaderGoal();
       startBrokerMessagePolling();
       startCalendarReminders();
       setWhatsappPending(false);
@@ -5117,6 +5133,7 @@
     el.toggleTokenBtn?.addEventListener("click", () => {
       el.globalToken.type = el.globalToken.type === "password" ? "text" : "password";
     });
+    $("#connectTokenEye")?.addEventListener("click", () => { const input = el.tokenInput; if (!input) return; input.type = input.type === "password" ? "text" : "password"; $("#connectTokenEye").classList.toggle("revealed", input.type === "text"); });
 
     el.saveTokenBtn.addEventListener("click", () => enterWithToken({ fromTopbar: true }));
     el.accessLoginBtn?.addEventListener("click", () => enterWithToken());
@@ -5243,14 +5260,11 @@
       const split = Math.max(0, Number(event.target.value || 0)) / Math.max(1, SUPERVISOR_BROKERS.length);
       if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(split)} por corretor`;
     });
-    $('#supervisorTeamGoalForm')?.addEventListener('submit', (event) => {
+    $('#supervisorTeamGoalForm')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const value = Math.max(0, Number($('#supervisorTeamGoalInput')?.value || 0));
-      localStorage.setItem(supervisorTeamGoalKey(), String(value));
-      renderSupervisorMocks();
-      $('#supervisorTeamGoalStatus').textContent = 'Meta da equipe salva.';
-      $('#supervisorTeamGoalStatus').classList.add('ok');
-      setTimeout(() => $('#supervisorGoalModal')?.close(), 350);
+      try { await window.LungoSupervisorApi.updateTeamGoal(value, supervisorAccessToken); localStorage.setItem(supervisorTeamGoalKey(), String(value)); renderSupervisorMocks(); $('#supervisorTeamGoalStatus').textContent = 'Meta da equipe salva e compartilhada.'; $('#supervisorTeamGoalStatus').classList.add('ok'); setTimeout(() => $('#supervisorGoalModal')?.close(), 350); }
+      catch (error) { $('#supervisorTeamGoalStatus').textContent = error.message; $('#supervisorTeamGoalStatus').classList.add('error'); }
     });
     el.supervisorGenerateReportBtn?.addEventListener("click", () => {
       renderSupervisorGoalsAndReport();

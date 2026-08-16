@@ -7,13 +7,13 @@
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <script>try{if(localStorage.getItem("lungo-auth-session-v1")||localStorage.getItem("lungo-suite-access-v5")||localStorage.getItem("lungo-supervisor-session-v1"))document.documentElement.classList.add("session-restoring")}catch{}</script>
-  <link rel="stylesheet" href="styles.css?v=20260816-18">
+  <link rel="stylesheet" href="styles.css?v=20260816-19">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260814-13" defer></script>
-  <script src="supervisor-api.js?v=20260816-7" defer></script>
-  <script src="app.js?v=20260816-18" defer></script>
+  <script src="supervisor-api.js?v=20260816-8" defer></script>
+  <script src="app.js?v=20260816-19" defer></script>
 </head>
 <body class="auth-locked">
   <section id="publicVacancyScreen" class="public-vacancy-screen" hidden><main class="public-vacancy-page"><header><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><span>Oportunidade profissional</span></header><section class="public-vacancy-hero"><div><span id="publicVacancyLocation">Vaga comercial</span><h1 id="publicVacancyTitle">Consultor de Planos de Saúde</h1><p id="publicVacancyHeadline"></p></div></section><div class="public-vacancy-content"><article><h2>Sobre a oportunidade</h2><p id="publicVacancyDescription"></p><h3>Requisitos</h3><div id="publicVacancyRequirements" class="public-vacancy-list"></div><h3>Benefícios</h3><div id="publicVacancyBenefits" class="public-vacancy-list"></div></article><form id="publicApplicationForm" class="public-application-form"><h2>Candidate-se</h2><p>Preencha seus dados para participar do processo seletivo.</p><label><span>Nome completo</span><input id="applicationName" required></label><label><span>WhatsApp</span><input id="applicationPhone" required inputmode="tel"></label><label><span>E-mail</span><input id="applicationEmail" type="email"></label><label><span>Cidade</span><input id="applicationCity"></label><label><span>Experiência comercial</span><select id="applicationExperience"><option value="Sem experiência">Sem experiência</option><option value="Até 1 ano">Até 1 ano</option><option value="1 a 3 anos">1 a 3 anos</option><option value="Mais de 3 anos">Mais de 3 anos</option></select></label><label><span>Link do currículo</span><input id="applicationResumeUrl" type="url" placeholder="Google Drive, LinkedIn..."></label><label class="full"><span>Conte um pouco sobre você</span><textarea id="applicationMessage" rows="4"></textarea></label><input id="applicationWebsite" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary" type="submit">Enviar candidatura</button><div id="publicApplicationStatus" class="auth-status">Seus dados serão enviados à equipe responsável.</div></form></div></main></section>
@@ -299,16 +299,9 @@
           <p id="viewSubtitle">Pipeline comercial com lista, kanban, importação e exportação.</p>
         </div>
         <div class="top-actions">
-          <span id="todayLabel" class="today-label"></span>
-          <span id="topStatus" class="status-mini">Status: —</span>
-          <button id="topLogoutBtn" class="mini-logout" type="button" title="Sair">Sair</button>
-          <div class="token-wrap">
-            <input id="globalToken" class="token-input" type="password" placeholder="Token do usuário" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_access_key_v29" readonly onfocus="this.removeAttribute('readonly')">
-            <button id="toggleTokenBtn" class="token-eye" type="button" title="Mostrar/ocultar token" aria-label="Mostrar ou ocultar token">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-          <button id="saveTokenBtn" class="btn dark">Salvar token</button>
+          <span id="todayLabel" hidden></span><span id="topStatus" hidden></span><input id="globalToken" type="hidden"><button id="saveTokenBtn" type="button" hidden></button><button id="toggleTokenBtn" type="button" hidden></button>
+          <div class="broker-goal-header"><span>Meta do mês<b id="brokerHeaderGoal">R$ 0</b></span><span>Alcançado<b id="brokerHeaderGoalPercent">0%</b></span><i><em id="brokerHeaderGoalBar"></em></i></div>
+          <button id="topLogoutBtn" class="btn theme-toggle" type="button" title="Sair" aria-label="Sair"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6H6v12h4M14 8l4 4-4 4M8 12h10"/></svg></button>
           <button id="themeBtn" class="btn theme-toggle" type="button" aria-label="Alternar tema" title="Alternar tema"><span class="theme-icon theme-icon-sun" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="theme-icon theme-icon-moon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 15.2A8.3 8.3 0 0 1 8.8 4a8.4 8.4 0 1 0 11.2 11.2z"/></svg></span></button>
         </div>
       </header>
@@ -515,7 +508,7 @@
           <section class="flat-panel">
             <h2>Conectar WhatsApp</h2>
             <div class="form-grid two-cols">
-              <label><span>Token</span><input id="tokenInput" type="password" placeholder="Token recebido" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_connect_key_v29"></label>
+              <label><span>Token</span><span class="connect-token-wrap"><input id="tokenInput" type="password" placeholder="Token recebido" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="lungo_connect_key_v29"><button id="connectTokenEye" class="token-eye" type="button" title="Mostrar/ocultar token" aria-label="Mostrar ou ocultar token"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
               <label><span>WhatsApp opcional</span><input id="connectPhone" type="text" placeholder="55DDDNUMERO" autocomplete="off" inputmode="numeric"></label>
             </div>
             <div class="row-actions">
