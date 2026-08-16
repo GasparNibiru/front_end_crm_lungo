@@ -1462,6 +1462,7 @@
     if (backgroundRadio) backgroundRadio.checked = true;
     const supervisorReportLogo = document.querySelector("#supervisor-view-reports .supervisor-report-sheet header img");
     [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo], [supervisorReportLogo, logo], [el.brokerReportLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
+    [el.brokerCompanyLogo, el.supervisorCompanyLogo].forEach((image) => image?.classList.toggle("company-custom-photo", Boolean(identity.logo)));
     if (el.brokerCompanyName) el.brokerCompanyName.textContent = name;
     if (el.supervisorCompanyName) {
       el.supervisorCompanyName.textContent = name;
@@ -1474,7 +1475,7 @@
     pendingCompanyLogo = identity.logo || pendingCompanyLogo;
     if (el.companyLogoName) el.companyLogoName.textContent = identity.logo ? "Logo salva localmente" : "Nenhum arquivo";
     const previewImage = el.companyLogoPreview?.querySelector("img");
-    if (previewImage) previewImage.src = logo;
+    if (previewImage) { previewImage.src = logo; previewImage.classList.toggle("company-custom-photo", Boolean(identity.logo)); }
   }
 
   function readCompanyImage(file, kind) {
@@ -1482,7 +1483,7 @@
     if (file.size > 1500000) { toast("Use uma imagem de até 1,5 MB para o armazenamento local."); return; }
     const reader = new FileReader();
     reader.onload = () => {
-      if (kind === "logo") { pendingCompanyLogo = String(reader.result || ""); el.companyLogoName.textContent = file.name; const preview = el.companyLogoPreview?.querySelector("img"); if (preview) preview.src = pendingCompanyLogo; }
+      if (kind === "logo") { pendingCompanyLogo = String(reader.result || ""); el.companyLogoName.textContent = file.name; const preview = el.companyLogoPreview?.querySelector("img"); if (preview) { preview.src = pendingCompanyLogo; preview.classList.add("company-custom-photo"); } }
       else { pendingCompanyBanner = String(reader.result || ""); el.companyBannerName.textContent = file.name; }
     };
     reader.readAsDataURL(file);

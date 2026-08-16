@@ -2690,6 +2690,9 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .broker-profile-photo img { object-fit: cover; }
 .broker-profile-photo span { display: grid; place-items: center; color: var(--text); font-size: 16px; font-weight: 700; }
 .brand img.broker-personal-photo { border: 2px solid color-mix(in srgb,var(--company-sidebar-icon,#a2f8d2) 70%,transparent); border-radius: 50%; object-fit: cover; box-shadow: 0 5px 14px rgba(0,0,0,.24); }
+.brand img.company-custom-photo,
+.supervisor-brand img.company-custom-photo { aspect-ratio: 1; border: 2px solid color-mix(in srgb,var(--company-sidebar-icon,#a2f8d2) 70%,transparent); border-radius: 50%; object-fit: cover; box-shadow: 0 5px 14px rgba(0,0,0,.24); }
+.company-logo-preview img.company-custom-photo { width: 32px; height: 32px; justify-self: center; border-radius: 50%; object-fit: cover; }
 .broker-personalization-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
 .broker-personalization-grid > label { min-width: 0; display: grid; grid-template-rows: 14px 38px 16px; gap: 4px; }
 .broker-personalization-grid label > span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
