@@ -20,6 +20,7 @@
   const renewBrokerToken = (id, payload, token) => request(`/api/supervisor/brokers/${encodeURIComponent(id)}/token/renew`, { method: "POST", token, body: payload });
   const getClients = (token) => request("/api/supervisor/clients", { token });
   const getLeads = (token) => request("/api/supervisor/leads", { token });
+  const assignLead = (id, brokerId, token) => request(`/api/supervisor/leads/${encodeURIComponent(id)}/assign`, { method: "POST", token, body: { brokerId } });
   const getOperationalClients = (token) => request("/api/supervisor/operational-clients", { token });
   const getTrainings = (token) => request('/api/trainings', { token });
   const getTeamMessages = (token) => request('/api/supervisor/messages', { token });
@@ -38,5 +39,5 @@
   const getLeadMarketplace = (token) => request('/api/lead-marketplace', { token });
   const getLeadPurchaseHistory = (token) => request('/api/lead-marketplace/history', { token });
   const buyMarketplaceLead = (id, token) => request(`/api/lead-marketplace/${encodeURIComponent(id)}/buy`, { method: 'POST', token, body: {} });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead });
+  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead });
 })();

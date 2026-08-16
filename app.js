@@ -2239,6 +2239,7 @@
       restore: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M6 7v12h12V7"/><path d="M8 14h8"/><path d="m11 11-3 3 3 3"/></svg>`,
       delete: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
       view: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+      team: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M14 14c.8-.6 1.8-1 3-1 2.2 0 4 1.8 4 4"/></svg>`,
       clock: clockIcon()
     };
     return icons[name] || "";
@@ -2265,7 +2266,47 @@
       : `<button class="icon-action disabled" type="button" title="WhatsApp indisponível">${iconSvg("whatsapp")}</button>`;
     const scheduled = leadScheduleActive(lead);
     const scheduleBtn = `<button class="icon-action schedule ${scheduled ? "active-schedule" : ""}" type="button" data-action="schedule" data-id="${escapeHtml(lead.id)}" title="Programar mensagem">${iconSvg("clock")}</button>`;
-    return `<div class="row-buttons">${whatsapp}${scheduleBtn}<button class="icon-action" type="button" data-action="view" data-id="${escapeHtml(lead.id)}" title="Ver mais">${iconSvg("edit")}</button></div>`;
+    const teamBtn = supervisorAccessToken ? `<button class="icon-action team" type="button" data-action="assign-team" data-id="${escapeHtml(lead.id)}" title="Enviar para corretor">${iconSvg("team")}</button>` : "";
+    return `<div class="row-buttons">${whatsapp}${scheduleBtn}<button class="icon-action" type="button" data-action="view" data-id="${escapeHtml(lead.id)}" title="Ver mais">${iconSvg("edit")}</button>${teamBtn}</div>`;
+  }
+
+  function openLeadAssignmentModal(lead) {
+    if (!lead || !supervisorAccessToken) return;
+    const activeBrokers = SUPERVISOR_BROKERS.filter((broker) => broker.id && broker.statusLabel === "Ativo");
+    const previous = $("#leadAssignmentModal");
+    if (previous) previous.remove();
+    const modal = document.createElement("dialog");
+    modal.id = "leadAssignmentModal";
+    modal.className = "modal lead-assignment-modal";
+    modal.innerHTML = `<form method="dialog" class="modal-card">
+      <header><div><h2>Enviar lead para a equipe</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
+      <div class="lead-assignment-list">${activeBrokers.length ? activeBrokers.map((broker) => `<label><input type="radio" name="leadBroker" value="${escapeHtml(broker.id)}"><span><b>${escapeHtml(broker.name)}</b><small>${escapeHtml(broker.email || "Corretor ativo")}</small></span></label>`).join("") : `<p class="lead-assignment-empty">Nenhum corretor ativo disponível.</p>`}</div>
+      <footer><button class="btn ghost" type="button" data-close-assignment>Cancelar</button><button class="btn primary" type="submit" ${activeBrokers.length ? "" : "disabled"}>Enviar lead</button></footer>
+    </form>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll("[data-close-assignment]").forEach((button) => button.addEventListener("click", () => modal.close()));
+    modal.addEventListener("close", () => modal.remove(), { once: true });
+    modal.querySelector("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const brokerId = modal.querySelector('input[name="leadBroker"]:checked')?.value;
+      if (!brokerId) { toast("Escolha um corretor para receber o lead.", "error"); return; }
+      const submit = modal.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      submit.textContent = "Enviando...";
+      try {
+        const broker = activeBrokers.find((item) => item.id === brokerId);
+        await window.LungoSupervisorApi.assignLead(lead.id, brokerId, supervisorAccessToken);
+        modal.close();
+        toast(`Lead enviado para ${broker?.name || "o corretor"}.`);
+        await Promise.all([loadCrm(true), loadSupervisorRemoteData()]);
+        renderSupervisorMocks();
+      } catch (error) {
+        submit.disabled = false;
+        submit.textContent = "Enviar lead";
+        toast(error.message, "error");
+      }
+    });
+    modal.showModal();
   }
 
   function renderMetrics() {
@@ -5151,6 +5192,7 @@
       if (button.dataset.action === "unarchive") unarchiveLead(id);
       if (button.dataset.action === "delete") deleteLead(id);
       if (button.dataset.action === "schedule") openLeadScheduleModal(getLead(id));
+      if (button.dataset.action === "assign-team") openLeadAssignmentModal(getLead(id));
       if (button.dataset.action === "chat") { markLeadSeen(id); renderCrm(); }
     });
 
