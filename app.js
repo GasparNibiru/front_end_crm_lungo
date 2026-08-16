@@ -1791,10 +1791,14 @@
     try {
       const goal = await window.LungoSupervisorApi.getTeamGoal(state.token);
       if ($("#brokerHeaderGoal")) $("#brokerHeaderGoal").textContent = formatCurrency(goal.target || 0);
+      if ($("#brokerHeaderGoalProposals")) $("#brokerHeaderGoalProposals").textContent = Number(goal.proposals || 0).toLocaleString("pt-BR");
+      if ($("#brokerHeaderGoalRealized")) $("#brokerHeaderGoalRealized").textContent = formatCurrency(goal.realized || 0);
       if ($("#brokerHeaderGoalPercent")) $("#brokerHeaderGoalPercent").textContent = `${Number(goal.percent || 0)}%`;
       if ($("#brokerHeaderGoalBar")) $("#brokerHeaderGoalBar").style.width = `${Math.min(100, Math.max(0, Number(goal.percent || 0)))}%`;
     } catch (_) {
       if ($("#brokerHeaderGoal")) $("#brokerHeaderGoal").textContent = "Não definida";
+      if ($("#brokerHeaderGoalProposals")) $("#brokerHeaderGoalProposals").textContent = "0";
+      if ($("#brokerHeaderGoalRealized")) $("#brokerHeaderGoalRealized").textContent = formatCurrency(0);
       if ($("#brokerHeaderGoalPercent")) $("#brokerHeaderGoalPercent").textContent = "0%";
     }
   }

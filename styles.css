@@ -2716,14 +2716,15 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .connect-token-wrap input { width: 100%; padding-right: 42px; }
 .connect-token-wrap .token-eye { position: absolute; top: 50%; right: 5px; width: 32px; height: 30px; transform: translateY(-50%); border: 0; background: transparent; color: var(--muted); }
 .connect-token-wrap .token-eye:hover,.connect-token-wrap .token-eye.revealed { color: var(--primary-2); }
-.broker-goal-header { min-width: 250px; display: grid; grid-template-columns: 1fr 86px; gap: 3px 15px; align-items: end; }
+.broker-goal-header { min-width: 470px; display: grid; grid-template-columns: 1fr 1.35fr 1.35fr; gap: 3px 15px; align-items: end; }
 .broker-goal-header span { display: grid; gap: 2px; color: var(--muted); font-size: 9px; line-height: 1; text-transform: uppercase; letter-spacing: .04em; }
 .broker-goal-header b { color: var(--text); font-size: 12px; line-height: 16px; text-transform: none; }
+.broker-goal-header strong { font: inherit; color: inherit; }
 .broker-goal-header i { grid-column: 1/-1; height: 4px; overflow: hidden; border-radius: 5px; background: var(--surface-3); }
 .broker-goal-header em { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--primary),var(--primary-2)); transition: width .35s ease; }
 .top-actions > #topLogoutBtn { width: 34px; min-width: 34px; padding: 0; display: grid; place-items: center; }
 .top-actions > #topLogoutBtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-@media(max-width:760px){.broker-goal-header{min-width:145px;grid-template-columns:1fr 60px;gap-inline:7px}.broker-goal-header span{font-size:7px}.broker-goal-header b{font-size:10px}}
+@media(max-width:900px){.broker-goal-header{min-width:315px;grid-template-columns:repeat(3,1fr);gap-inline:7px}.broker-goal-header span{font-size:7px}.broker-goal-header b{font-size:10px}}
 
 body[data-company-background]:not([data-company-background="none"]) .app,
 body[data-company-background]:not([data-company-background="none"]).supervisor-mode .supervisor-screen { position: relative; background-image: linear-gradient(var(--company-bg-overlay),var(--company-bg-overlay)),var(--company-background-image); background-size: cover; background-position: center; background-attachment: fixed; }
