@@ -2671,6 +2671,30 @@ body.supervisor-mode .supervisor-screen.sidebar-collapsed { grid-template-column
 .company-settings-actions { position: sticky; bottom: 0; min-height: 58px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .company-settings-actions .auth-status { margin: 0; min-height: 34px; display: flex; align-items: center; }
 .company-settings-actions .btn { min-height: 38px; padding-inline: 18px; }
+.company-background-picker { margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 10px; }
+.company-background-option { min-width: 0; position: relative; display: grid; gap: 7px; cursor: pointer; }
+.company-background-option input { position: absolute; opacity: 0; pointer-events: none; }
+.company-background-thumb { height: 92px; border: 2px solid transparent; border-radius: 9px; background-image: linear-gradient(rgba(7,22,17,.08),rgba(7,22,17,.22)),var(--thumb); background-size: cover; background-position: center; box-shadow: 0 8px 18px rgba(0,0,0,.18); transition: transform .16s ease,border-color .16s ease,box-shadow .16s ease; }
+.company-background-option:hover .company-background-thumb { transform: translateY(-2px); }
+.company-background-option input:focus-visible + .company-background-thumb { outline: 3px solid color-mix(in srgb,var(--primary) 45%,transparent); outline-offset: 2px; }
+.company-background-option input:checked + .company-background-thumb { border-color: var(--primary-2); box-shadow: 0 0 0 2px color-mix(in srgb,var(--primary) 28%,transparent),0 10px 22px rgba(0,0,0,.24); }
+.company-background-option b { color: var(--text); font-size: 10px; line-height: 1.25; font-weight: 600; text-align: center; }
+.company-background-option.no-background .company-background-thumb { position: relative; background: repeating-linear-gradient(135deg,var(--surface-2) 0 9px,var(--surface-3) 9px 18px); }
+.company-background-option.no-background .company-background-thumb::after { content:""; position:absolute; inset:50% auto auto 50%; width:34px; height:2px; background:var(--muted); transform:translate(-50%,-50%) rotate(-35deg); border-radius:2px; }
+
+body[data-company-background]:not([data-company-background="none"]) .app,
+body[data-company-background]:not([data-company-background="none"]).supervisor-mode .supervisor-screen { position: relative; background-image: linear-gradient(var(--company-bg-overlay),var(--company-bg-overlay)),var(--company-background-image); background-size: cover; background-position: center; background-attachment: fixed; }
+body[data-company-background]:not([data-company-background="none"]) { --company-bg-overlay: rgba(13,18,16,.68); }
+[data-theme="light"] body[data-company-background]:not([data-company-background="none"]) { --company-bg-overlay: rgba(235,242,238,.58); }
+body[data-company-background]:not([data-company-background="none"]) .content-frame,
+body[data-company-background]:not([data-company-background="none"]) .flat-panel,
+body[data-company-background]:not([data-company-background="none"]) .metric,
+body[data-company-background]:not([data-company-background="none"]) .supervisor-card,
+body[data-company-background]:not([data-company-background="none"]) .supervisor-kpis article,
+body[data-company-background]:not([data-company-background="none"]) .supervisor-goal-summary article,
+body[data-company-background]:not([data-company-background="none"]) .kanban-card { background: color-mix(in srgb,var(--surface) 91%,transparent); backdrop-filter: blur(12px) saturate(110%); -webkit-backdrop-filter: blur(12px) saturate(110%); }
+@media(max-width:1050px){.company-background-picker{grid-template-columns:repeat(3,minmax(110px,1fr))}}
+@media(max-width:600px){.company-background-picker{grid-template-columns:repeat(2,minmax(110px,1fr))}.company-background-thumb{height:76px}}
 .broker-branding-banner { height: 62px; position: relative; overflow: hidden; border: 1px solid var(--border); background: var(--surface); display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 12px; }
 .broker-branding-banner[hidden] { display: none; }
 .broker-branding-banner > img { width: 44px; height: 44px; object-fit: contain; position: relative; z-index: 1; }

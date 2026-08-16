@@ -259,6 +259,7 @@
     companyBannerName: $("#companyBannerName"),
     companyNameInput: $("#companyNameInput"),
     companySidebarColor: $("#companySidebarColor"),
+    companyBackgroundPicker: $("#companyBackgroundPicker"),
     companySloganInput: $("#companySloganInput"),
     companyPhoneInput: $("#companyPhoneInput"),
     companyWhatsappInput: $("#companyWhatsappInput"),
@@ -1315,7 +1316,22 @@
 
   function loadCompanyIdentity() {
     const stored = readLocalObject(COMPANY_BRANDING_KEY);
-    return { name: String(stored.name || "").trim(), logo: String(stored.logo || ""), sidebarColor: String(stored.sidebarColor || "").trim() };
+    return { name: String(stored.name || "").trim(), logo: String(stored.logo || ""), sidebarColor: String(stored.sidebarColor || "").trim(), background: String(stored.background || "none") };
+  }
+
+  const COMPANY_BACKGROUNDS = {
+    "mountain-lake": "assets/backgrounds/mountain-lake.jpg",
+    "misty-forest": "assets/backgrounds/misty-forest.jpg",
+    "tropical-beach": "assets/backgrounds/tropical-beach.jpg",
+    "green-hills": "assets/backgrounds/green-hills.jpg",
+    "night-city": "assets/backgrounds/night-city.jpg"
+  };
+
+  function applyCompanyBackground(value) {
+    const background = Object.hasOwn(COMPANY_BACKGROUNDS, value) ? value : "none";
+    document.body.dataset.companyBackground = background;
+    document.documentElement.style.setProperty("--company-background-image", background === "none" ? "none" : `url("${COMPANY_BACKGROUNDS[background]}")`);
+    return background;
   }
 
   function sidebarColorData(value) {
@@ -1357,7 +1373,8 @@
       return null;
     }
     const current = loadCompanyIdentity();
-    const identity = { name, logo: pendingCompanyLogo || current.logo || "", sidebarColor: applyCompanySidebarColor(el.companySidebarColor?.value || current.sidebarColor || "#0b7658") };
+    const selectedBackground = document.querySelector('input[name="companyBackground"]:checked')?.value || current.background || "none";
+    const identity = { name, logo: pendingCompanyLogo || current.logo || "", sidebarColor: applyCompanySidebarColor(el.companySidebarColor?.value || current.sidebarColor || "#0b7658"), background: applyCompanyBackground(selectedBackground) };
     try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); }
     catch {
       el.companySettingsStatus.textContent = "Não foi possível salvar. Use uma imagem menor.";
@@ -1378,6 +1395,9 @@
     const logo = identity.logo || defaultLogo;
     if (el.companySidebarColor) el.companySidebarColor.value = identity.sidebarColor || "#0b7658";
     applyCompanySidebarColor(identity.sidebarColor || "#0b7658");
+    applyCompanyBackground(identity.background);
+    const backgroundRadio = document.querySelector(`input[name="companyBackground"][value="${identity.background}"]`) || document.querySelector('input[name="companyBackground"][value="none"]');
+    if (backgroundRadio) backgroundRadio.checked = true;
     const supervisorReportLogo = document.querySelector("#supervisor-view-reports .supervisor-report-sheet header img");
     [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo], [supervisorReportLogo, logo], [el.brokerReportLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
     if (el.brokerCompanyName) el.brokerCompanyName.textContent = name;
@@ -5012,6 +5032,9 @@
     document.querySelectorAll("[data-company-upload]").forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.companyUpload)?.click()));
     el.companyLogoInput?.addEventListener("change", () => readCompanyImage(el.companyLogoInput.files?.[0], "logo"));
     el.companySidebarColor?.addEventListener("input", () => applyCompanySidebarColor(el.companySidebarColor.value));
+    el.companyBackgroundPicker?.addEventListener("change", (event) => {
+      if (event.target.matches('input[name="companyBackground"]')) applyCompanyBackground(event.target.value);
+    });
     el.companyBannerInput?.addEventListener("change", () => readCompanyImage(el.companyBannerInput.files?.[0], "banner"));
     el.companySettingsForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
