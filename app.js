@@ -258,6 +258,7 @@
     supervisorCompanyName: $("#supervisorCompanyName"),
     companyBannerName: $("#companyBannerName"),
     companyNameInput: $("#companyNameInput"),
+    companySidebarColor: $("#companySidebarColor"),
     companySloganInput: $("#companySloganInput"),
     companyPhoneInput: $("#companyPhoneInput"),
     companyWhatsappInput: $("#companyWhatsappInput"),
@@ -1314,7 +1315,38 @@
 
   function loadCompanyIdentity() {
     const stored = readLocalObject(COMPANY_BRANDING_KEY);
-    return { name: String(stored.name || "").trim(), logo: String(stored.logo || "") };
+    return { name: String(stored.name || "").trim(), logo: String(stored.logo || ""), sidebarColor: String(stored.sidebarColor || "").trim() };
+  }
+
+  function sidebarColorData(value) {
+    const hex = /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#0b7658";
+    const rgb = [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+    const luminance = rgb.reduce((sum, channel, index) => sum + (channel / 255) * [0.2126, 0.7152, 0.0722][index], 0);
+    const darkText = luminance > 0.62;
+    return {
+      hex, rgb,
+      deep: rgb.map((channel) => Math.max(0, Math.round(channel * 0.56))),
+      text: darkText ? "#10251e" : "#f5fff9",
+      muted: darkText ? "rgba(16,37,30,.76)" : "rgba(225,250,239,.78)",
+      icon: darkText ? "#073d2d" : "#a2f8d2",
+      line: darkText ? "rgba(7,61,45,.28)" : "rgba(220,255,240,.3)",
+      highlight: darkText ? "rgba(7,61,45,.13)" : "rgba(235,255,247,.16)"
+    };
+  }
+
+  function applyCompanySidebarColor(value) {
+    const color = sidebarColorData(value);
+    document.querySelectorAll(".sidebar, .supervisor-sidebar").forEach((sidebar) => {
+      sidebar.classList.add("company-sidebar-custom");
+      sidebar.style.setProperty("--company-sidebar", `rgba(${color.rgb.join(",")},.97)`);
+      sidebar.style.setProperty("--company-sidebar-deep", `rgb(${color.deep.join(",")})`);
+      sidebar.style.setProperty("--company-sidebar-text", color.text);
+      sidebar.style.setProperty("--company-sidebar-muted", color.muted);
+      sidebar.style.setProperty("--company-sidebar-icon", color.icon);
+      sidebar.style.setProperty("--company-sidebar-line", color.line);
+      sidebar.style.setProperty("--company-sidebar-highlight", color.highlight);
+    });
+    return color.hex;
   }
 
   function saveCompanyIdentity() {
@@ -1325,7 +1357,7 @@
       return null;
     }
     const current = loadCompanyIdentity();
-    const identity = { name, logo: pendingCompanyLogo || current.logo || "" };
+    const identity = { name, logo: pendingCompanyLogo || current.logo || "", sidebarColor: applyCompanySidebarColor(el.companySidebarColor?.value || current.sidebarColor || "#0b7658") };
     try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); }
     catch {
       el.companySettingsStatus.textContent = "Não foi possível salvar. Use uma imagem menor.";
@@ -1344,6 +1376,8 @@
     const defaultLogo = "https://imagensconrato.pagecor.com.br/logo-lungo.png";
     const name = identity.name || "Lungo";
     const logo = identity.logo || defaultLogo;
+    if (el.companySidebarColor) el.companySidebarColor.value = identity.sidebarColor || "#0b7658";
+    applyCompanySidebarColor(identity.sidebarColor || "#0b7658");
     const supervisorReportLogo = document.querySelector("#supervisor-view-reports .supervisor-report-sheet header img");
     [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo], [supervisorReportLogo, logo], [el.brokerReportLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
     if (el.brokerCompanyName) el.brokerCompanyName.textContent = name;
@@ -4977,6 +5011,7 @@
     el.supervisorNavItems.filter((button) => button.dataset.supervisorOperation).forEach((button) => button.addEventListener("click", () => setSupervisorOperation(button.dataset.supervisorOperation)));
     document.querySelectorAll("[data-company-upload]").forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.companyUpload)?.click()));
     el.companyLogoInput?.addEventListener("change", () => readCompanyImage(el.companyLogoInput.files?.[0], "logo"));
+    el.companySidebarColor?.addEventListener("input", () => applyCompanySidebarColor(el.companySidebarColor.value));
     el.companyBannerInput?.addEventListener("change", () => readCompanyImage(el.companyBannerInput.files?.[0], "banner"));
     el.companySettingsForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
