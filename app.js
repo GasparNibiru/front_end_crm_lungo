@@ -128,6 +128,7 @@
   let supervisorActiveClientId = "";
   let pendingCompanyLogo = "";
   let pendingBrokerProfilePhoto = "";
+  const brokerPhotoCrop = { image: null, zoom: 1, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0 };
   let pendingCompanyBanner = "";
   const supervisorSharedViewState = new Map();
   let supervisorMountedView = null;
@@ -1395,6 +1396,40 @@
     applyBrokerPersonalization(preferences);
     if (el.brokerPersonalizationStatus) { el.brokerPersonalizationStatus.textContent = "Personalização salva para o seu acesso."; el.brokerPersonalizationStatus.className = "auth-status ok"; }
     toast("Personalização atualizada com sucesso.");
+  }
+
+  function drawBrokerPhotoCrop() {
+    const canvas = $("#brokerPhotoCropCanvas"), image = brokerPhotoCrop.image;
+    if (!canvas || !image) return;
+    const ctx = canvas.getContext("2d"), size = canvas.width;
+    const baseScale = Math.max(size / image.naturalWidth, size / image.naturalHeight), scale = baseScale * brokerPhotoCrop.zoom;
+    const width = image.naturalWidth * scale, height = image.naturalHeight * scale;
+    const maxX = Math.max(0, (width - size) / 2), maxY = Math.max(0, (height - size) / 2);
+    brokerPhotoCrop.offsetX = Math.max(-maxX, Math.min(maxX, brokerPhotoCrop.offsetX));
+    brokerPhotoCrop.offsetY = Math.max(-maxY, Math.min(maxY, brokerPhotoCrop.offsetY));
+    ctx.clearRect(0, 0, size, size); ctx.save(); ctx.beginPath(); ctx.arc(size / 2, size / 2, size / 2 - 3, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(image, (size - width) / 2 + brokerPhotoCrop.offsetX, (size - height) / 2 + brokerPhotoCrop.offsetY, width, height); ctx.restore();
+    ctx.beginPath(); ctx.arc(size / 2, size / 2, size / 2 - 3, 0, Math.PI * 2); ctx.strokeStyle = "rgba(255,255,255,.92)"; ctx.lineWidth = 5; ctx.stroke();
+  }
+
+  function openBrokerPhotoEditor(source) {
+    const image = new Image();
+    image.onload = () => { brokerPhotoCrop.image = image; brokerPhotoCrop.zoom = 1; brokerPhotoCrop.offsetX = 0; brokerPhotoCrop.offsetY = 0; if ($("#brokerPhotoZoom")) $("#brokerPhotoZoom").value = "1"; drawBrokerPhotoCrop(); $("#brokerPhotoEditorModal")?.showModal(); };
+    image.onerror = () => toast("Não foi possível abrir essa imagem."); image.src = source;
+  }
+
+  function applyBrokerPhotoCrop() {
+    const preview = $("#brokerPhotoCropCanvas"); if (!preview || !brokerPhotoCrop.image) return;
+    const output = document.createElement("canvas"); output.width = 512; output.height = 512;
+    const ctx = output.getContext("2d"), image = brokerPhotoCrop.image, ratio = output.width / preview.width;
+    const baseScale = Math.max(preview.width / image.naturalWidth, preview.height / image.naturalHeight) * brokerPhotoCrop.zoom;
+    const width = image.naturalWidth * baseScale * ratio, height = image.naturalHeight * baseScale * ratio;
+    ctx.drawImage(image, (output.width - width) / 2 + brokerPhotoCrop.offsetX * ratio, (output.height - height) / 2 + brokerPhotoCrop.offsetY * ratio, width, height);
+    pendingBrokerProfilePhoto = output.toDataURL("image/webp", .86);
+    if (el.brokerProfilePhotoPreview) { el.brokerProfilePhotoPreview.src = pendingBrokerProfilePhoto; el.brokerProfilePhotoPreview.hidden = false; }
+    if (el.brokerProfileInitials) el.brokerProfileInitials.hidden = true;
+    if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = "Foto ajustada — salve para confirmar";
+    $("#brokerPhotoEditorModal")?.close();
   }
 
   function sidebarColorData(value) {
@@ -3589,7 +3624,6 @@
     if (el.brokerReportFunnel) el.brokerReportFunnel.innerHTML = STATUSES.map((stage) => `<span><b>${leads.filter((lead) => lead.status === stage.value).length}</b>${escapeHtml(stage.label)}</span>`).join("");
     if (el.brokerReportClientRows) el.brokerReportClientRows.innerHTML = clients.slice(0, 10).map((client) => `<tr><td>${escapeHtml(client.nome || client.name || "—")}</td><td>${escapeHtml(client.produto || "—")}</td><td>${escapeHtml(CLIENT_STATUS_LABEL[normalizeClientStatus(client.status)] || "Ativo")}</td><td>${escapeHtml(formatMoney(client.valorFechado || client.valor || ""))}</td><td>${escapeHtml(formatDateOnly(client.dataContratacao || client.createdAt))}</td></tr>`).join("") || `<tr><td colspan="5">Nenhum cliente cadastrado.</td></tr>`;
     if (el.brokerReportFooter) el.brokerReportFooter.textContent = `${identity.name || "Lungo"} · ${new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · 1/1`;
-    renderCompanyIdentity();
   }
 
   async function refreshBrokerReport() {
@@ -5066,9 +5100,16 @@
     el.brokerProfilePhotoInput?.addEventListener("change", () => {
       const file = el.brokerProfilePhotoInput.files?.[0];
       if (!file || !String(file.type).startsWith("image/")) return toast("Selecione uma imagem válida.");
-      if (file.size > 1200000) return toast("Use uma foto de até 1,2 MB.");
-      const reader = new FileReader(); reader.onload = () => { pendingBrokerProfilePhoto = String(reader.result || ""); if (el.brokerProfilePhotoPreview) { el.brokerProfilePhotoPreview.src = pendingBrokerProfilePhoto; el.brokerProfilePhotoPreview.hidden = false; } if (el.brokerProfileInitials) el.brokerProfileInitials.hidden = true; if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = file.name; }; reader.readAsDataURL(file);
+      if (file.size > 8000000) return toast("Use uma foto de até 8 MB.");
+      const reader = new FileReader(); reader.onload = () => openBrokerPhotoEditor(String(reader.result || "")); reader.readAsDataURL(file);
     });
+    $("#brokerPhotoZoom")?.addEventListener("input", (event) => { brokerPhotoCrop.zoom = Number(event.target.value) || 1; drawBrokerPhotoCrop(); });
+    const cropCanvas = $("#brokerPhotoCropCanvas");
+    cropCanvas?.addEventListener("pointerdown", (event) => { brokerPhotoCrop.dragging = true; brokerPhotoCrop.lastX = event.clientX; brokerPhotoCrop.lastY = event.clientY; cropCanvas.setPointerCapture(event.pointerId); });
+    cropCanvas?.addEventListener("pointermove", (event) => { if (!brokerPhotoCrop.dragging) return; const ratio = cropCanvas.width / Math.max(1, cropCanvas.getBoundingClientRect().width); brokerPhotoCrop.offsetX += (event.clientX - brokerPhotoCrop.lastX) * ratio; brokerPhotoCrop.offsetY += (event.clientY - brokerPhotoCrop.lastY) * ratio; brokerPhotoCrop.lastX = event.clientX; brokerPhotoCrop.lastY = event.clientY; drawBrokerPhotoCrop(); });
+    ["pointerup", "pointercancel"].forEach((name) => cropCanvas?.addEventListener(name, () => { brokerPhotoCrop.dragging = false; }));
+    [$("#brokerPhotoEditorClose"), $("#brokerPhotoEditorCancel")].forEach((button) => button?.addEventListener("click", () => $("#brokerPhotoEditorModal")?.close()));
+    $("#brokerPhotoEditorApply")?.addEventListener("click", applyBrokerPhotoCrop);
     el.brokerSidebarColor?.addEventListener("input", () => applyCompanySidebarColor(el.brokerSidebarColor.value));
     el.brokerThemeSelect?.addEventListener("change", () => { el.root.dataset.theme = el.brokerThemeSelect.value; });
     el.brokerBackgroundPicker?.addEventListener("change", (event) => { if (event.target.matches('input[name="brokerBackground"]')) applyCompanyBackground(event.target.value); });
