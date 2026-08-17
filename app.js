@@ -3132,10 +3132,13 @@
     }
     if (String(qr).startsWith("data:image")) {
       el.qrImage.src = qr;
-    } else if (window.QRCode) {
-      el.qrImage.src = await QRCode.toDataURL(qr, { width: 280, margin: 1 });
+    } else if (typeof window.qrcode === "function") {
+      const generatedQr = window.qrcode(0, "M");
+      generatedQr.addData(String(qr));
+      generatedQr.make();
+      el.qrImage.src = generatedQr.createDataURL(6, 2);
     } else {
-      return;
+      throw new Error("Não foi possível carregar o gerador de QR Code.");
     }
     const empty = el.qrBox.querySelector("span");
     if (empty) empty.hidden = true;
