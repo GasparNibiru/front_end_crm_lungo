@@ -47,6 +47,7 @@
   const changeAccess = (id, action, adminKey, body = {}) => request(`/api/admin/accesses/${encodeURIComponent(id)}/${action}`, { method: "POST", adminKey, body });
   const renewAccess = (id, payload, adminKey) => request(`/api/admin/accesses/${encodeURIComponent(id)}/token/renew`, { method: "POST", adminKey, body: payload });
   const invalidateAccess = (id, adminKey) => request(`/api/admin/accesses/${encodeURIComponent(id)}/token/invalidate`, { method: "POST", adminKey, body: {} });
+  const resendAccessEmail = (id, adminKey) => request(`/api/admin/accesses/${encodeURIComponent(id)}/email/send`, { method: "POST", adminKey, body: {} });
   const getFinancial = (adminKey) => request("/api/admin/financial", { adminKey });
   const getFinancialCalendar = (month, adminKey) => request(`/api/admin/financial/calendar?month=${encodeURIComponent(month)}`, { adminKey });
   const getPayment = (id, adminKey) => request(`/api/admin/payments/${encodeURIComponent(id)}`, { adminKey });
@@ -63,5 +64,5 @@
   const createMarketplaceLead = (payload, adminKey) => request('/api/admin/lead-marketplace/leads', { method: 'POST', adminKey, body: payload });
   const updateMarketplaceLead = (id, payload, adminKey) => request(`/api/admin/lead-marketplace/leads/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
 
-  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, getArchivedOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, archiveAccess, changeAccess, renewAccess, invalidateAccess, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining, getLeadMarketplace, updateLeadMarketplaceSettings, adjustLeadCredits, createMarketplaceLead, updateMarketplaceLead });
+  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, getArchivedOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, archiveAccess, changeAccess, renewAccess, invalidateAccess, resendAccessEmail, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining, getLeadMarketplace, updateLeadMarketplaceSettings, adjustLeadCredits, createMarketplaceLead, updateMarketplaceLead });
 })();

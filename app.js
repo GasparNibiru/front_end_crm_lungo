@@ -25,6 +25,7 @@
   const ADMIN_DATA_VERSION = 2;
   const ADMIN_EXTRA_ACCESS_PRICE = 15.90;
   const ADMIN_PLAN_DEFINITIONS = [
+    { id: "free", name: "Plano Free", price: 0, brokerLimit: 1, managerLimit: 0, description: "1 acesso gratuito" },
     { id: "individual", name: "Plano Individual", price: 25.90, brokerLimit: 1, managerLimit: 0, description: "1 acesso para corretor" },
     { id: "team", name: "Plano Equipe", price: 49.90, brokerLimit: 2, managerLimit: 1, description: "1 supervisor + 2 corretores" },
     { id: "broker10", name: "Plano Corretora 10", price: 149.90, brokerLimit: 10, managerLimit: 1, description: "1 master ou supervisor + 10 corretores" },
@@ -120,11 +121,14 @@
     { id: "c-d10", leadId: "d10", client: "Otávio Ramos", seller: "Diego Alves", phone: "(41) 99777-1212", email: "otavio@exemplo.com", product: "Auto", status: "Ativo", lives: 1, value: "R$ 2.640", date: "08/08/2026", renewal: "08/08/2027", post: "Contato agendado", notes: "Originado do fechamento d10." }
   ];
   let supervisorAccessToken = "";
+  let supervisorUserId = "";
   let supervisorDashboard = null;
   let supervisorOrganizationName = "";
   const supervisorSelectedClientIds = new Set();
   let supervisorActiveClientId = "";
   let pendingCompanyLogo = "";
+  let pendingBrokerProfilePhoto = "";
+  const brokerPhotoCrop = { image: null, zoom: 1, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0 };
   let pendingCompanyBanner = "";
   const supervisorSharedViewState = new Map();
   let supervisorMountedView = null;
@@ -146,6 +150,8 @@
   ];
   let adminMasterLogged = false;
   let adminMasterKey = "";
+  let adminMasterCurrentView = "dashboard";
+  const adminMasterViewHistory = [];
   let adminTrainings = [];
   let brokerMessageTimer = null;
   let supervisorMessageTimer = null;
@@ -254,6 +260,8 @@
     supervisorCompanyName: $("#supervisorCompanyName"),
     companyBannerName: $("#companyBannerName"),
     companyNameInput: $("#companyNameInput"),
+    companySidebarColor: $("#companySidebarColor"),
+    companyBackgroundPicker: $("#companyBackgroundPicker"),
     companySloganInput: $("#companySloganInput"),
     companyPhoneInput: $("#companyPhoneInput"),
     companyWhatsappInput: $("#companyWhatsappInput"),
@@ -327,6 +335,7 @@
       vendedores: $("#view-vendedores"),
       agenda: $("#view-agenda"),
       comprar_leads: $("#view-comprar_leads"),
+      settings: $("#view-settings"),
       soon: $("#view-soon")
     },
     viewTitle: $("#viewTitle"),
@@ -341,6 +350,17 @@
     topStatus: $("#topStatus"),
     topLogoutBtn: $("#topLogoutBtn"),
     sidebarClient: $("#sidebarClient"),
+    brokerPersonalizationForm: $("#brokerPersonalizationForm"),
+    brokerFixedCompanyName: $("#brokerFixedCompanyName"),
+    brokerProfilePhotoInput: $("#brokerProfilePhotoInput"),
+    brokerProfilePhotoButton: $("#brokerProfilePhotoButton"),
+    brokerProfilePhotoName: $("#brokerProfilePhotoName"),
+    brokerProfilePhotoPreview: $("#brokerProfilePhotoPreview"),
+    brokerProfileInitials: $("#brokerProfileInitials"),
+    brokerSidebarColor: $("#brokerSidebarColor"),
+    brokerThemeSelect: $("#brokerThemeSelect"),
+    brokerBackgroundPicker: $("#brokerBackgroundPicker"),
+    brokerPersonalizationStatus: $("#brokerPersonalizationStatus"),
 
     metricsBar: $("#metricsBar"),
     listModeBtn: $("#listModeBtn"),
@@ -399,6 +419,8 @@
     clientDocumento: $("#clientDocumento"),
     clientCidade: $("#clientCidade"),
     clientProduto: $("#clientProduto"),
+    supervisorClientOwnerLabel: $("#supervisorClientOwnerLabel"),
+    supervisorClientOwner: $("#supervisorClientOwner"),
     productSuggestions: $("#productSuggestions"),
     clientQtdVidas: $("#clientQtdVidas"),
     clientValorFechado: $("#clientValorFechado"),
@@ -421,6 +443,8 @@
     baseSaleClientId: $("#baseSaleClientId"),
     baseSaleClientName: $("#baseSaleClientName"),
     baseSaleProduto: $("#baseSaleProduto"),
+    baseSaleSellerLabel: $("#baseSaleSellerLabel"),
+    baseSaleSeller: $("#baseSaleSeller"),
     baseSaleVidas: $("#baseSaleVidas"),
     baseSaleValor: $("#baseSaleValor"),
     baseSaleData: $("#baseSaleData"),
@@ -535,11 +559,18 @@
     toast: $("#toast")
   };
 
-  function toast(message) {
-    el.toast.textContent = message;
+  function toast(message, tone = "auto") {
+    const text = String(message || "");
+    const normalized = text.toLocaleLowerCase("pt-BR");
+    const resolvedTone = tone === "auto"
+      ? (/erro|inválid|não foi possível|não encontrado|falhou|selecione|informe|atenção/.test(normalized) ? "error"
+        : /salv|atualiz|cadastr|criad|confirm|conclu|adicion|exclu|removid|restaur|enviad|copiad|conectad|registrad|gerad|realizad/.test(normalized) ? "success" : "info")
+      : tone;
+    el.toast.dataset.tone = resolvedTone;
+    el.toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${resolvedTone === "success" ? "✓" : resolvedTone === "error" ? "!" : "i"}</span><span>${escapeHtml(text)}</span>`;
     el.toast.classList.add("show");
     clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => el.toast.classList.remove("show"), 2600);
+    toast._timer = setTimeout(() => el.toast.classList.remove("show"), 4600);
   }
 
   function popupConfirm(message, title = "Confirmar ação", okText = "Confirmar") {
@@ -787,6 +818,29 @@
     return digits;
   }
 
+  function formatBrazilPhone(value) {
+    let digits = String(value || "").replace(/\D/g, "");
+    if (digits.length > 11 && digits.startsWith("55")) digits = digits.slice(2);
+    digits = digits.slice(0, 11);
+    if (!digits) return "";
+    if (digits.length < 3) return `(${digits}`;
+    const ddd = digits.slice(0, 2), number = digits.slice(2);
+    if (number.length <= 4) return `(${ddd}) ${number}`;
+    const split = number.length > 8 ? 5 : 4;
+    return `(${ddd}) ${number.slice(0, split)}${number.length > split ? `-${number.slice(split)}` : ""}`;
+  }
+
+  function isContactPhoneField(field) {
+    if (!(field instanceof HTMLInputElement) || field.id === "connectPhone") return false;
+    return field.inputMode === "tel" || /(phone|telefone|whatsapp)/i.test(`${field.id} ${field.name || ""}`);
+  }
+
+  function bindBrazilPhoneMasks() {
+    document.addEventListener("focusin", (event) => { if (isContactPhoneField(event.target)) { event.target.placeholder ||= "(DDD) 99999-9999"; if (event.target.value) event.target.value = formatBrazilPhone(event.target.value); } });
+    document.addEventListener("input", (event) => { if (isContactPhoneField(event.target)) event.target.value = formatBrazilPhone(event.target.value); });
+    document.querySelectorAll("input").forEach((field) => { if (isContactPhoneField(field)) { field.placeholder ||= "(DDD) 99999-9999"; if (field.value) field.value = formatBrazilPhone(field.value); } });
+  }
+
   function formatMoney(value) {
     const text = String(value || "").trim();
     if (!text) return "—";
@@ -797,6 +851,7 @@
 
   function formatDate(value) {
     if (!value) return "—";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) { const [year, month, day] = String(value).split("-"); return `${day}/${month}/${year}`; }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "—";
     return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -1038,6 +1093,19 @@
     }).join("")}</div>`;
   }
 
+  function adminTrendBuckets(range="month",metric="revenue") {
+    const definitions={day:{days:7,step:1},week:{days:28,step:7},fortnight:{days:90,step:15},month:{days:180,step:30}},definition=definitions[range]||definitions.month,end=new Date();end.setHours(23,59,59,999);
+    const buckets=[];for(let offset=definition.days;offset>0;offset-=definition.step){const start=new Date(end);start.setDate(end.getDate()-offset+1);start.setHours(0,0,0,0);const finish=new Date(start);finish.setDate(start.getDate()+definition.step-1);finish.setHours(23,59,59,999);buckets.push({start,finish:finish>end?end:finish,value:0,count:0})}
+    const source=adminData.salesTimeline?.length?adminData.salesTimeline:adminData.clients.map(client=>({date:client.saleDate,value:calculateSubscriptionTotal(client.planId,client.extraAccesses)}));source.forEach(sale=>{const date=new Date(sale.date);if(Number.isNaN(date.getTime()))return;const bucket=buckets.find(item=>date>=item.start&&date<=item.finish);if(bucket){bucket.count++;bucket.value+=Number(sale.value||0)}});
+    return buckets.map(bucket=>({...bucket,total:metric==="sales"?bucket.count:bucket.value,label:range==="day"?bucket.start.toLocaleDateString("pt-BR",{weekday:"short"}).replace(".",""):range==="month"?bucket.start.toLocaleDateString("pt-BR",{month:"short"}).replace(".",""):bucket.start.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}));
+  }
+
+  function renderAdminSalesTrend() {
+    const target=$("#adminSalesTrend");if(!target)return;const range=$("#adminTrendRange")?.value||"month",metric=$("#adminTrendMetric")?.value||"revenue",data=adminTrendBuckets(range,metric),values=data.map(item=>item.total),max=Math.max(...values,1),width=720,height=170,padX=24,padTop=24,padBottom=28,plotHeight=height-padTop-padBottom,step=(width-padX*2)/Math.max(data.length-1,1),points=data.map((item,index)=>({x:padX+index*step,y:padTop+plotHeight-(item.total/max)*plotHeight,...item}));
+    const line=points.length?points.slice(1).reduce((path,point,index)=>{const previous=points[index],controlX=(previous.x+point.x)/2;return `${path} C${controlX.toFixed(1)} ${previous.y.toFixed(1)}, ${controlX.toFixed(1)} ${point.y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`},`M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`):"";const area=`${line} L${points.at(-1)?.x||padX} ${height-padBottom} L${points[0]?.x||padX} ${height-padBottom} Z`,total=values.reduce((sum,value)=>sum+value,0),peak=Math.max(...values,0);
+    target.innerHTML=`<div class="admin-trend-summary"><div><small>${metric==="sales"?"Vendas no período":"Faturamento no período"}</small><b>${metric==="sales"?total:formatCurrency(total)}</b></div><span>Pico: ${metric==="sales"?peak:formatCurrency(peak)}</span></div><svg class="admin-trend-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${metric==="sales"?"Vendas":"Faturamento"} por período"><defs><linearGradient id="adminTrendArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--primary)" stop-opacity=".28"/><stop offset="1" stop-color="var(--primary)" stop-opacity="0"/></linearGradient></defs>${[0,.5,1].map(scale=>`<line class="admin-trend-grid" x1="${padX}" y1="${padTop+plotHeight*scale}" x2="${width-padX}" y2="${padTop+plotHeight*scale}"/>`).join("")}<path class="admin-trend-area" d="${area}"/><path class="admin-trend-line" d="${line}"/>${points.map(point=>`<g class="admin-trend-point"><circle cx="${point.x}" cy="${point.y}" r="3"/><title>${point.label}: ${metric==="sales"?point.total:formatCurrency(point.total)}</title>${(point.total>0||data.length<=7)?`<text x="${point.x}" y="${Math.max(12,point.y-9)}" text-anchor="middle">${metric==="sales"?point.total:formatCurrency(point.total)}</text>`:""}<text class="admin-trend-label" x="${point.x}" y="${height-8}" text-anchor="middle">${point.label}</text></g>`).join("")}</svg>`;
+  }
+
   function renderAdminDashboard() {
     const data = state.adminDashboard || {};
     const totals = data.totals || {};
@@ -1262,7 +1330,137 @@
 
   function loadCompanyIdentity() {
     const stored = readLocalObject(COMPANY_BRANDING_KEY);
-    return { name: String(stored.name || "").trim(), logo: String(stored.logo || "") };
+    return { name: String(stored.name || "").trim(), logo: String(stored.logo || ""), sidebarColor: String(stored.sidebarColor || "").trim(), background: String(stored.background || "none") };
+  }
+
+  const COMPANY_BACKGROUNDS = {
+    "mountain-lake": "assets/backgrounds/mountain-lake.jpg",
+    "misty-forest": "assets/backgrounds/misty-forest.jpg",
+    "tropical-beach": "assets/backgrounds/tropical-beach.jpg",
+    "green-hills": "assets/backgrounds/green-hills.jpg",
+    "night-city": "assets/backgrounds/night-city.jpg"
+  };
+
+  function applyCompanyBackground(value) {
+    const background = Object.hasOwn(COMPANY_BACKGROUNDS, value) ? value : "none";
+    document.body.dataset.companyBackground = background;
+    document.documentElement.style.setProperty("--company-background-image", background === "none" ? "none" : `url("${COMPANY_BACKGROUNDS[background]}")`);
+    return background;
+  }
+
+  function brokerPreferenceKey(token = state.token) {
+    let hash = 2166136261;
+    for (const char of String(token || "")) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); }
+    return `lungo-broker-appearance-v1-${(hash >>> 0).toString(36)}`;
+  }
+
+  function loadBrokerPersonalization() {
+    if (!state.token) return { photo: "", sidebarColor: "", background: "none", theme: "" };
+    const stored = readLocalObject(brokerPreferenceKey());
+    return { photo: String(stored.photo || ""), sidebarColor: String(stored.sidebarColor || ""), background: String(stored.background || "none"), theme: stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : "" };
+  }
+
+  function brokerInitials() {
+    return String(state.clientName || "Corretor").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  }
+
+  function applyBrokerPersonalization(preferences = loadBrokerPersonalization()) {
+    const company = loadCompanyIdentity();
+    const color = preferences.sidebarColor || company.sidebarColor || "#0b7658";
+    const background = applyCompanyBackground(preferences.background || "none");
+    const theme = preferences.theme || localStorage.getItem(THEME_KEY) || "dark";
+    applyCompanySidebarColor(color);
+    el.root.dataset.theme = theme;
+    if (el.brokerFixedCompanyName) el.brokerFixedCompanyName.value = company.name || "Lungo";
+    if (el.brokerSidebarColor) el.brokerSidebarColor.value = color;
+    if (el.brokerThemeSelect) el.brokerThemeSelect.value = theme;
+    const radio = document.querySelector(`input[name="brokerBackground"][value="${background}"]`) || document.querySelector('input[name="brokerBackground"][value="none"]');
+    if (radio) radio.checked = true;
+    pendingBrokerProfilePhoto = preferences.photo || "";
+    if (el.brokerCompanyLogo) {
+      el.brokerCompanyLogo.src = pendingBrokerProfilePhoto || company.logo || "https://imagensconrato.pagecor.com.br/logo-lungo.png";
+      el.brokerCompanyLogo.alt = pendingBrokerProfilePhoto ? `Foto de ${state.clientName || "corretor"}` : company.name || "Lungo";
+      el.brokerCompanyLogo.classList.toggle("broker-personal-photo", Boolean(pendingBrokerProfilePhoto));
+    }
+    if (el.brokerProfilePhotoPreview) { el.brokerProfilePhotoPreview.src = pendingBrokerProfilePhoto; el.brokerProfilePhotoPreview.hidden = !pendingBrokerProfilePhoto; }
+    if (el.brokerProfileInitials) { el.brokerProfileInitials.textContent = brokerInitials(); el.brokerProfileInitials.hidden = Boolean(pendingBrokerProfilePhoto); }
+    if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = pendingBrokerProfilePhoto ? "Foto pessoal salva" : "Nenhuma foto";
+  }
+
+  function saveBrokerPersonalization(event) {
+    event.preventDefault();
+    if (!state.token) return;
+    const preferences = { photo: pendingBrokerProfilePhoto, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
+    try { localStorage.setItem(brokerPreferenceKey(), JSON.stringify(preferences)); }
+    catch { toast("Não foi possível salvar. Tente uma foto menor."); return; }
+    applyBrokerPersonalization(preferences);
+    if (el.brokerPersonalizationStatus) { el.brokerPersonalizationStatus.textContent = "Personalização salva para o seu acesso."; el.brokerPersonalizationStatus.className = "auth-status ok"; }
+    toast("Personalização atualizada com sucesso.");
+  }
+
+  function drawBrokerPhotoCrop() {
+    const canvas = $("#brokerPhotoCropCanvas"), image = brokerPhotoCrop.image;
+    if (!canvas || !image) return;
+    const ctx = canvas.getContext("2d"), size = canvas.width;
+    const baseScale = Math.max(size / image.naturalWidth, size / image.naturalHeight), scale = baseScale * brokerPhotoCrop.zoom;
+    const width = image.naturalWidth * scale, height = image.naturalHeight * scale;
+    const maxX = Math.max(0, (width - size) / 2), maxY = Math.max(0, (height - size) / 2);
+    brokerPhotoCrop.offsetX = Math.max(-maxX, Math.min(maxX, brokerPhotoCrop.offsetX));
+    brokerPhotoCrop.offsetY = Math.max(-maxY, Math.min(maxY, brokerPhotoCrop.offsetY));
+    ctx.clearRect(0, 0, size, size); ctx.save(); ctx.beginPath(); ctx.arc(size / 2, size / 2, size / 2 - 3, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(image, (size - width) / 2 + brokerPhotoCrop.offsetX, (size - height) / 2 + brokerPhotoCrop.offsetY, width, height); ctx.restore();
+    ctx.beginPath(); ctx.arc(size / 2, size / 2, size / 2 - 3, 0, Math.PI * 2); ctx.strokeStyle = "rgba(255,255,255,.92)"; ctx.lineWidth = 5; ctx.stroke();
+  }
+
+  function openBrokerPhotoEditor(source) {
+    const image = new Image();
+    image.onload = () => { brokerPhotoCrop.image = image; brokerPhotoCrop.zoom = 1; brokerPhotoCrop.offsetX = 0; brokerPhotoCrop.offsetY = 0; if ($("#brokerPhotoZoom")) $("#brokerPhotoZoom").value = "1"; drawBrokerPhotoCrop(); $("#brokerPhotoEditorModal")?.showModal(); };
+    image.onerror = () => toast("Não foi possível abrir essa imagem."); image.src = source;
+  }
+
+  function applyBrokerPhotoCrop() {
+    const preview = $("#brokerPhotoCropCanvas"); if (!preview || !brokerPhotoCrop.image) return;
+    const output = document.createElement("canvas"); output.width = 512; output.height = 512;
+    const ctx = output.getContext("2d"), image = brokerPhotoCrop.image, ratio = output.width / preview.width;
+    const baseScale = Math.max(preview.width / image.naturalWidth, preview.height / image.naturalHeight) * brokerPhotoCrop.zoom;
+    const width = image.naturalWidth * baseScale * ratio, height = image.naturalHeight * baseScale * ratio;
+    ctx.drawImage(image, (output.width - width) / 2 + brokerPhotoCrop.offsetX * ratio, (output.height - height) / 2 + brokerPhotoCrop.offsetY * ratio, width, height);
+    pendingBrokerProfilePhoto = output.toDataURL("image/webp", .86);
+    if (el.brokerProfilePhotoPreview) { el.brokerProfilePhotoPreview.src = pendingBrokerProfilePhoto; el.brokerProfilePhotoPreview.hidden = false; }
+    if (el.brokerProfileInitials) el.brokerProfileInitials.hidden = true;
+    if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = "Foto ajustada — salve para confirmar";
+    $("#brokerPhotoEditorModal")?.close();
+  }
+
+  function sidebarColorData(value) {
+    const hex = /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#0b7658";
+    const rgb = [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+    const luminance = rgb.reduce((sum, channel, index) => sum + (channel / 255) * [0.2126, 0.7152, 0.0722][index], 0);
+    const darkText = luminance > 0.62;
+    return {
+      hex, rgb,
+      deep: rgb.map((channel) => Math.max(0, Math.round(channel * 0.56))),
+      text: darkText ? "#10251e" : "#f5fff9",
+      muted: darkText ? "rgba(16,37,30,.76)" : "rgba(225,250,239,.78)",
+      icon: darkText ? "#073d2d" : "#a2f8d2",
+      line: darkText ? "rgba(7,61,45,.28)" : "rgba(220,255,240,.3)",
+      highlight: darkText ? "rgba(7,61,45,.13)" : "rgba(235,255,247,.16)"
+    };
+  }
+
+  function applyCompanySidebarColor(value) {
+    const color = sidebarColorData(value);
+    document.querySelectorAll(".sidebar, .supervisor-sidebar").forEach((sidebar) => {
+      sidebar.classList.add("company-sidebar-custom");
+      sidebar.style.setProperty("--company-sidebar", `rgba(${color.rgb.join(",")},.97)`);
+      sidebar.style.setProperty("--company-sidebar-deep", `rgb(${color.deep.join(",")})`);
+      sidebar.style.setProperty("--company-sidebar-text", color.text);
+      sidebar.style.setProperty("--company-sidebar-muted", color.muted);
+      sidebar.style.setProperty("--company-sidebar-icon", color.icon);
+      sidebar.style.setProperty("--company-sidebar-line", color.line);
+      sidebar.style.setProperty("--company-sidebar-highlight", color.highlight);
+    });
+    return color.hex;
   }
 
   function saveCompanyIdentity() {
@@ -1273,7 +1471,8 @@
       return null;
     }
     const current = loadCompanyIdentity();
-    const identity = { name, logo: pendingCompanyLogo || current.logo || "" };
+    const selectedBackground = document.querySelector('input[name="companyBackground"]:checked')?.value || current.background || "none";
+    const identity = { name, logo: pendingCompanyLogo || current.logo || "", sidebarColor: applyCompanySidebarColor(el.companySidebarColor?.value || current.sidebarColor || "#0b7658"), background: applyCompanyBackground(selectedBackground) };
     try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); }
     catch {
       el.companySettingsStatus.textContent = "Não foi possível salvar. Use uma imagem menor.";
@@ -1292,16 +1491,27 @@
     const defaultLogo = "https://imagensconrato.pagecor.com.br/logo-lungo.png";
     const name = identity.name || "Lungo";
     const logo = identity.logo || defaultLogo;
+    if (el.companySidebarColor) el.companySidebarColor.value = identity.sidebarColor || "#0b7658";
+    applyCompanySidebarColor(identity.sidebarColor || "#0b7658");
+    applyCompanyBackground(identity.background);
+    const backgroundRadio = document.querySelector(`input[name="companyBackground"][value="${identity.background}"]`) || document.querySelector('input[name="companyBackground"][value="none"]');
+    if (backgroundRadio) backgroundRadio.checked = true;
     const supervisorReportLogo = document.querySelector("#supervisor-view-reports .supervisor-report-sheet header img");
     [[el.brokerCompanyLogo, logo], [el.supervisorCompanyLogo, logo], [supervisorReportLogo, logo], [el.brokerReportLogo, logo]].forEach(([image, src]) => { if (image) { image.src = src; image.alt = name; } });
+    [el.brokerCompanyLogo, el.supervisorCompanyLogo].forEach((image) => image?.classList.toggle("company-custom-photo", Boolean(identity.logo)));
     if (el.brokerCompanyName) el.brokerCompanyName.textContent = name;
-    if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = name;
+    if (el.supervisorCompanyName) {
+      el.supervisorCompanyName.textContent = name;
+      el.supervisorCompanyName.title = name;
+      el.supervisorCompanyName.classList.toggle("medium-name", name.length > 16 && name.length <= 27);
+      el.supervisorCompanyName.classList.toggle("long-name", name.length > 27);
+    }
     if (el.brokerReportCompany) el.brokerReportCompany.textContent = name;
     if (el.companyNameInput) el.companyNameInput.value = identity.name || "";
     pendingCompanyLogo = identity.logo || pendingCompanyLogo;
     if (el.companyLogoName) el.companyLogoName.textContent = identity.logo ? "Logo salva localmente" : "Nenhum arquivo";
     const previewImage = el.companyLogoPreview?.querySelector("img");
-    if (previewImage) previewImage.src = logo;
+    if (previewImage) { previewImage.src = logo; previewImage.classList.toggle("company-custom-photo", Boolean(identity.logo)); }
   }
 
   function readCompanyImage(file, kind) {
@@ -1309,7 +1519,7 @@
     if (file.size > 1500000) { toast("Use uma imagem de até 1,5 MB para o armazenamento local."); return; }
     const reader = new FileReader();
     reader.onload = () => {
-      if (kind === "logo") { pendingCompanyLogo = String(reader.result || ""); el.companyLogoName.textContent = file.name; const preview = el.companyLogoPreview?.querySelector("img"); if (preview) preview.src = pendingCompanyLogo; }
+      if (kind === "logo") { pendingCompanyLogo = String(reader.result || ""); el.companyLogoName.textContent = file.name; const preview = el.companyLogoPreview?.querySelector("img"); if (preview) { preview.src = pendingCompanyLogo; preview.classList.add("company-custom-photo"); } }
       else { pendingCompanyBanner = String(reader.result || ""); el.companyBannerName.textContent = file.name; }
     };
     reader.readAsDataURL(file);
@@ -1491,18 +1701,22 @@
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
     if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
+    if (name === "crm") { loadCrm(true); startCrmRealtime(); }
+    else stopCrmRealtime();
     const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
   }
 
   async function loadSupervisorRemoteData() {
-    const [dashboardResult, brokersResult, clientsResult, leadsResult, operationalClientsResult] = await Promise.all([
+    const [dashboardResult, brokersResult, clientsResult, leadsResult, operationalClientsResult, goalResult] = await Promise.all([
       window.LungoSupervisorApi.getDashboard(supervisorAccessToken),
       window.LungoSupervisorApi.getBrokers(supervisorAccessToken),
       window.LungoSupervisorApi.getClients(supervisorAccessToken),
       window.LungoSupervisorApi.getLeads(supervisorAccessToken),
-      window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken)
+      window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken),
+      window.LungoSupervisorApi.getTeamGoal(supervisorAccessToken).catch(() => ({ teamGoal: supervisorTeamGoal() }))
     ]);
+    localStorage.setItem(supervisorTeamGoalKey(), String(goalResult.teamGoal || 0));
     supervisorDashboard = dashboardResult.dashboard || {};
     SUPERVISOR_BROKERS.splice(0, SUPERVISOR_BROKERS.length, ...(brokersResult.brokers || []).map((broker) => ({ id: broker.id, name: broker.name, email: broker.email || "—", phone: broker.phone || "", token: broker.token || "", status: broker.status === "active" ? "online" : "", statusLabel: broker.status === "active" ? "Ativo" : "Bloqueado", sales: Number(broker.sales || 0), revenue: Number(broker.revenue || 0), goal: Number(broker.goalPercent || 0), login: formatLastAccess(broker.lastLoginAt), tokenActive: broker.tokenActive })));
     renderSupervisorMessageRecipients();
@@ -1534,6 +1748,7 @@
       const auth = await window.LungoSupervisorApi.verify(token);
       if (auth.user?.role !== "supervisor") throw new Error("Este token não pertence a um Supervisor.");
       supervisorAccessToken = token;
+      supervisorUserId = auth.user.id || "";
       state.token = token;
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
@@ -1542,12 +1757,12 @@
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "supervisor", token }));
       sessionStorage.setItem(TAB_PROFILE_KEY, "supervisor");
       if (!await ensureTermsAccepted()) return;
-      await loadSupervisorRemoteData();
+      await Promise.all([loadSupervisorRemoteData(), loadCrm(true)]);
       if (el.supervisorEmailInput) el.supervisorEmailInput.value = "";
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
       supervisorOrganizationName = auth.user.organization?.name || "Corretora";
       openSupervisorArea();
-    } catch (error) { supervisorAccessToken = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
+    } catch (error) { supervisorAccessToken = ""; supervisorUserId = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
     finally { el.supervisorLoginBtn.disabled = false; }
   }
 
@@ -1555,9 +1770,18 @@
     return String(name || "").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
   }
 
+  function supervisorBrokerMarkerColor(deal) {
+    const identity = String(deal?.brokerUserId || deal?.seller || "corretor");
+    let hash = 0;
+    for (let index = 0; index < identity.length; index += 1) hash = ((hash << 5) - hash + identity.charCodeAt(index)) | 0;
+    const palette = ["#22c55e", "#38bdf8", "#f59e0b", "#a78bfa", "#fb7185", "#2dd4bf", "#f97316", "#60a5fa", "#e879f9", "#84cc16"];
+    return palette[Math.abs(hash) % palette.length];
+  }
+
   function actionIcon(name) {
     const paths = {
       copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+      email: '<path d="M3 6h18v12H3z"/><path d="m3 7 9 7 9-7"/>',
       renew: '<path d="M20 7v5h-5"/><path d="M18.4 16a8 8 0 1 1 .1-8.1L20 12"/>',
       block: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
       reactivate: '<path d="M7 10V7a4 4 0 0 1 7.5-2"/><rect x="5" y="10" width="14" height="10" rx="2"/>',
@@ -1569,6 +1793,23 @@
 
   function supervisorTeamGoalKey() { return `lungo-supervisor-team-goal:${supervisorAccessToken || state.token || "sem-token"}`; }
   function supervisorTeamGoal() { return Math.max(0, Number(localStorage.getItem(supervisorTeamGoalKey()) || 0)); }
+
+  async function refreshBrokerHeaderGoal() {
+    if (!state.token || supervisorAccessToken) return;
+    try {
+      const goal = await window.LungoSupervisorApi.getTeamGoal(state.token);
+      if ($("#brokerHeaderGoal")) $("#brokerHeaderGoal").textContent = formatCurrency(goal.target || 0);
+      if ($("#brokerHeaderGoalProposals")) $("#brokerHeaderGoalProposals").textContent = Number(goal.proposals || 0).toLocaleString("pt-BR");
+      if ($("#brokerHeaderGoalRealized")) $("#brokerHeaderGoalRealized").textContent = formatCurrency(goal.realized || 0);
+      if ($("#brokerHeaderGoalPercent")) $("#brokerHeaderGoalPercent").textContent = `${Number(goal.percent || 0)}%`;
+      if ($("#brokerHeaderGoalBar")) $("#brokerHeaderGoalBar").style.width = `${Math.min(100, Math.max(0, Number(goal.percent || 0)))}%`;
+    } catch (_) {
+      if ($("#brokerHeaderGoal")) $("#brokerHeaderGoal").textContent = "Não definida";
+      if ($("#brokerHeaderGoalProposals")) $("#brokerHeaderGoalProposals").textContent = "0";
+      if ($("#brokerHeaderGoalRealized")) $("#brokerHeaderGoalRealized").textContent = formatCurrency(0);
+      if ($("#brokerHeaderGoalPercent")) $("#brokerHeaderGoalPercent").textContent = "0%";
+    }
+  }
 
   function renderSupervisorGoalsAndReport() {
     const goal = supervisorTeamGoal();
@@ -1629,7 +1870,7 @@
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
     el.supervisorBrokerRows?.querySelectorAll('[data-supervisor-broker-action="archive"]').forEach((button) => { button.title = 'Excluir corretor'; button.setAttribute('aria-label', 'Excluir corretor'); });
 
     const stages = [
@@ -1640,7 +1881,7 @@
       const deals = SUPERVISOR_DEALS.filter((deal) => deal.stage === key);
       const total = deals.reduce((sum, deal) => sum + Number(String(deal.value || "").replace(/[^0-9,]/g, "").replace(",", ".") || 0), 0);
       const totalLabel = ["novos", "em_atendimento"].includes(key) ? "Valor especulativo" : key === "fechamento" ? "Realizado" : key === "perdida" ? "Perdido" : "Previsto";
-      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b><span title="Responsável: ${escapeHtml(deal.seller)}">${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
+      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b><span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
     }).join("");
 
     renderSupervisorCustomers();
@@ -1683,6 +1924,7 @@
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     clearInterval(recruitmentTimer); recruitmentTimer = null;
     supervisorAccessToken = "";
+    supervisorUserId = "";
     supervisorDashboard = null;
     supervisorOrganizationName = "";
     state.token = ""; state.clientName = ""; state.instanceName = ""; state.connected = false; state.leads = [];
@@ -1782,6 +2024,23 @@
     const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
+    if (name === "customers") {
+      const node = el.views.clients;
+      const target = $("#supervisor-view-customers");
+      if (node && target) {
+        let stateEntry = supervisorSharedViewState.get(node);
+        if (!stateEntry) {
+          const placeholder = document.createComment("supervisor-shared-clients");
+          node.parentNode.insertBefore(placeholder, node);
+          stateEntry = { placeholder, wasActive: node.classList.contains("active") };
+          supervisorSharedViewState.set(node, stateEntry);
+        }
+        target.replaceChildren(node);
+        node.classList.add("active", "supervisor-shared-view");
+        supervisorMountedView = node;
+        loadClients(true);
+      }
+    }
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
     if (name === "settings") renderCompanyIdentity();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
@@ -1828,7 +2087,7 @@
       const result = await window.LungoSupervisorApi.createBroker({ name, email, phone: phone || null, expiresAt: null }, supervisorAccessToken);
       const message = supervisorAccessMessage(name, result.token);
       el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector("p").textContent = message;
-      el.supervisorAccessStatus.textContent = "Acesso criado. Salve o token agora."; el.supervisorAccessStatus.classList.remove("error"); el.supervisorAccessStatus.classList.add("ok");
+      el.supervisorAccessStatus.textContent = result.emailDelivery?.sent ? `Acesso criado e enviado para ${email}.` : "Acesso criado, mas o e-mail não pôde ser enviado. Use o botão de reenvio."; el.supervisorAccessStatus.classList.toggle("error", !result.emailDelivery?.sent); el.supervisorAccessStatus.classList.toggle("ok", Boolean(result.emailDelivery?.sent));
       el.supervisorBrokerName.value = ""; el.supervisorBrokerEmail.value = ""; el.supervisorBrokerPhone.value = "";
       await loadSupervisorRemoteData(); renderSupervisorMocks();
     } catch (error) { el.supervisorGeneratedMessage.hidden = true; el.supervisorAccessStatus.textContent = error.message; el.supervisorAccessStatus.classList.add("error"); el.supervisorAccessStatus.classList.remove("ok"); if (isAccessLimitError(error)) showAccessLimitModal(); }
@@ -2023,6 +2282,8 @@
         return false;
       }
       setAuthLocked(false);
+      applyBrokerPersonalization();
+      refreshBrokerHeaderGoal();
       startBrokerMessagePolling();
       startCalendarReminders();
       setWhatsappPending(false);
@@ -2071,7 +2332,8 @@
       vendedores: ["Vendedores", "Gestão de equipe e acompanhamento comercial."],
       treinamentos: ["Treinamentos", "Materiais e trilhas para capacitação da equipe."],
       relatorios: ["Relatórios", "Indicadores comerciais e relatórios avançados."],
-      agenda: ["Agenda", "Compromissos, retornos e programação comercial."]
+      agenda: ["Agenda", "Compromissos, retornos e programação comercial."],
+      settings: ["Configurações", "Personalize individualmente a aparência do seu acesso."]
     };
     const isSoon = ["cotador"].includes(name);
     const activeView = isSoon ? "soon" : name;
@@ -2128,6 +2390,7 @@
     }
     if (el.clientProduto) el.clientProduto.innerHTML = productSelectOptions(el.clientProduto.value || "Saúde");
     if (el.baseSaleProduto) el.baseSaleProduto.innerHTML = productSelectOptions(el.baseSaleProduto.value || "Saúde");
+    if (el.leadPlanoInteresse) el.leadPlanoInteresse.innerHTML = productSelectOptions(el.leadPlanoInteresse.value || "Saúde");
   }
 
   function whatsappConversationWindowKey() {
@@ -2191,6 +2454,7 @@
       restore: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M6 7v12h12V7"/><path d="M8 14h8"/><path d="m11 11-3 3 3 3"/></svg>`,
       delete: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
       view: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+      team: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M14 14c.8-.6 1.8-1 3-1 2.2 0 4 1.8 4 4"/></svg>`,
       clock: clockIcon()
     };
     return icons[name] || "";
@@ -2217,7 +2481,47 @@
       : `<button class="icon-action disabled" type="button" title="WhatsApp indisponível">${iconSvg("whatsapp")}</button>`;
     const scheduled = leadScheduleActive(lead);
     const scheduleBtn = `<button class="icon-action schedule ${scheduled ? "active-schedule" : ""}" type="button" data-action="schedule" data-id="${escapeHtml(lead.id)}" title="Programar mensagem">${iconSvg("clock")}</button>`;
-    return `<div class="row-buttons">${whatsapp}${scheduleBtn}<button class="icon-action" type="button" data-action="view" data-id="${escapeHtml(lead.id)}" title="Ver mais">${iconSvg("edit")}</button></div>`;
+    const teamBtn = supervisorAccessToken ? `<button class="icon-action team" type="button" data-action="assign-team" data-id="${escapeHtml(lead.id)}" title="Enviar para corretor">${iconSvg("team")}</button>` : "";
+    return `<div class="row-buttons">${whatsapp}${scheduleBtn}<button class="icon-action" type="button" data-action="view" data-id="${escapeHtml(lead.id)}" title="Ver mais">${iconSvg("edit")}</button>${teamBtn}</div>`;
+  }
+
+  function openLeadAssignmentModal(lead) {
+    if (!lead || !supervisorAccessToken) return;
+    const activeBrokers = SUPERVISOR_BROKERS.filter((broker) => broker.id && broker.statusLabel === "Ativo");
+    const previous = $("#leadAssignmentModal");
+    if (previous) previous.remove();
+    const modal = document.createElement("dialog");
+    modal.id = "leadAssignmentModal";
+    modal.className = "modal lead-assignment-modal";
+    modal.innerHTML = `<form method="dialog" class="modal-card">
+      <header><div><h2>Enviar lead para a equipe</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
+      <div class="lead-assignment-list">${activeBrokers.length ? activeBrokers.map((broker) => `<label><input type="radio" name="leadBroker" value="${escapeHtml(broker.id)}"><span><b>${escapeHtml(broker.name)}</b><small>${escapeHtml(broker.email || "Corretor ativo")}</small></span></label>`).join("") : `<p class="lead-assignment-empty">Nenhum corretor ativo disponível.</p>`}</div>
+      <footer><button class="btn ghost" type="button" data-close-assignment>Cancelar</button><button class="btn primary" type="submit" ${activeBrokers.length ? "" : "disabled"}>Enviar lead</button></footer>
+    </form>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll("[data-close-assignment]").forEach((button) => button.addEventListener("click", () => modal.close()));
+    modal.addEventListener("close", () => modal.remove(), { once: true });
+    modal.querySelector("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const brokerId = modal.querySelector('input[name="leadBroker"]:checked')?.value;
+      if (!brokerId) { toast("Escolha um corretor para receber o lead.", "error"); return; }
+      const submit = modal.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      submit.textContent = "Enviando...";
+      try {
+        const broker = activeBrokers.find((item) => item.id === brokerId);
+        await window.LungoSupervisorApi.assignLead(lead.id, brokerId, supervisorAccessToken);
+        modal.close();
+        toast(`Lead enviado para ${broker?.name || "o corretor"}.`);
+        await Promise.all([loadCrm(true), loadSupervisorRemoteData()]);
+        renderSupervisorMocks();
+      } catch (error) {
+        submit.disabled = false;
+        submit.textContent = "Enviar lead";
+        toast(error.message, "error");
+      }
+    });
+    modal.showModal();
   }
 
   function renderMetrics() {
@@ -2392,7 +2696,9 @@
     el.leadCnpjOuPf.value = item.cnpjOuPf || "";
     el.leadQtdVidas.value = item.qtdVidas || "";
     el.leadValorNegocio.value = item.valorNegocio || "";
-    el.leadPlanoInteresse.value = item.planoInteresse || "";
+    const selectedProduct = cleanProduct(item.planoInteresse || "Saúde") || "Saúde";
+    el.leadPlanoInteresse.innerHTML = productSelectOptions(selectedProduct);
+    el.leadPlanoInteresse.value = selectedProduct;
     el.leadCidade.value = item.cidade || "";
     el.leadStatus.value = normalizeStatus(item.status);
     el.leadObservacao.value = item.observacao || "";
@@ -2826,10 +3132,13 @@
     }
     if (String(qr).startsWith("data:image")) {
       el.qrImage.src = qr;
-    } else if (window.QRCode) {
-      el.qrImage.src = await QRCode.toDataURL(qr, { width: 280, margin: 1 });
+    } else if (typeof window.qrcode === "function") {
+      const generatedQr = window.qrcode(0, "M");
+      generatedQr.addData(String(qr));
+      generatedQr.make();
+      el.qrImage.src = generatedQr.createDataURL(6, 2);
     } else {
-      return;
+      throw new Error("Não foi possível carregar o gerador de QR Code.");
     }
     const empty = el.qrBox.querySelector("span");
     if (empty) empty.hidden = true;
@@ -3032,6 +3341,11 @@
 
   function clientBaseSales(client) {
     return Array.isArray(client.vendasBase) ? client.vendasBase : [];
+  }
+
+  function saleResponsibilityLabel(sale = {}) {
+    if (sale.responsavelVendaTipo === "supervisor" || sale.responsavelVendaTipo === "administrativo") return "Venda administrativa";
+    return sale.responsavelVendaNome ? `Venda realizada por ${sale.responsavelVendaNome}` : "Venda do corretor";
   }
 
   function baseSaleValue(sale) {
@@ -3249,7 +3563,7 @@
       const whatsapp = phone ? `https://wa.me/${phone}` : "#";
       const email = client.email ? `mailto:${encodeURIComponent(client.email)}` : "#";
       return `<tr>
-        <td><div class="client-name-cell"><div class="contact-main client-name-only"><b>${postSaleClockHtml(client)}${escapeHtml(client.nome || "Cliente")}</b><span>${escapeHtml(phone || "—")}</span></div></div></td>
+        <td><div class="client-name-cell"><div class="contact-main client-name-only"><b>${postSaleClockHtml(client)}${escapeHtml(client.nome || "Cliente")}</b><span>${escapeHtml(phone || "—")}${supervisorAccessToken && client.brokerName ? ` · ${escapeHtml(client.brokerName)}` : ""}</span></div></div></td>
         <td class="product-icons-cell">${productIconsHtml(client)}</td>
         <td><span class="status-badge status-${escapeHtml(normalizeClientStatus(client.status))}">${escapeHtml(client.statusLabel || CLIENT_STATUS_LABEL[normalizeClientStatus(client.status)] || "Ativo")}</span></td>
         <td>${escapeHtml(client.qtdVidas || "—")}</td>
@@ -3268,12 +3582,14 @@
   async function syncClosedClients(silent = false) {
     try {
       if (!state.token) { if (!silent) toast("Informe e salve o token do usuário."); return; }
-      const data = await api("/api/clientes/sync-fechamentos", {
+      const tokens = supervisorAccessToken ? SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo" && broker.token).map((broker) => broker.token) : [state.token];
+      const results = await Promise.all(tokens.map((token) => api("/api/clientes/sync-fechamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: state.token })
-      });
-      if (!silent) toast(`Fechamentos atualizados: ${data.sync?.created || 0} novos, ${data.sync?.updated || 0} atualizados.`);
+        body: JSON.stringify({ token })
+      })));
+      const sync = results.reduce((total, result) => ({ created: total.created + Number(result.sync?.created || 0), updated: total.updated + Number(result.sync?.updated || 0) }), { created: 0, updated: 0 });
+      if (!silent) toast(`Fechamentos atualizados: ${sync.created} novos, ${sync.updated} atualizados.`);
       await loadClients(true);
     } catch (error) {
       if (!silent) toast(error.message);
@@ -3284,8 +3600,28 @@
     try {
       if (!state.token) { if (!silent) toast("Informe e salve o token do usuário."); return; }
       if (!state.leads.length) await loadCrm(true);
-      const data = await api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`);
-      const savedClients = (data.clientes || []).map((client) => ({ ...client, status: normalizeClientStatus(client.status), source: client.source || "clientes" }));
+      let data;
+      let sourceClients;
+      if (supervisorAccessToken) {
+        const [teamData, supervisorData] = await Promise.all([
+          window.LungoSupervisorApi.getOperationalClients(supervisorAccessToken),
+          api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`)
+        ]);
+        data = teamData;
+        const consolidated = new Map();
+        (teamData.clients || []).forEach((client) => consolidated.set(String(client.id), client));
+        (supervisorData.clientes || []).forEach((client) => consolidated.set(String(client.id), { ...client, brokerUserId: supervisorUserId, brokerName: "Supervisor", ownerRole: "supervisor" }));
+        sourceClients = [...consolidated.values()];
+      } else {
+        data = await api(`/api/clientes?${clientPeriodParams()}&_=${Date.now()}`);
+        sourceClients = data.clientes || [];
+      }
+      const savedClients = sourceClients.map((client) => ({
+        ...client,
+        status: normalizeClientStatus(client.status),
+        source: client.source || "clientes",
+        _brokerToken: supervisorAccessToken ? (client.ownerRole === "supervisor" || String(client.brokerUserId) === String(supervisorUserId) ? supervisorAccessToken : (SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client.brokerUserId))?.token || "")) : ""
+      }));
       state.clients = mergeClosingLeadsWithClients(savedClients, state.leads);
       state.clientMetrics = calculateClientMetrics(state.clients);
       if (data.client) {
@@ -3319,7 +3655,6 @@
     if (el.brokerReportFunnel) el.brokerReportFunnel.innerHTML = STATUSES.map((stage) => `<span><b>${leads.filter((lead) => lead.status === stage.value).length}</b>${escapeHtml(stage.label)}</span>`).join("");
     if (el.brokerReportClientRows) el.brokerReportClientRows.innerHTML = clients.slice(0, 10).map((client) => `<tr><td>${escapeHtml(client.nome || client.name || "—")}</td><td>${escapeHtml(client.produto || "—")}</td><td>${escapeHtml(CLIENT_STATUS_LABEL[normalizeClientStatus(client.status)] || "Ativo")}</td><td>${escapeHtml(formatMoney(client.valorFechado || client.valor || ""))}</td><td>${escapeHtml(formatDateOnly(client.dataContratacao || client.createdAt))}</td></tr>`).join("") || `<tr><td colspan="5">Nenhum cliente cadastrado.</td></tr>`;
     if (el.brokerReportFooter) el.brokerReportFooter.textContent = `${identity.name || "Lungo"} · ${new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · 1/1`;
-    renderCompanyIdentity();
   }
 
   async function refreshBrokerReport() {
@@ -3352,6 +3687,7 @@
             <article><span>Vidas</span><b>${escapeHtml(sale.qtdVidas || "—")}</b></article>
             <article><span>Data</span><b>${escapeHtml(formatDateOnly(sale.dataVenda))}</b></article>
           </div>
+          <p class="contract-note"><b>${escapeHtml(saleResponsibilityLabel(sale))}</b></p>
           <div class="product-doc-download-row">
             <span>Documento deste produto</span>
             ${docButton}
@@ -3367,6 +3703,17 @@
 
   function openClientModal(client = null) {
     const item = client || { status: "ativo", produto: "Saúde" };
+    if (el.supervisorClientOwnerLabel && el.supervisorClientOwner) {
+      el.supervisorClientOwnerLabel.hidden = !supervisorAccessToken;
+      if (supervisorAccessToken) {
+        const owner = SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(item.brokerUserId));
+        const supervisorOwned = !item.id || item.ownerRole === "supervisor" || String(item.brokerUserId || supervisorUserId) === String(supervisorUserId);
+        el.supervisorClientOwner.innerHTML = supervisorOwned
+          ? `<option value="${escapeHtml(supervisorUserId)}">Supervisor · carteira exclusiva</option>`
+          : `<option value="${escapeHtml(owner?.id || item.brokerUserId || "")}">${escapeHtml(owner?.name || item.brokerName || "Corretor responsável")}</option>`;
+        el.supervisorClientOwner.disabled = true;
+      }
+    }
     state.clientDocumentPending = null;
     el.clientId.value = item.id || "";
     el.clientNome.value = item.nome || "";
@@ -3396,9 +3743,21 @@
     el.clientModal.close();
   }
 
-  function clientPayload() {
+  function clientAccessToken(clientOrId) {
+    if (!supervisorAccessToken) return state.token;
+    const client = typeof clientOrId === "object" ? clientOrId : state.clients.find((item) => String(item.id) === String(clientOrId));
+    const token = client?._brokerToken || (client?.ownerRole === "supervisor" || String(client?.brokerUserId) === String(supervisorUserId) ? supervisorAccessToken : SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(client?.brokerUserId))?.token);
+    if (!token) throw new Error("O token do corretor responsável não está disponível. Renove o acesso dele antes de alterar este cliente.");
+    return token;
+  }
+
+  function clientTokenQuery(clientOrId) {
+    return encodeURIComponent(clientAccessToken(clientOrId));
+  }
+
+  function clientPayload(token = state.token) {
     return {
-      token: state.token,
+      token,
       nome: el.clientNome.value.trim(),
       telefone: normalizePhone(el.clientTelefone.value),
       email: el.clientEmail.value.trim(),
@@ -3425,7 +3784,7 @@
       await api(`/api/clientes/${encodeURIComponent(id)}/documentacao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: state.token, documentacaoPdf })
+        body: JSON.stringify({ token: clientAccessToken(id), documentacaoPdf })
       });
       state.clientDocumentPending = null;
       el.clientDocumentName.textContent = documentacaoPdf.fileName;
@@ -3441,7 +3800,7 @@
     const id = el.clientId.value;
     if (!id || String(id).startsWith("lead-")) return toast("Salve o cliente antes de baixar a documentação.");
     try {
-      const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${tokenQuery()}`);
+      const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${clientTokenQuery(id)}`);
       downloadBase64Pdf(data.documentacaoPdf);
     } catch (error) { toast(error.message); }
   }
@@ -3452,7 +3811,13 @@
       const id = el.clientId.value;
       const shouldCreate = !id || String(id).startsWith("lead-");
       const path = shouldCreate ? "/api/clientes" : `/api/clientes/${encodeURIComponent(id)}`;
-      await api(path, { method: shouldCreate ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clientPayload()) });
+      const accessToken = shouldCreate ? (supervisorAccessToken || state.token) : clientAccessToken(id);
+      const payload = clientPayload(accessToken);
+      if (shouldCreate) {
+        payload.responsavelVendaTipo = supervisorAccessToken ? "supervisor" : "broker";
+        payload.responsavelVendaNome = supervisorAccessToken ? "Supervisor" : (state.clientName || "Corretor");
+      }
+      await api(path, { method: shouldCreate ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       closeClientModal();
       toast("Cliente salvo.");
       await loadClients();
@@ -3485,7 +3850,7 @@
       await api(`/api/clientes/${encodeURIComponent(id)}/post-sale`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: state.token, tipo: el.postSaleTipo.value, data: el.postSaleData.value, hora: el.postSaleHora?.value || "09:00", recorrencia: el.postSaleRecorrencia.value, mensagem: el.postSaleMensagem.value.trim() })
+        body: JSON.stringify({ token: clientAccessToken(id), tipo: el.postSaleTipo.value, data: el.postSaleData.value, hora: el.postSaleHora?.value || "09:00", recorrencia: el.postSaleRecorrencia.value, mensagem: el.postSaleMensagem.value.trim() })
       });
       closePostSaleModal();
       toast("Pós-venda agendado.");
@@ -3507,6 +3872,15 @@
     el.baseSaleVidas.value = "";
     el.baseSaleValor.value = "R$ ";
     el.baseSaleData.value = new Date().toISOString().slice(0, 10);
+    if (el.baseSaleSellerLabel && el.baseSaleSeller) {
+      el.baseSaleSellerLabel.hidden = !supervisorAccessToken;
+      if (supervisorAccessToken) {
+        const owner = SUPERVISOR_BROKERS.find((broker) => String(broker.id) === String(item.brokerUserId));
+        const brokerOption = item.ownerRole === "broker" && owner ? `<option value="broker:${escapeHtml(owner.id)}">${escapeHtml(owner.name)} · Corretor</option>` : "";
+        el.baseSaleSeller.innerHTML = `<option value="supervisor">Administrativo · Supervisor</option>${brokerOption}`;
+        el.baseSaleSeller.value = "supervisor";
+      }
+    }
     el.baseSaleObs.value = "";
     el.baseSaleDocumentName.textContent = "Nenhum PDF anexado";
     if (el.baseSaleDocumentFile) el.baseSaleDocumentFile.value = "";
@@ -3536,16 +3910,21 @@
     event.preventDefault();
     try {
       const id = await ensurePersistedClientForBaseSale();
+      const client = getClient(id) || {};
+      const sellerChoice = supervisorAccessToken ? (el.baseSaleSeller?.value || "supervisor") : "broker";
+      const selectedBroker = sellerChoice.startsWith("broker:") ? SUPERVISOR_BROKERS.find((broker) => broker.id === sellerChoice.slice(7)) : null;
       await api(`/api/clientes/${encodeURIComponent(id)}/base-sale`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token: state.token,
+          token: clientAccessToken(id),
           produto: el.baseSaleProduto.value.trim(),
           qtdVidas: el.baseSaleVidas.value.trim(),
           valor: el.baseSaleValor.value.trim(),
           dataVenda: el.baseSaleData.value,
           observacao: el.baseSaleObs.value.trim(),
+          responsavelVendaTipo: sellerChoice === "supervisor" ? "supervisor" : "broker",
+          responsavelVendaNome: sellerChoice === "supervisor" ? "Supervisor" : (selectedBroker?.name || client.brokerName || state.clientName || "Corretor"),
           ...(state.baseSaleDocumentPending ? { documentacaoPdf: state.baseSaleDocumentPending } : {})
         })
       });
@@ -3567,6 +3946,7 @@
       <article><span>Valor</span><b>${escapeHtml(formatMoney(sale.valor || ""))}</b></article>
       <article><span>Qtd. de vidas</span><b>${escapeHtml(sale.qtdVidas || "—")}</b></article>
       <article><span>Data da venda</span><b>${escapeHtml(formatDateOnly(sale.dataVenda))}</b></article>
+      <article><span>Responsável pela venda</span><b>${escapeHtml(saleResponsibilityLabel(sale))}</b></article>
       <article class="full"><span>Observação</span><b>${escapeHtml(sale.observacao || "—")}</b></article>
       <article class="full"><span>Documentação</span><b>${escapeHtml(sale.documentacaoPdf?.fileName || "Nenhum PDF anexado")}</b></article>
     `;
@@ -3583,7 +3963,7 @@
     const cur = state.currentSaleView;
     if (!cur) return;
     try {
-      const data = await api(`/api/clientes/${encodeURIComponent(cur.clientId)}/base-sale/${encodeURIComponent(cur.saleId)}/documentacao?token=${tokenQuery()}`);
+      const data = await api(`/api/clientes/${encodeURIComponent(cur.clientId)}/base-sale/${encodeURIComponent(cur.saleId)}/documentacao?token=${clientTokenQuery(cur.clientId)}`);
       downloadBase64Pdf(data.documentacaoPdf);
     } catch (error) { toast(error.message); }
   }
@@ -3596,10 +3976,10 @@
     for (const item of checked) {
       try {
         if (item.dataset.docSelect === "client") {
-          const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${tokenQuery()}`);
+          const data = await api(`/api/clientes/${encodeURIComponent(id)}/documentacao?token=${clientTokenQuery(id)}`);
           downloadBase64Pdf(data.documentacaoPdf);
         } else if (item.dataset.docSelect === "sale") {
-          const data = await api(`/api/clientes/${encodeURIComponent(id)}/base-sale/${encodeURIComponent(item.value)}/documentacao?token=${tokenQuery()}`);
+          const data = await api(`/api/clientes/${encodeURIComponent(id)}/base-sale/${encodeURIComponent(item.value)}/documentacao?token=${clientTokenQuery(id)}`);
           downloadBase64Pdf(data.documentacaoPdf);
         }
       } catch (error) {
@@ -3640,7 +4020,7 @@
   }
 
   async function fetchClientProducts(clientId) {
-    return api(`${productFolderEndpoint(clientId)}?token=${tokenQuery()}&_=${Date.now()}`);
+    return api(`${productFolderEndpoint(clientId)}?token=${clientTokenQuery(clientId)}&_=${Date.now()}`);
   }
 
   function renderProductFolderDocs(product) {
@@ -3674,7 +4054,7 @@
       el.productFolderClientId.value = realClientId;
       el.productFolderProductId.value = product.id;
       el.productFolderTitle.innerHTML = `<span class="inline-product-svg">${productIconSvg(product.produto)}</span>${escapeHtml(product.produto || "Produto")}`;
-      el.productFolderSubtitle.textContent = `${client.nome || "Cliente"} · pasta do produto`;
+      el.productFolderSubtitle.textContent = `${client.nome || "Cliente"} · ${saleResponsibilityLabel(product)}`;
       el.productFolderProduto.innerHTML = productSelectOptions(product.produto || "Saúde");
       el.productFolderProduto.value = product.produto || "Saúde";
       el.productFolderVidas.value = product.qtdVidas || "";
@@ -3700,7 +4080,7 @@
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token: state.token,
+          token: clientAccessToken(current.clientId),
           produto: el.productFolderProduto.value,
           qtdVidas: el.productFolderVidas.value.trim(),
           valor: el.productFolderValor.value.trim(),
@@ -3726,7 +4106,7 @@
         await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: state.token, documento })
+          body: JSON.stringify({ token: clientAccessToken(current.clientId), documento })
         });
       }
       toast(files.length === 1 ? "PDF anexado." : `${files.length} PDFs anexados.`);
@@ -3741,7 +4121,7 @@
     const current = state.currentProductFolder;
     if (!current || !docId) return;
     try {
-      const data = await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${tokenQuery()}`);
+      const data = await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${clientTokenQuery(current.clientId)}`);
       downloadBase64Pdf(data.documentacaoPdf || data.documento);
     } catch (error) { toast(error.message); }
   }
@@ -3752,7 +4132,7 @@
     const ok = await popupConfirm("Excluir este PDF da pasta do produto?", "Excluir documento", "Excluir");
     if (!ok) return;
     try {
-      await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${tokenQuery()}`, { method: "DELETE" });
+      await api(`${productFolderEndpoint(current.clientId, current.productId)}/documents/${encodeURIComponent(docId)}?token=${clientTokenQuery(current.clientId)}`, { method: "DELETE" });
       toast("Documento excluído.");
       const client = getClient(current.clientId) || { id: current.clientId };
       await openProductFolder(client, current.productId);
@@ -3924,7 +4304,7 @@
   }
 
   function calculateSubscriptionTotal(planId, extraAccesses = 0) {
-    return getPlanDefinition(planId).price + Math.max(0, Number(extraAccesses) || 0) * ADMIN_EXTRA_ACCESS_PRICE;
+    const plan=getPlanDefinition(planId);return plan.price+(plan.id==="free"?0:Math.max(0,Number(extraAccesses)||0)*ADMIN_EXTRA_ACCESS_PRICE);
   }
 
   function formatCurrency(value) {
@@ -3992,6 +4372,7 @@
   function adminRemotePlanId(subscription = {}) {
     const code = String(subscription.plan_code || subscription.planCode || "").toLowerCase();
     const name = String(subscription.plan_name || subscription.planName || "").toLowerCase();
+    if (code === "free" || name.includes("free")) return "free";
     if (code === "equipe" || name.includes("equipe")) return "team";
     if (code === "corretora10" || name.includes("10")) return "broker10";
     if (code === "corretora16" || name.includes("16")) return "broker16";
@@ -4005,12 +4386,13 @@
   }
 
   async function loadAdminRemoteData() {
-    const [organizationsResult, archivedOrganizationsResult, accessesResult, financialResult, supervisorsResult] = await Promise.all([
+    const [organizationsResult, archivedOrganizationsResult, accessesResult, financialResult, supervisorsResult, dashboardResult] = await Promise.all([
       window.LungoAdminApi.getOrganizations(adminMasterKey),
       window.LungoAdminApi.getArchivedOrganizations(adminMasterKey),
       window.LungoAdminApi.getAccesses(adminMasterKey),
       window.LungoAdminApi.getFinancial(adminMasterKey),
-      window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] }))
+      window.LungoAdminApi.getSupervisors(adminMasterKey).catch(() => ({ summary: {}, ranking: [] })),
+      window.LungoAdminApi.getDashboard(adminMasterKey).catch(() => ({ salesTimeline: [] }))
     ]);
     const allOrganizations = Array.isArray(organizationsResult) ? organizationsResult : organizationsResult?.organizations || [];
     const archivedOrganizations = Array.isArray(archivedOrganizationsResult) ? archivedOrganizationsResult : archivedOrganizationsResult?.organizations || [];
@@ -4021,7 +4403,7 @@
     const clients = organizations.map((organization) => {
       const subscription = organization.subscription || {};
       const organizationAccesses = accesses.filter((access) => String(access.organization_id || access.organizationId) === String(organization.id));
-      const supervisor = organizationAccesses.find((access) => (access.role || access.profile) === "supervisor");
+      const supervisor = organizationAccesses.find((access) => (access.role || access.profile) === "supervisor") || organizationAccesses.find((access) => (access.role || access.profile) === "broker") || organizationAccesses[0];
       return {
         id: String(organization.id), name: organization.name || "Organização", responsible: supervisor?.name || "—",
         document: organization.document_number || "—", email: supervisor?.email || "—", whatsapp: supervisor?.phone || "—",
@@ -4038,7 +4420,7 @@
       archivedClients: archivedOrganizations.map((organization) => ({ id: String(organization.id), name: organization.name || "Organização", type: organization.organization_type === "individual" ? "Individual" : "Corretora / equipe", plan: organization.subscription?.plan_name || "—", createdAt: String(organization.created_at || "").slice(0, 10), status: "Excluído" })),
       accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
       receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })).filter((payment) => payment.clientId),
-      supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, settings: {}, sequence: 0
+      supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, salesTimeline: dashboardResult?.salesTimeline || [], settings: {}, sequence: 0
     };
   }
 
@@ -4048,17 +4430,24 @@
     const currentReceivables = adminData.receivables.filter((item) => item.dueDate.startsWith(month));
     const activeClients = adminData.clients.filter((item) => item.accountStatus === "active").length;
     const late = adminData.receivables.filter((item) => item.status === "late");
-    const received = currentReceivables.filter((item) => item.status === "paid").reduce((sum, item) => sum + item.paid, 0);
+    const received = adminData.receivables.filter((item) => item.status === "paid" && item.paymentDate.startsWith(month)).reduce((sum, item) => sum + item.paid, 0);
     const pending = currentReceivables.filter((item) => item.status !== "paid").reduce((sum, item) => sum + item.expected, 0);
     const recurring = adminData.clients.filter((item) => item.accountStatus !== "inactive").reduce((sum, item) => sum + calculateSubscriptionTotal(item.planId, item.extraAccesses), 0);
     const upcoming = adminData.receivables.filter((item) => item.status !== "paid" && item.dueDate >= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     const sales = [...adminData.clients].sort((a, b) => b.saleDate.localeCompare(a.saleDate));
     const metrics = [["Total de clientes ativos", activeClients], ["Clientes inadimplentes", late.length], ["Total de acessos ativos", adminData.accesses.filter((item) => item.status === "active").length], ["Receita mensal recorrente", formatCurrency(recurring)], ["Valores recebidos no mês", formatCurrency(received)], ["Valores pendentes", formatCurrency(pending)], ["Próximos vencimentos", upcoming.length], ["Pagamentos atrasados", late.length], ["Novas vendas realizadas", sales.filter((item) => item.saleDate.startsWith(month)).length]];
+    if (!$("#adminMobileHero")) $("#adminMasterKpis").insertAdjacentHTML("beforebegin", `<section id="adminMobileHero" class="admin-mobile-hero"><div><span>Receita mensal recorrente</span><b></b><small></small></div><i aria-hidden="true">↗</i><footer><span>Recebido <b></b></span><span>Pendente <b></b></span></footer></section>`);
+    const mobileHero = $("#adminMobileHero");
+    mobileHero.querySelector(":scope > div > b").textContent = formatCurrency(recurring);
+    mobileHero.querySelector(":scope > div > small").textContent = `${activeClients} clientes ativos · ${adminData.accesses.filter((item) => item.status === "active").length} acessos`;
+    const heroTotals = mobileHero.querySelectorAll("footer b"); heroTotals[0].textContent = formatCurrency(received); heroTotals[1].textContent = formatCurrency(pending);
     $("#adminMasterKpis").innerHTML = metrics.map(([label, value]) => `<article><span>${label}</span><b>${value}</b></article>`).join("");
+    if (!$("#adminMobileQuickActions")) { $("#adminMasterKpis").insertAdjacentHTML("afterend", `<section id="adminMobileQuickActions" class="admin-mobile-quick-actions" aria-label="Ações rápidas"><header><h2>Ações rápidas</h2><span>Acessos frequentes</span></header><div>${[["new-sale","+","Nova venda"],["clients","◎","Clientes"],["tokens","⌁","Acessos"],["receivables","R$","Receber"]].map(([view,icon,label])=>`<button type="button" data-admin-quick-view="${view}"><span>${icon}</span><b>${label}</b></button>`).join("")}</div></section>`); $$("[data-admin-quick-view]").forEach(button=>button.addEventListener("click",()=>setAdminMasterView(button.dataset.adminQuickView))); }
     const listRow = (item, extra, action = "") => `<article><div><b>${escapeHtml(item.name)}</b><span>${extra}</span></div>${action}</article>`;
     $("#adminUpcomingDue").innerHTML = upcoming.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(item.expected)} · ${formatDate(item.dueDate)}`, adminMasterStatus(adminStatusClass(item.status), adminFinanceLabel(item.status))); }).join("") || "<p>Sem vencimentos próximos.</p>";
     $("#adminLatePayments").innerHTML = late.slice(0, 5).map((item) => { const client = adminClient(item.clientId); if (!client) return ""; const days = Math.max(0, Math.floor((new Date() - new Date(`${item.dueDate}T12:00:00`)) / 86400000)); return listRow(client, `${days} dias · ${formatCurrency(item.expected)} · ${getPlanDefinition(client.planId).name}`, `<button class="tiny-btn" data-admin-client-view="${client.id}">Ver</button>`); }).join("") || "<p>Sem pagamentos atrasados.</p>";
     $("#adminRecentSales").innerHTML = sales.slice(0, 5).map((client) => listRow(client, `${getPlanDefinition(client.planId).name} · ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))} · ${formatDate(client.saleDate)} · ${escapeHtml(client.responsible)}`)).join("");
+    renderAdminSalesTrend();
   }
 
   function adminClientActions(client) {
@@ -4068,13 +4457,16 @@
 
   function renderAdminClients() {
     const rows = $("#adminClientRows"); if (!rows) return;
-    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus))}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
+    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); return `<tr data-mobile-client-card="${client.id}"><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus))}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
   }
 
   function renderAccessTokens() {
     const rows = $("#adminTokenRows"); if (!rows) return;
-    rows.innerHTML = adminData.accesses.map((access) => { const client = adminClient(access.clientId); const canCopy = access.token?.startsWith("LNG-"); const invalid = access.status === "invalid"; const suspended = access.status === "blocked" || access.status === "suspended"; const statusLabel = access.status === "active" ? "Ativo" : suspended ? "Suspenso" : "Inválido"; return `<tr><td><b>${escapeHtml(client?.name || "—")}</b></td><td>${escapeHtml(access.user)}</td><td>${access.profile}</td><td><div class="supervisor-token-cell"><code>${escapeHtml(access.token)}</code>${canCopy ? `<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : ""}</div></td><td>${adminMasterStatus(adminStatusClass(access.status), statusLabel)}</td><td>${formatDate(access.createdAt)}</td><td>${access.lastAccess}</td><td>${formatDate(access.validUntil)}</td><td><div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${!invalid ? `<button class="tiny-btn icon-action-btn ${suspended ? 'success' : 'warning'}" data-token-action="${suspended ? 'reactivate' : 'block'}" data-id="${access.id}" title="${suspended ? 'Reativar' : 'Bloquear'} acesso" aria-label="${suspended ? 'Reativar' : 'Bloquear'} acesso">${actionIcon(suspended ? 'reactivate' : 'block')}</button>` : ''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Arquivar acesso" aria-label="Arquivar acesso">${actionIcon('archive')}</button></div></td></tr>`; }).join("");
-    rows.querySelectorAll('[data-token-action="archive"]').forEach((button) => { button.title = 'Excluir acesso'; button.setAttribute('aria-label', 'Excluir acesso'); });
+    const accessActions=access=>{const invalid=access.status==="invalid",suspended=access.status==="blocked"||access.status==="suspended",canEmail=access.token?.startsWith("LNG-")&&access.raw?.email;return `<div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${canEmail?`<button class="tiny-btn icon-action-btn" data-token-action="email" data-id="${access.id}" title="Reenviar acesso por e-mail" aria-label="Reenviar acesso por e-mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg></button>`:''}${!invalid?`<button class="tiny-btn icon-action-btn ${suspended?'success':'warning'}" data-token-action="${suspended?'reactivate':'block'}" data-id="${access.id}" title="${suspended?'Reativar':'Bloquear'} acesso" aria-label="${suspended?'Reativar':'Bloquear'} acesso">${actionIcon(suspended?'reactivate':'block')}</button>`:''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Excluir acesso" aria-label="Excluir acesso">${actionIcon('archive')}</button></div>`};
+    const accessRow=(access,principal=false)=>{const canCopy=access.token?.startsWith("LNG-"),suspended=access.status==="blocked"||access.status==="suspended",statusLabel=access.status==="active"?"Ativo":suspended?"Suspenso":"Inválido";return `<div class="admin-access-person ${principal?'principal':''}"><div><b>${escapeHtml(access.user)}</b><small>${escapeHtml(access.profile)} · ${escapeHtml(access.raw?.email||'Sem e-mail')}</small></div><div class="admin-access-token"><code>${escapeHtml(access.token)}</code>${canCopy?`<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>`:""}</div><span>${adminMasterStatus(adminStatusClass(access.status),statusLabel)}</span><small>${access.lastAccess||"Sem acesso"}</small>${accessActions(access)}</div>`};
+    const groups=adminData.clients.map(client=>{const accesses=adminData.accesses.filter(access=>String(access.clientId)===String(client.id)).sort((a,b)=>{const priority=item=>item.profile==="Admin Master"?0:item.profile==="Supervisor"?1:2;return priority(a)-priority(b)});return {client,principal:accesses[0],children:accesses.slice(1),accesses}}).filter(group=>group.accesses.length);
+    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="true"><span aria-hidden="true">›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.principal.profile==="Supervisor"?"Supervisor e equipe":"Acesso individual"} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}</small></div><em title="Corretores vinculados">${group.children.length}</em></button><div class="admin-access-principal"><label>${group.principal.profile==="Supervisor"?"Supervisor / acesso principal":"Acesso principal"}</label>${accessRow(group.principal,true)}</div><div class="admin-access-children">${group.children.length?`<label>Equipe / corretores vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum corretor vinculado a este supervisor.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
+    rows.querySelectorAll('.admin-access-toggle').forEach(button=>{button.onclick=()=>{const children=button.parentElement.querySelector('.admin-access-children');const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));children.hidden=expanded;};});
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
     $("#adminTokenLimitStatus").textContent = used >= allowed ? "Limite de acessos atingido. Adicione um acesso extra ou faça upgrade do plano." : "Os limites são verificados por assinatura ao gerar um acesso.";
@@ -4085,14 +4477,14 @@
     const filtered = adminData.receivables.filter((item) => { const client = adminClient(item.clientId); return (status === "all" || item.status === status) && (plan === "all" || client.planId === plan) && (!query || client.name.toLowerCase().includes(query)) && (period === "all" || item.dueDate.startsWith(month)); });
     const totals = { expected: filtered.reduce((s, i) => s + i.expected, 0), paid: filtered.reduce((s, i) => s + i.paid, 0), pending: filtered.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: filtered.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
     $("#adminReceivableKpis").innerHTML = [["Previsto", totals.expected], ["Recebido", totals.paid], ["Pendente", totals.pending], ["Atrasado", totals.late]].map(([label, value]) => `<article><span>${label}</span><b>${formatCurrency(value)}</b></article>`).join("");
-    $("#adminReceivableRows").innerHTML = filtered.map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${getPlanDefinition(client.planId).name}</td><td>${item.competence}</td><td>${formatDate(item.dueDate)}</td><td>${formatCurrency(item.expected)}</td><td>${formatCurrency(item.paid)}</td><td>${formatDate(item.paymentDate)}</td><td>${adminMasterStatus(adminStatusClass(item.status), adminPaymentLabel(item.status))}</td><td>${item.method}</td><td title="${escapeHtml(item.note)}">${escapeHtml(item.note || "—")}</td><td><div class="admin-master-actions">${item.status !== "paid" ? `<button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar pagamento</button>` : ""}<button class="tiny-btn" data-receivable-action="history" data-id="${item.id}">Histórico</button></div></td></tr>`; }).join("");
+    $("#adminReceivableRows").innerHTML = filtered.map((item) => { const client = adminClient(item.clientId); if (!client) return ""; return `<tr><td><b>${escapeHtml(client.name)}</b></td><td>${getPlanDefinition(client.planId).name}</td><td>${item.competence}</td><td>${formatDate(item.dueDate)}</td><td>${formatCurrency(item.expected)}</td><td>${formatCurrency(item.paid)}</td><td>${formatDate(item.paymentDate)}</td><td>${adminMasterStatus(adminStatusClass(item.status), adminPaymentLabel(item.status))}</td><td>${item.method}</td><td title="${escapeHtml(item.note)}">${escapeHtml(item.note || "—")}</td><td><div class="admin-master-actions">${item.status !== "paid" ? `<button class="tiny-btn" data-receivable-action="pay" data-id="${item.id}">Confirmar pagamento</button>` : `<button class="tiny-btn" data-receivable-action="edit-date" data-id="${item.id}">Editar data</button>`}<button class="tiny-btn" data-receivable-action="history" data-id="${item.id}">Histórico</button></div></td></tr>`; }).join("");
   }
 
   function renderFinancialCalendar() {
     const year = adminCalendarDate.getFullYear(), monthIndex = adminCalendarDate.getMonth(), prefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
     const entries = adminData.receivables.filter((item) => item.dueDate.startsWith(prefix));
     $("#adminCalendarTitle").textContent = new Date(year, monthIndex, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-    const sums = { expected: entries.reduce((s, i) => s + i.expected, 0), paid: entries.reduce((s, i) => s + i.paid, 0), pending: entries.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: entries.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
+    const sums = { expected: entries.reduce((s, i) => s + i.expected, 0), paid: adminData.receivables.filter((item) => item.status === "paid" && item.paymentDate.startsWith(prefix)).reduce((s, i) => s + i.paid, 0), pending: entries.filter((i) => i.status === "pending").reduce((s, i) => s + i.expected, 0), late: entries.filter((i) => i.status === "late").reduce((s, i) => s + i.expected, 0) };
     $("#adminCalendarSummary").innerHTML = [["Previsto no mês", sums.expected], ["Recebido", sums.paid], ["Pendente", sums.pending], ["Atrasado", sums.late]].map(([label, value]) => `<article><span>${label}</span><b>${formatCurrency(value)}</b></article>`).join("");
     const firstDay = new Date(year, monthIndex, 1).getDay(), days = new Date(year, monthIndex + 1, 0).getDate(); let html = "";
     for (let blank = 0; blank < firstDay; blank++) html += `<div class="admin-calendar-day empty"></div>`;
@@ -4118,18 +4510,24 @@
 
   function openAdminClientNameEdit(client) {
     const plan = getPlanDefinition(client.planId), financial = adminData.receivables.filter((item) => item.clientId === client.id), accesses = adminData.accesses.filter((item) => item.clientId === client.id);
+    const principal = accesses.find((access) => access.profile === "Supervisor") || accesses.find((access) => access.profile === "Corretor") || accesses[0];
     const pending = financial.filter((item) => item.status !== "paid").reduce((sum, item) => sum + Number(item.expected || 0), 0);
     const paid = financial.filter((item) => item.status === "paid").reduce((sum, item) => sum + Number(item.paid || 0), 0);
-    openAdminFormModal("Dados do cliente", "Informações da conta, assinatura, financeiro e acessos.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}"><label class="full">Nome do cliente<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><section class="admin-modal-history full"><h3>Assinatura</h3><p><b>Plano:</b> ${escapeHtml(plan.name)} · <b>Mensalidade:</b> ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><p><b>Limite:</b> ${adminPlanCapacity(client)} acessos · <b>Ativos:</b> ${client.activeAccesses} · <b>Extras:</b> ${client.extraAccesses}</p><p><b>Próximo vencimento:</b> ${formatDate(client.nextDue)} · <b>Conta:</b> ${escapeHtml(adminAccountLabel(client.accountStatus))}</p></section><section class="admin-modal-history full"><h3>Financeiro</h3><p><b>Recebido:</b> ${formatCurrency(paid)} · <b>Pendente:</b> ${formatCurrency(pending)}</p>${financial.slice(0, 6).map((item) => `<p>${escapeHtml(item.competence)} · ${formatCurrency(item.expected)} · ${escapeHtml(adminPaymentLabel(item.status))}</p>`).join("") || "<p>Nenhum lançamento financeiro.</p>"}</section><section class="admin-modal-history full"><h3>Acessos</h3>${accesses.map((access) => `<p><b>${escapeHtml(access.user)}</b> · ${escapeHtml(access.profile)} · ${escapeHtml(access.status)}</p>`).join("") || "<p>Nenhum acesso vinculado.</p>"}</section><button class="btn primary" type="submit">Salvar alterações</button></form>`);
+    openAdminFormModal("Editar cliente", "Dados do cliente, contato, acessos e vencimento da assinatura.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}" data-access-id="${principal?.id||""}"><label class="full">Nome do cliente ou corretora<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><label>Responsável<input id="adminClientEditResponsible" value="${escapeHtml(principal?.user||client.responsible||"")}" maxlength="160" ${principal?"required":"disabled"}></label><label>E-mail<input id="adminClientEditEmail" type="email" value="${escapeHtml(principal?.raw?.email||client.email||"")}" ${principal?"required":"disabled"}></label><label>WhatsApp / telefone<input id="adminClientEditPhone" value="${escapeHtml(principal?.raw?.phone||client.whatsapp||"")}" ${principal?"":"disabled"}></label><label>Acessos adicionais do supervisor<input id="adminClientEditExtraAccesses" type="number" min="0" step="1" value="${Math.max(0, Number(client.extraAccesses)||0)}" required><small>Quantidade além dos acessos incluídos no plano.</small></label><label>Regra de vencimento<select id="adminClientEditDueMode"><option value="thirty_days" ${client.dueMode==="30days"?"selected":""}>30 dias após pagamento</option><option value="fixed_day" ${client.dueMode==="fixed"?"selected":""}>Dia fixo do mês</option></select></label><label>Próximo vencimento<input id="adminClientEditNextDue" type="date" value="${escapeHtml(client.nextDue||"")}" required></label><label id="adminClientEditFixedDayField" ${client.dueMode==="fixed"?"":"hidden"}>Dia fixo<select id="adminClientEditFixedDay">${[1,5,10,15,20,25].map(day=>`<option value="${day}" ${Number(client.fixedDay)===day?"selected":""}>${day}</option>`).join("")}</select></label>${principal?"":'<div class="auth-status full">Este cliente ainda não possui um acesso principal; crie um acesso para editar responsável e contato.</div>'}<section class="admin-modal-history full"><h3>Resumo da assinatura</h3><p><b>Plano:</b> ${escapeHtml(plan.name)} · <b>Mensalidade atual:</b> ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><p><b>Recebido:</b> ${formatCurrency(paid)} · <b>Pendente:</b> ${formatCurrency(pending)} · <b>Acessos em uso:</b> ${client.activeAccesses} de ${adminPlanCapacity(client)}</p></section><button class="btn primary" type="submit">Salvar alterações</button></form>`);
+    $("#adminClientEditDueMode")?.addEventListener("change",event=>{$("#adminClientEditFixedDayField").hidden=event.target.value!=="fixed_day"});
     $("#adminClientEditName")?.focus();
   }
 
   async function submitAdminClientNameEdit(event) {
     event.preventDefault();
-    const form = event.target.closest("form"), client = adminClient(form?.dataset.id), name = $("#adminClientEditName")?.value.trim();
+    const form = event.target.closest("form"), client = adminClient(form?.dataset.id), name = $("#adminClientEditName")?.value.trim(),dueMode=$("#adminClientEditDueMode")?.value,nextDueDate=$("#adminClientEditNextDue")?.value;
     if (!client || !name) return;
-    try { await window.LungoAdminApi.updateOrganization(client.id, { name }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Nome do cliente atualizado."); }
-    catch (error) { toast(error.message); }
+    const extraAccesses = Number($("#adminClientEditExtraAccesses")?.value);
+    if (!Number.isInteger(extraAccesses) || extraAccesses < 0) { toast("Informe uma quantidade válida de acessos adicionais.", "error"); return; }
+    const submit=form.querySelector('button[type="submit"]');if(submit)submit.disabled=true;
+    try { const updates=[window.LungoAdminApi.updateOrganization(client.id, { name,nextDueDate,dueMode,fixedDueDay:dueMode==="fixed_day"?Number($("#adminClientEditFixedDay")?.value):null,extraAccesses }, adminMasterKey)];if(form.dataset.accessId)updates.push(window.LungoAdminApi.updateAccess(form.dataset.accessId,{name:$("#adminClientEditResponsible")?.value.trim(),email:$("#adminClientEditEmail")?.value.trim(),phone:$("#adminClientEditPhone")?.value.trim()||null},adminMasterKey));await Promise.all(updates); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Cliente e limite de acessos atualizados com sucesso.", "success"); }
+    catch (error) { toast(error.message, "error"); }
+    finally{if(submit?.isConnected)submit.disabled=false}
   }
 
   function openPaymentModal(receivable) {
@@ -4158,7 +4556,7 @@
 
   function updatePlanChangePreview(client) { const plan = getPlanDefinition($("#adminNewPlan")?.value || client.planId), extras = Number($("#adminNewPlanExtras")?.value || 0), limit = plan.brokerLimit + plan.managerLimit + extras, warning = client.activeAccesses > limit ? ` Atenção: existem ${client.activeAccesses - limit} acessos excedentes; bloqueie-os manualmente.` : ""; $("#adminPlanChangePreview").textContent = `Novo limite: ${limit} · Nova mensalidade: ${formatCurrency(calculateSubscriptionTotal(plan.id, extras))}.${warning}`; }
 
-  async function savePlanChange(event) { event.preventDefault(); const form = event.target.closest("form"), client = adminClient(form?.dataset.id), planId = $("#adminNewPlan").value, extras = Number($("#adminNewPlanExtras").value); if (!client) { toast("Organização não encontrada. Atualize a tela e tente novamente."); return; } try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
+  async function savePlanChange(event) { event.preventDefault(); const form = event.target.closest("form"), client = adminClient(form?.dataset.id), planId = $("#adminNewPlan").value, extras = planId==="free"?0:Number($("#adminNewPlanExtras").value); if (!client) { toast("Organização não encontrada. Atualize a tela e tente novamente."); return; } try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
 
   function adminMasterStatusLabel(status) {
     return { active: "Ativo", attention: "Atenção", inactive: "Inativo" }[status] || status;
@@ -4356,11 +4754,59 @@
     renderAdminMasterSettings();
   }
 
-  function setAdminMasterView(view) {
+  function ensureAdminMobileHeader() {
+    const topbar = $(".admin-master-topbar"); if (!topbar || $("#adminMobileBackBtn")) return;
+    topbar.insertAdjacentHTML("afterbegin", `<button id="adminMobileBackBtn" class="admin-mobile-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><img class="admin-mobile-logo" src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo">`);
+    $("#adminMobileBackBtn").addEventListener("click", () => {
+      const saleForm = $("#adminNewSaleForm"), saleStep = Number(saleForm?.dataset.mobileSaleStep || 1);
+      if (adminMasterCurrentView === "new-sale" && saleStep > 1) { showAdminMobileSaleStep(saleStep - 1); return; }
+      const previous = adminMasterViewHistory.pop() || "dashboard";
+      setAdminMasterView(previous, { remember: false });
+    });
+  }
+
+  function openPaymentDateModal(receivable) {
+    const client = adminClient(receivable.clientId);
+    openAdminFormModal("Editar data de recebimento", client.name, `<form id="adminPaymentDateForm" class="admin-modal-form full" data-id="${receivable.id}"><label>Competência<input value="${escapeHtml(receivable.competence)}" readonly></label><label>Valor recebido<input value="${formatCurrency(receivable.paid)}" readonly></label><label class="full">Data de recebimento<input id="adminPaymentEditDate" type="date" value="${escapeHtml(receivable.paymentDate || adminIsoDate(new Date()))}" required></label><div class="auth-status full">A alteração atualizará os indicadores de recebimento e o histórico financeiro.</div><button class="btn primary" type="submit">Salvar nova data</button></form>`);
+  }
+
+  async function updateAdminPaymentDate(event) {
+    event.preventDefault();
+    const form = event.target.closest("form"), receivable = adminData.receivables.find((item) => item.id === form?.dataset.id), submit = form?.querySelector('button[type="submit"]');
+    if (!receivable) return toast("Recebimento não encontrado.");
+    if (submit) submit.disabled = true;
+    try { await window.LungoAdminApi.updatePayment(receivable.id, { paidAt: $("#adminPaymentEditDate").value }, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal").close(); toast("Data de recebimento atualizada."); }
+    catch (error) { toast(error.message); }
+    finally { if (submit?.isConnected) submit.disabled = false; }
+  }
+
+  function ensureAdminMobileMoreSheet() {
+    const screen = $("#adminMasterScreen"); if (!screen || $("#adminMobileMoreSheet")) return;
+    const views = ["calendar", "receivables", "archived", "trainings", "lead-marketplace", "settings"];
+    const labels = { calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
+    const items = views.map((view) => { const source = $(`[data-admin-master-view="${view}"]`); return `<button type="button" data-mobile-more-view="${view}"><span>${source?.querySelector("svg")?.outerHTML || ""}</span><b>${labels[view]}</b><svg class="admin-mobile-more-next" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`; }).join("");
+    screen.insertAdjacentHTML("beforeend", `<section id="adminMobileMoreSheet" class="admin-mobile-more-sheet" hidden><header><div><span>Menu</span><h2>Mais funcionalidades</h2></div><button type="button" data-mobile-more-close aria-label="Fechar">×</button></header><nav>${items}</nav><button class="admin-mobile-more-logout" type="button" data-mobile-more-logout>Sair do Admin</button></section>`);
+    const sheet = $("#adminMobileMoreSheet");
+    sheet.addEventListener("click", (event) => { const item = event.target.closest("[data-mobile-more-view]"); if (item) setAdminMasterView(item.dataset.mobileMoreView); if (event.target.closest("[data-mobile-more-close]")) closeAdminMobileMore(); if (event.target.closest("[data-mobile-more-logout]")) logoutAdminMaster(); });
+  }
+
+  function closeAdminMobileMore() {
+    $("#adminMasterScreen")?.classList.remove("mobile-more-open");
+    $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", "false");
+    if ($("#adminMobileMoreSheet")) $("#adminMobileMoreSheet").hidden = true;
+  }
+
+  function setAdminMasterView(view, options = {}) {
+    ensureAdminMobileHeader();
+    if (window.matchMedia("(max-width: 600px)").matches && options.remember !== false && view !== adminMasterCurrentView) adminMasterViewHistory.push(adminMasterCurrentView);
+    adminMasterCurrentView = view;
     const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
+    $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
+    closeAdminMobileMore();
+    $("#adminMobileBackBtn")?.classList.toggle("visible", view !== "dashboard");
     if (view === 'trainings') loadAdminTrainings();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
   }
@@ -4371,7 +4817,7 @@
     screen.classList.toggle("admin-master-auth", !adminMasterLogged);
     $("#adminMasterLoginPanel").hidden = adminMasterLogged;
     $("#adminMasterWorkspace").hidden = !adminMasterLogged;
-    if (adminMasterLogged) { await renderAdminMaster(); setAdminMasterView("dashboard"); }
+    if (adminMasterLogged) { adminMasterViewHistory.length = 0; adminMasterCurrentView = "dashboard"; await renderAdminMaster(); setAdminMasterView("dashboard", { remember: false }); }
   }
 
   function syncAdminMasterHash() {
@@ -4427,15 +4873,42 @@
     const today = adminIsoDate(new Date());
     $("#adminSaleDate").value = today; $("#adminSalePaymentDate").value = today;
     updateAdminSaleCalculation();
+    prepareAdminMobileSaleFlow(1);
     const filter = $("#adminReceivablePlan");
     if (filter && filter.options.length === 1) ADMIN_PLAN_DEFINITIONS.forEach((plan) => filter.insertAdjacentHTML("beforeend", `<option value="${plan.id}">${plan.name}</option>`));
   }
 
+  function prepareAdminMobileSaleFlow(activeStep = 1) {
+    const form = $("#adminNewSaleForm"), grids = form?.querySelectorAll(":scope > .admin-master-form-grid");
+    if (!form || grids?.length < 2) return;
+    grids[0].classList.add("admin-sale-step", "admin-sale-step-client");
+    grids[1].classList.add("admin-sale-step", "admin-sale-step-plan");
+    const headings = form.querySelectorAll(":scope > h3");
+    headings[0]?.classList.add("admin-sale-step-heading", "admin-sale-step-client");
+    headings[1]?.classList.add("admin-sale-step-heading", "admin-sale-step-plan");
+    if (!$("#adminMobileSaleFlow")) {
+      form.querySelector(":scope > header").insertAdjacentHTML("afterend", `<nav id="adminMobileSaleFlow" class="admin-mobile-sale-flow" aria-label="Etapas da venda"><button type="button" data-sale-step="1"><span>1</span><b>Cliente</b></button><button type="button" data-sale-step="2"><span>2</span><b>Plano</b></button><button type="button" data-sale-step="3"><span>3</span><b>Revisar</b></button></nav><section id="adminMobileSaleReview" class="admin-mobile-sale-review"></section><div class="admin-mobile-sale-navigation"><button class="btn ghost" type="button" data-sale-step-back>Voltar</button><button class="btn primary" type="button" data-sale-step-next>Continuar</button></div>`);
+      $("#adminMobileSaleFlow").addEventListener("click", (event) => { const button = event.target.closest("[data-sale-step]"); if (button) showAdminMobileSaleStep(Number(button.dataset.saleStep)); });
+      form.querySelector("[data-sale-step-back]").addEventListener("click", () => showAdminMobileSaleStep(Math.max(1, Number(form.dataset.mobileSaleStep || 1) - 1)));
+      form.querySelector("[data-sale-step-next]").addEventListener("click", () => { const step = Number(form.dataset.mobileSaleStep || 1), scope = step === 1 ? grids[0] : grids[1], invalid = [...scope.querySelectorAll("input,select")].find((field) => !field.checkValidity()); if (invalid) return invalid.reportValidity(); showAdminMobileSaleStep(Math.min(3, step + 1)); });
+      grids[1].insertAdjacentElement("afterend", form.querySelector(".admin-mobile-sale-navigation"));
+    }
+    showAdminMobileSaleStep(activeStep);
+  }
+
+  function showAdminMobileSaleStep(step) {
+    const form = $("#adminNewSaleForm"); if (!form) return;
+    form.dataset.mobileSaleStep = String(step);
+    form.querySelectorAll("[data-sale-step]").forEach((button) => button.classList.toggle("active", Number(button.dataset.saleStep) === step));
+    if (step === 3) $("#adminMobileSaleReview").innerHTML = `<h3>Confira antes de registrar</h3><article><span>Cliente</span><b>${escapeHtml($("#adminSaleClientName").value || "—")}</b></article><article><span>Responsável</span><b>${escapeHtml($("#adminSaleResponsible").value || "—")}</b></article><article><span>Plano</span><b>${escapeHtml($("#adminSalePlan").selectedOptions[0]?.textContent || "—")}</b></article><article><span>Mensalidade</span><b>${escapeHtml($("#adminSaleTotalValue").value || "—")}</b></article><article><span>Próximo vencimento</span><b>${escapeHtml($("#adminSaleNextDue").value ? formatDate($("#adminSaleNextDue").value) : "—")}</b></article>`;
+  }
+
   function updateAdminSaleCalculation() {
     const plan = getPlanDefinition($("#adminSalePlan")?.value), extras = Math.max(0, Number($("#adminSaleExtras")?.value) || 0), paymentDate = $("#adminSalePaymentDate")?.value, dueMode = $("#adminSaleDueMode")?.value || "30days", fixedDay = $("#adminSaleFixedDay")?.value;
+    const isFree=plan.id==="free",extrasField=$("#adminSaleExtras"),paymentStatus=$("#adminSalePaymentStatus");if(extrasField){extrasField.disabled=isFree;if(isFree)extrasField.value="0"}if(paymentStatus){paymentStatus.disabled=isFree;if(isFree)paymentStatus.value="paid"}
     if ($("#adminSaleBaseValue")) $("#adminSaleBaseValue").value = formatCurrency(plan.price);
-    if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(extras * ADMIN_EXTRA_ACCESS_PRICE);
-    if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id, extras));
+    if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(isFree?0:extras*ADMIN_EXTRA_ACCESS_PRICE);
+    if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id,isFree?0:extras));
     if ($("#adminSaleFixedDayField")) $("#adminSaleFixedDayField").hidden = dueMode !== "fixed";
     if ($("#adminSaleNextDue")) $("#adminSaleNextDue").value = paymentDate ? calculateNextDueDate(paymentDate, dueMode, fixedDay) : "";
   }
@@ -4443,14 +4916,14 @@
   async function registerAdminSale(event) {
     event.preventDefault(); if (!event.currentTarget.reportValidity()) return;
     const form = event.currentTarget, submit = event.submitter, planId = $("#adminSalePlan").value, dueMode = $("#adminSaleDueMode").value, fixedDay = Number($("#adminSaleFixedDay").value);
-    const payload = { organizationName: $("#adminSaleClientName").value.trim(), responsibleName: $("#adminSaleResponsible").value.trim(), documentNumber: $("#adminSaleDocument").value.trim(), email: $("#adminSaleEmail").value.trim(), phone: $("#adminSaleWhatsapp").value.trim(), organizationType: $("#adminSaleType").value === "individual" ? "individual" : "brokerage", planCode: ({ team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: Math.max(0, Number($("#adminSaleExtras").value) || 0), legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, firstPaymentDate: $("#adminSalePaymentDate").value, firstPaymentStatus: $("#adminSalePaymentStatus").value, dueMode: dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: dueMode === "fixed" ? fixedDay : null };
+    const payload = { organizationName: $("#adminSaleClientName").value.trim(), responsibleName: $("#adminSaleResponsible").value.trim(), documentNumber: $("#adminSaleDocument").value.trim()||null, email: $("#adminSaleEmail").value.trim(), phone: $("#adminSaleWhatsapp").value.trim(), organizationType: $("#adminSaleType").value === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: planId==="free"?0:Math.max(0, Number($("#adminSaleExtras").value) || 0), legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, firstPaymentDate: $("#adminSalePaymentDate").value, firstPaymentStatus: planId==="free"?"paid":$("#adminSalePaymentStatus").value, dueMode: dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: dueMode === "fixed" ? fixedDay : null, generateAccess:true, accessRole:$("#adminSaleType").value==="individual"?"broker":"supervisor" };
     if (submit) submit.disabled = true;
     $("#adminSaleStatus").textContent = "Registrando venda no staging...";
     try {
       const result = await window.LungoAdminApi.createSubscription(payload, adminMasterKey);
       await loadAdminRemoteData(); renderAdminV2(); form.reset(); prepareAdminSaleForm();
-      $("#adminSaleStatus").textContent = "Venda registrada no backend."; $("#adminSaleStatus").classList.add("ok"); toast("Nova venda registrada.");
-      if (submit?.value === "register-access") { const organizationId = result?.organization?.id || result?.data?.organization?.id || result?.subscription?.organizationId; setAdminMasterView("tokens"); generateAdminToken(organizationId); }
+      const emailSent=result?.emailDelivery?.sent===true;$("#adminSaleStatus").textContent=emailSent?"Venda, acesso e e-mail registrados com sucesso.":"Venda e acesso registrados; o e-mail não pôde ser enviado.";$("#adminSaleStatus").classList.toggle("ok",emailSent);toast(emailSent?"Acesso criado e enviado por e-mail.":"Acesso criado, mas o e-mail falhou.");
+      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Token criado",emailSent?"Acesso enviado automaticamente por e-mail":"E-mail não enviado; copie o token abaixo",`<section class="admin-modal-history full"><div class="auth-status ${emailSent?'ok':'error'}">${emailSent?'E-mail enviado para o cliente.':'Não foi possível enviar o e-mail. O acesso continua válido.'}</div><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
     } catch (error) { $("#adminSaleStatus").textContent = error.message; $("#adminSaleStatus").classList.remove("ok"); }
     finally { if (submit?.isConnected) submit.disabled = false; }
   }
@@ -4482,13 +4955,16 @@
       await copyAdminMasterText(access.token, "Token copiado para a área de transferência.", button);
       return;
     }
+    if (action === "email") {
+      button.disabled=true;try{await window.LungoAdminApi.resendAccessEmail(access.id,adminMasterKey);openAdminFormModal("E-mail enviado!",`O acesso de ${access.user} foi entregue com sucesso.`,`<section class="admin-email-success full"><span aria-hidden="true">✓</span><h3>Envio concluído</h3><p>O token de acesso foi enviado para <b>${escapeHtml(access.raw?.email)}</b>.</p></section>`)}catch(error){toast(error.message)}finally{if(button.isConnected)button.disabled=false}return;
+    }
     if (action === "edit") {
       openAdminFormModal("Editar acesso", access.user, `<form id="adminEditAccessForm" class="admin-modal-form full" data-id="${access.id}"><label>Nome do usuário<input id="adminEditAccessName" value="${escapeHtml(access.user)}" required></label><label>Perfil<select id="adminEditAccessRole"><option value="broker" ${access.profile === 'Corretor' ? 'selected' : ''}>Corretor</option><option value="supervisor" ${access.profile === 'Supervisor' ? 'selected' : ''}>Supervisor</option><option value="admin_master" ${access.profile === 'Admin Master' ? 'selected' : ''}>Admin Master</option></select></label><button class="btn primary" type="submit">Salvar alterações</button></form>`);
       return;
     }
     if (action === "archive") {
-      if (!await popupConfirm(`Excluir o acesso de ${access.user}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir acesso', 'Excluir')) return;
-      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso excluído e vaga liberada.'); }
+      if (!await popupConfirm(`Arquivar o acesso de ${access.user}? O token será revogado, a vaga e o e-mail serão liberados para um novo cadastro.`, 'Arquivar acesso', 'Arquivar')) return;
+      try { await window.LungoAdminApi.archiveAccess(access.id, adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast('Acesso arquivado; vaga e e-mail liberados.'); }
       catch (error) { toast(error.message); }
       return;
     }
@@ -4533,6 +5009,13 @@
       screen.classList.toggle("sidebar-collapsed", collapsed);
       localStorage.setItem(ADMIN_MASTER_SIDEBAR_KEY, collapsed ? "1" : "0");
     });
+    $("#adminMasterMoreBtn")?.addEventListener("click", () => {
+      ensureAdminMobileMoreSheet();
+      const screen = $("#adminMasterScreen"), open = !screen?.classList.contains("mobile-more-open");
+      screen?.classList.toggle("mobile-more-open", open);
+      if ($("#adminMobileMoreSheet")) $("#adminMobileMoreSheet").hidden = !open;
+      $("#adminMasterMoreBtn")?.setAttribute("aria-expanded", String(open));
+    });
     $("#adminMasterThemeBtn")?.addEventListener("click", () => {
       const next = el.root.dataset.theme === "dark" ? "light" : "dark";
       el.root.dataset.theme = next;
@@ -4562,6 +5045,7 @@
     });
     $("#adminNewSaleForm")?.addEventListener("submit", registerAdminSale);
     [$("#adminSalePlan"), $("#adminSaleExtras"), $("#adminSalePaymentDate"), $("#adminSaleDueMode"), $("#adminSaleFixedDay")].forEach((field) => field?.addEventListener("input", updateAdminSaleCalculation));
+    [$("#adminTrendMetric"), $("#adminTrendRange")].forEach((field)=>field?.addEventListener("change",renderAdminSalesTrend));
     $("#adminCancelSale")?.addEventListener("click", () => { $("#adminNewSaleForm").reset(); prepareAdminSaleForm(); });
     $("#adminCalendarPrev")?.addEventListener("click", () => { adminCalendarDate.setMonth(adminCalendarDate.getMonth() - 1); renderFinancialCalendar(); });
     $("#adminCalendarNext")?.addEventListener("click", () => { adminCalendarDate.setMonth(adminCalendarDate.getMonth() + 1); renderFinancialCalendar(); });
@@ -4570,12 +5054,15 @@
     $("#adminReceivableClient")?.addEventListener("input", renderReceivables);
     $("#adminGenerateTokenBtn")?.addEventListener("click", generateAdminToken);
     $("#adminMasterScreen")?.addEventListener("click", async (event) => {
+      if (event.target === $("#adminMasterScreen") && $("#adminMasterScreen").classList.contains("mobile-more-open")) { closeAdminMobileMore(); return; }
       const copyNewToken = event.target.closest("[data-copy-new-token]");
       if (copyNewToken) { await copyAdminMasterText(copyNewToken.dataset.copyNewToken, "Token copiado para a área de transferência.", copyNewToken); return; }
       const clientView = event.target.closest("[data-admin-client-view]");
       if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
       const clientAction = event.target.closest("[data-admin-client-action]");
       if (clientAction) { handleAdminClientAction(clientAction); return; }
+      const mobileClientCard = event.target.closest("[data-mobile-client-card]");
+      if (mobileClientCard && window.matchMedia("(max-width: 600px)").matches) { openAdminClientModal(adminClient(mobileClientCard.dataset.mobileClientCard)); return; }
       const tokenAction = event.target.closest("[data-token-action]");
       if (tokenAction) { handleTokenAction(tokenAction); return; }
       const receivableAction = event.target.closest("[data-receivable-action]");
@@ -4583,6 +5070,7 @@
         const item = adminData.receivables.find((entry) => entry.id === receivableAction.dataset.id), action = receivableAction.dataset.receivableAction;
         if (!item) return;
         if (action === "pay") openPaymentModal(item);
+        if (action === "edit-date") openPaymentDateModal(item);
         if (action === "history") openAdminClientModal(adminClient(item.clientId));
         return;
       }
@@ -4608,7 +5096,7 @@
       const finance = event.target.closest("[data-admin-master-finance]");
       if (finance) toast("Detalhe financeiro mock aberto visualmente.");
     });
-    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); if (event.target.id === "adminClientNameEditForm") submitAdminClientNameEdit(event); });
+    $("#adminMasterModalBody")?.addEventListener("submit", (event) => { if (event.target.id === "adminPaymentForm") confirmAdminPayment(event); if (event.target.id === "adminPaymentDateForm") updateAdminPaymentDate(event); if (event.target.id === "adminPlanChangeForm") savePlanChange(event); if (event.target.id === "adminGenerateTokenForm") submitAdminToken(event); if (event.target.id === "adminEditAccessForm") submitAdminAccessEdit(event); if (event.target.id === "adminClientNameEditForm") submitAdminClientNameEdit(event); });
     $("#adminMasterModalBody")?.addEventListener("input", (event) => { if (["adminNewPlan", "adminNewPlanExtras"].includes(event.target.id)) updatePlanChangePreview(adminClient($("#adminPlanChangeForm")?.dataset.id)); });
     $("#adminMasterModalBody")?.addEventListener("click", (event) => {
       const clientView = event.target.closest("[data-admin-client-view]"); if (clientView) { openAdminClientModal(adminClient(clientView.dataset.adminClientView)); return; }
@@ -4630,14 +5118,37 @@
       localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
     });
     el.themeBtn.addEventListener("click", () => {
-      const current = localStorage.getItem(THEME_KEY) || "dark";
+      const current = el.root.dataset.theme || localStorage.getItem(THEME_KEY) || "dark";
       const next = current === "dark" ? "light" : "dark";
-      localStorage.setItem(THEME_KEY, next);
       el.root.dataset.theme = next;
+      if (state.token && !document.body.classList.contains("supervisor-mode")) {
+        const preferences = loadBrokerPersonalization(); preferences.theme = next;
+        try { localStorage.setItem(brokerPreferenceKey(), JSON.stringify(preferences)); } catch {}
+        if (el.brokerThemeSelect) el.brokerThemeSelect.value = next;
+      }
     });
+    el.brokerProfilePhotoButton?.addEventListener("click", () => el.brokerProfilePhotoInput?.click());
+    el.brokerProfilePhotoInput?.addEventListener("change", () => {
+      const file = el.brokerProfilePhotoInput.files?.[0];
+      if (!file || !String(file.type).startsWith("image/")) return toast("Selecione uma imagem válida.");
+      if (file.size > 8000000) return toast("Use uma foto de até 8 MB.");
+      const reader = new FileReader(); reader.onload = () => openBrokerPhotoEditor(String(reader.result || "")); reader.readAsDataURL(file);
+    });
+    $("#brokerPhotoZoom")?.addEventListener("input", (event) => { brokerPhotoCrop.zoom = Number(event.target.value) || 1; drawBrokerPhotoCrop(); });
+    const cropCanvas = $("#brokerPhotoCropCanvas");
+    cropCanvas?.addEventListener("pointerdown", (event) => { brokerPhotoCrop.dragging = true; brokerPhotoCrop.lastX = event.clientX; brokerPhotoCrop.lastY = event.clientY; cropCanvas.setPointerCapture(event.pointerId); });
+    cropCanvas?.addEventListener("pointermove", (event) => { if (!brokerPhotoCrop.dragging) return; const ratio = cropCanvas.width / Math.max(1, cropCanvas.getBoundingClientRect().width); brokerPhotoCrop.offsetX += (event.clientX - brokerPhotoCrop.lastX) * ratio; brokerPhotoCrop.offsetY += (event.clientY - brokerPhotoCrop.lastY) * ratio; brokerPhotoCrop.lastX = event.clientX; brokerPhotoCrop.lastY = event.clientY; drawBrokerPhotoCrop(); });
+    ["pointerup", "pointercancel"].forEach((name) => cropCanvas?.addEventListener(name, () => { brokerPhotoCrop.dragging = false; }));
+    [$("#brokerPhotoEditorClose"), $("#brokerPhotoEditorCancel")].forEach((button) => button?.addEventListener("click", () => $("#brokerPhotoEditorModal")?.close()));
+    $("#brokerPhotoEditorApply")?.addEventListener("click", applyBrokerPhotoCrop);
+    el.brokerSidebarColor?.addEventListener("input", () => applyCompanySidebarColor(el.brokerSidebarColor.value));
+    el.brokerThemeSelect?.addEventListener("change", () => { el.root.dataset.theme = el.brokerThemeSelect.value; });
+    el.brokerBackgroundPicker?.addEventListener("change", (event) => { if (event.target.matches('input[name="brokerBackground"]')) applyCompanyBackground(event.target.value); });
+    el.brokerPersonalizationForm?.addEventListener("submit", saveBrokerPersonalization);
     el.toggleTokenBtn?.addEventListener("click", () => {
       el.globalToken.type = el.globalToken.type === "password" ? "text" : "password";
     });
+    $("#connectTokenEye")?.addEventListener("click", () => { const input = el.tokenInput; if (!input) return; input.type = input.type === "password" ? "text" : "password"; $("#connectTokenEye").classList.toggle("revealed", input.type === "text"); });
 
     el.saveTokenBtn.addEventListener("click", () => enterWithToken({ fromTopbar: true }));
     el.accessLoginBtn?.addEventListener("click", () => enterWithToken());
@@ -4674,6 +5185,10 @@
     el.supervisorNavItems.filter((button) => button.dataset.supervisorOperation).forEach((button) => button.addEventListener("click", () => setSupervisorOperation(button.dataset.supervisorOperation)));
     document.querySelectorAll("[data-company-upload]").forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.companyUpload)?.click()));
     el.companyLogoInput?.addEventListener("change", () => readCompanyImage(el.companyLogoInput.files?.[0], "logo"));
+    el.companySidebarColor?.addEventListener("input", () => applyCompanySidebarColor(el.companySidebarColor.value));
+    el.companyBackgroundPicker?.addEventListener("change", (event) => {
+      if (event.target.matches('input[name="companyBackground"]')) applyCompanyBackground(event.target.value);
+    });
     el.companyBannerInput?.addEventListener("change", () => readCompanyImage(el.companyBannerInput.files?.[0], "banner"));
     el.companySettingsForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -4760,14 +5275,11 @@
       const split = Math.max(0, Number(event.target.value || 0)) / Math.max(1, SUPERVISOR_BROKERS.length);
       if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(split)} por corretor`;
     });
-    $('#supervisorTeamGoalForm')?.addEventListener('submit', (event) => {
+    $('#supervisorTeamGoalForm')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const value = Math.max(0, Number($('#supervisorTeamGoalInput')?.value || 0));
-      localStorage.setItem(supervisorTeamGoalKey(), String(value));
-      renderSupervisorMocks();
-      $('#supervisorTeamGoalStatus').textContent = 'Meta da equipe salva.';
-      $('#supervisorTeamGoalStatus').classList.add('ok');
-      setTimeout(() => $('#supervisorGoalModal')?.close(), 350);
+      try { await window.LungoSupervisorApi.updateTeamGoal(value, supervisorAccessToken); localStorage.setItem(supervisorTeamGoalKey(), String(value)); renderSupervisorMocks(); $('#supervisorTeamGoalStatus').textContent = 'Meta da equipe salva e compartilhada.'; $('#supervisorTeamGoalStatus').classList.add('ok'); setTimeout(() => $('#supervisorGoalModal')?.close(), 350); }
+      catch (error) { $('#supervisorTeamGoalStatus').textContent = error.message; $('#supervisorTeamGoalStatus').classList.add('error'); }
     });
     el.supervisorGenerateReportBtn?.addEventListener("click", () => {
       renderSupervisorGoalsAndReport();
@@ -4805,14 +5317,14 @@
       if (dealButton) {
         const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
         const stageLabels = { novos: "Novos", em_atendimento: "Em atendimento", cotacao: "Cotação Enviada", documentacao: "Documentação recebida", venda: "Venda cadastrada", boleto: "Boleto Gerado", fechamento: "Fechamento", perdida: "Venda Perdida" };
-        if (deal) openSupervisorModal(deal.client, "Ficha completa do lead", [["Nome", deal.client], ["Telefone", deal.phone || "—"], ["E-mail", deal.email || "—"], ["CNPJ ou PF", deal.personType || "PF"], ["Número CNPJ/CPF", deal.document || "—"], ["Qtd. de vidas", String(deal.lives || 1)], ["Valor do negócio", deal.value || "—"], ["Plano de interesse", deal.product || "—"], ["Cidade", deal.city || "—"], ["Vendedor responsável", deal.seller], ["Etapa atual", stageLabels[deal.stage] || deal.stage], ["Observações", deal.notes || "Sem observações."]]);
+        if (deal) openSupervisorModal(deal.client, "Ficha completa do lead", [["Nome", deal.client], ["Telefone", deal.phone || "—"], ["E-mail", deal.email || "—"], ["CNPJ ou PF", deal.personType || "PF"], ["Número CNPJ/CPF", deal.document || "—"], ["Qtd. de vidas", String(deal.lives || 1)], ["Valor do negócio", deal.value || "—"], ["Produto de interesse", deal.product || "—"], ["Cidade", deal.city || "—"], ["Vendedor responsável", deal.seller], ["Etapa atual", stageLabels[deal.stage] || deal.stage], ["Observações", deal.notes || "Sem observações."]]);
         return;
       }
       const brokerButton = event.target.closest("[data-supervisor-broker-action]");
       const candidateTokenButton = event.target.closest('[data-rh-generate-token]');
       if (candidateTokenButton) {
         const candidate = recruitmentData.candidates.find((item) => item.id === candidateTokenButton.dataset.rhGenerateToken); if (!candidate) return;
-        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); await window.LungoSupervisorApi.updateCandidate(candidate.id, { hiredUserId: result.broker?.id || result.user?.id || '', hirePending: false, seen: true }, supervisorAccessToken); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast('Corretor cadastrado e token gerado.'); } }
+        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); await window.LungoSupervisorApi.updateCandidate(candidate.id, { hiredUserId: result.broker?.id || result.user?.id || '', hirePending: false, seen: true }, supervisorAccessToken); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast(result.emailDelivery?.sent ? 'Corretor cadastrado e acesso enviado por e-mail.' : 'Corretor cadastrado, mas o e-mail não pôde ser enviado.'); } }
         catch (error) { toast(error.message); }
         return;
       }
@@ -4821,6 +5333,13 @@
         if (!broker) return;
         const action = brokerButton.dataset.supervisorBrokerAction;
         if (action === "copy") { await copySupervisorText(broker.token, "Token copiado para a área de transferência."); return; }
+        if (action === "email") {
+          brokerButton.disabled = true;
+          try { await window.LungoSupervisorApi.resendBrokerAccessEmail(broker.id, supervisorAccessToken); toast(`Token reenviado para ${broker.email}.`, "success"); }
+          catch (error) { toast(error.message, "error"); }
+          finally { if (brokerButton.isConnected) brokerButton.disabled = false; }
+          return;
+        }
         if (action === "edit") {
           $('#supervisorEditBrokerId').value = broker.id;
           $('#supervisorEditBrokerName').value = broker.name || '';
@@ -4988,6 +5507,7 @@
       if (button.dataset.action === "unarchive") unarchiveLead(id);
       if (button.dataset.action === "delete") deleteLead(id);
       if (button.dataset.action === "schedule") openLeadScheduleModal(getLead(id));
+      if (button.dataset.action === "assign-team") openLeadAssignmentModal(getLead(id));
       if (button.dataset.action === "chat") { markLeadSeen(id); renderCrm(); }
     });
 
@@ -5027,7 +5547,7 @@
       if (button.dataset.saleAction === "view") openSaleView(client, sale);
       if (button.dataset.saleAction === "download-doc") {
         try {
-          const data = await api(`/api/clientes/${encodeURIComponent(button.dataset.clientId)}/base-sale/${encodeURIComponent(button.dataset.saleId)}/documentacao?token=${tokenQuery()}`);
+          const data = await api(`/api/clientes/${encodeURIComponent(button.dataset.clientId)}/base-sale/${encodeURIComponent(button.dataset.saleId)}/documentacao?token=${clientTokenQuery(button.dataset.clientId)}`);
           downloadBase64Pdf(data.documentacaoPdf);
         } catch (error) { toast(error.message); }
       }
@@ -5124,6 +5644,7 @@
     updateTodayLabel();
     setInterval(updateTodayLabel, 60000);
     hardenAutocomplete();
+    bindBrazilPhoneMasks();
     renderCompanyIdentity();
     toggleCustomPeriodFields();
     toggleClientCustomPeriodFields();
