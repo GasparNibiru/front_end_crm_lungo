@@ -2510,6 +2510,17 @@
     return Number.isNaN(dt.getTime()) ? true : dt >= new Date();
   }
 
+  function supervisorLeadAssignment(lead) {
+    if (!supervisorAccessToken || !lead?.assignedBrokerUserId) return null;
+    const broker = SUPERVISOR_BROKERS.find((item) => String(item.id) === String(lead.assignedBrokerUserId));
+    return { id: lead.assignedBrokerUserId, name: broker?.name || lead.assignedBrokerName || 'Corretor' };
+  }
+
+  function leadAssignmentBadge(lead) {
+    const assignment = supervisorLeadAssignment(lead); if (!assignment) return '';
+    return `<span class="lead-owner-badge" title="Lead em posse de ${escapeHtml(assignment.name)}">${iconSvg('team')}<b>${escapeHtml(assignment.name)}</b></span>`;
+  }
+
   function actionButtons(lead) {
     const wa = whatsappUrl(lead);
     const whatsapp = wa
@@ -2517,7 +2528,7 @@
       : `<button class="icon-action disabled" type="button" title="WhatsApp indisponível">${iconSvg("whatsapp")}</button>`;
     const scheduled = leadScheduleActive(lead);
     const scheduleBtn = `<button class="icon-action schedule ${scheduled ? "active-schedule" : ""}" type="button" data-action="schedule" data-id="${escapeHtml(lead.id)}" title="Programar mensagem">${iconSvg("clock")}</button>`;
-    const teamBtn = supervisorAccessToken ? `<button class="icon-action team" type="button" data-action="assign-team" data-id="${escapeHtml(lead.id)}" title="Enviar para corretor">${iconSvg("team")}</button>` : "";
+    const teamBtn = supervisorAccessToken ? `<button class="icon-action team ${supervisorLeadAssignment(lead) ? 'assigned' : ''}" type="button" data-action="assign-team" data-id="${escapeHtml(lead.id)}" title="${supervisorLeadAssignment(lead) ? 'Repassar para outro corretor' : 'Enviar para corretor'}">${iconSvg("team")}</button>` : "";
     return `<div class="row-buttons">${whatsapp}${scheduleBtn}<button class="icon-action" type="button" data-action="view" data-id="${escapeHtml(lead.id)}" title="Ver mais">${iconSvg("edit")}</button>${teamBtn}</div>`;
   }
 
@@ -2530,8 +2541,8 @@
     modal.id = "leadAssignmentModal";
     modal.className = "modal lead-assignment-modal";
     modal.innerHTML = `<form method="dialog" class="modal-card">
-      <header><div><h2>Enviar lead para a equipe</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
-      <div class="lead-assignment-list">${activeBrokers.length ? activeBrokers.map((broker) => `<label><input type="radio" name="leadBroker" value="${escapeHtml(broker.id)}"><span><b>${escapeHtml(broker.name)}</b><small>${escapeHtml(broker.email || "Corretor ativo")}</small></span></label>`).join("") : `<p class="lead-assignment-empty">Nenhum corretor ativo disponível.</p>`}</div>
+      <header><div><h2>${supervisorLeadAssignment(lead) ? 'Repassar lead para a equipe' : 'Enviar lead para a equipe'}</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}. O card continuará visível para o supervisor.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
+      <div class="lead-assignment-list">${activeBrokers.length ? activeBrokers.map((broker) => `<label><input type="radio" name="leadBroker" value="${escapeHtml(broker.id)}" ${String(broker.id) === String(lead.assignedBrokerUserId || '') ? 'checked' : ''}><span><b>${escapeHtml(broker.name)}</b><small>${escapeHtml(broker.email || "Corretor ativo")}</small></span></label>`).join("") : `<p class="lead-assignment-empty">Nenhum corretor ativo disponível.</p>`}</div>
       <footer><button class="btn ghost" type="button" data-close-assignment>Cancelar</button><button class="btn primary" type="submit" ${activeBrokers.length ? "" : "disabled"}>Enviar lead</button></footer>
     </form>`;
     document.body.appendChild(modal);
@@ -2582,7 +2593,7 @@
     }
 
     el.crmRows.innerHTML = leads.map((lead) => `
-      <tr data-id="${escapeHtml(lead.id)}" class="lead-row status-row-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""}">
+      <tr data-id="${escapeHtml(lead.id)}" class="lead-row status-row-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${supervisorLeadAssignment(lead) ? "lead-assigned" : ""}">
         <td class="select-col"><input type="checkbox" data-select-lead="${escapeHtml(lead.id)}" ${state.selectedLeadIds.has(lead.id) ? "checked" : ""} aria-label="Selecionar lead"></td>
         <td>
           <div class="contact-cell">
@@ -2590,6 +2601,7 @@
             <div class="contact-main">
               <b title="${escapeHtml(displayName(lead))}">${unreadDotHtml(lead)}${escapeHtml(displayName(lead))}</b>
               <span>${escapeHtml(displayPhone(lead) || "—")}${lead.email ? ` • ${escapeHtml(lead.email)}` : ""}</span>
+              ${leadAssignmentBadge(lead)}
             </div>
           </div>
         </td>
@@ -2621,8 +2633,9 @@
               <header><b>${status.label}</b><span>${grouped[status.value].length}</span></header>
               <div class="kanban-lane" data-lane="${status.value}">
                 ${grouped[status.value].map((lead) => `
-                  <article class="kanban-card status-card-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""}" draggable="true" data-id="${escapeHtml(lead.id)}">
+                  <article class="kanban-card status-card-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${supervisorLeadAssignment(lead) ? "lead-assigned" : ""}" draggable="true" data-id="${escapeHtml(lead.id)}">
                     <div class="top">${avatarHtml(lead)}<b title="${escapeHtml(displayName(lead))}">${unreadDotHtml(lead)}${escapeHtml(displayName(lead))}</b></div>
+                    ${leadAssignmentBadge(lead)}
                     <small>${escapeHtml(displayPhone(lead) || "—")}</small>
                     <small title="${escapeHtml(lead.lastMessage)}">${escapeHtml(lead.lastMessage || lead.planoInteresse || "Sem mensagem")}</small>
                     <div class="card-meta">

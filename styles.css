@@ -4921,3 +4921,38 @@ body.supervisor-mode .supervisor-deal > b {
   color: var(--sidebar-text);
   opacity: .92;
 }
+
+/* Supervisor ownership marker: intentionally identical in light and dark themes. */
+.kanban-card.lead-assigned,
+[data-theme="light"] .kanban-card.lead-assigned {
+  background: #d9f5df !important;
+  border-color: #2e9d57 !important;
+  box-shadow: inset 3px 0 0 #238447, 0 5px 16px rgba(31, 126, 68, .16) !important;
+  color: #153c22 !important;
+}
+.kanban-card.lead-assigned small,
+.kanban-card.lead-assigned .card-meta span { color: #416a4d !important; }
+.lead-row.lead-assigned > td,
+[data-theme="light"] .lead-row.lead-assigned > td { background: #d9f5df !important; color: #153c22 !important; }
+.lead-row.lead-assigned > td:first-child { box-shadow: inset 3px 0 0 #238447; }
+.lead-row.lead-assigned .muted,
+.lead-row.lead-assigned .contact-main > span { color: #416a4d !important; }
+.lead-owner-badge {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid #55a66d;
+  border-radius: 999px;
+  background: #bce8c8;
+  color: #174d29 !important;
+  font-size: 9px !important;
+  line-height: 1;
+}
+.lead-owner-badge svg { width: 12px; height: 12px; flex: 0 0 12px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.lead-owner-badge b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contact-main .lead-owner-badge { margin-top: 3px; }
+.icon-action.team.assigned { background: #bce8c8 !important; border-color: #2e9d57 !important; color: #174d29 !important; }
