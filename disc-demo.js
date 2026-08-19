@@ -21,10 +21,17 @@ const profiles={
 };
 const colors={D:"#ef6a62",I:"#e8ad36",S:"#43ae79",C:"#4b8fd8"};
 let step=0,answers=[];
+const testToken=new URLSearchParams(location.search).get("token");
+const API_BASE=String(window.LUNGO_CONFIG?.API_BASE_URL||"").replace(/\/$/,"");
 const $=id=>document.getElementById(id);
-function show(id){["intro","quiz","result"].forEach(x=>$(x).hidden=x!==id)}
+function show(id){["intro","quiz","result","submitted","linkError"].forEach(x=>$(x).hidden=x!==id)}
 function render(){const q=questions[step];$("stepLabel").textContent=`Situação ${step+1} de ${questions.length}`;$("questionTitle").textContent=q[0];$("progressText").textContent=`${Math.round(((step+1)/questions.length)*100)}%`;$("progressBar").style.width=`${((step+1)/questions.length)*100}%`;$("options").innerHTML=q[1].map((text,i)=>`<button class="option ${answers[step]===i?"selected":""}" type="button" data-option="${i}"><i></i><span>${text}</span></button>`).join("");$("backBtn").style.visibility=step?"visible":"hidden";$("nextBtn").disabled=answers[step]===undefined;$("nextBtn").textContent=step===questions.length-1?"Concluir avaliação ✓":"Continuar →";$("validation").textContent="";document.querySelectorAll("[data-option]").forEach(btn=>btn.onclick=()=>{answers[step]=Number(btn.dataset.option);render()})}
-function finish(){const counts={D:0,I:0,S:0,C:0};answers.forEach(i=>counts[traits[i]]++);const total=answers.length;const scores=Object.fromEntries(traits.map(t=>[t,Math.round(counts[t]/total*100)]));let diff=100-Object.values(scores).reduce((a,b)=>a+b,0);scores[traits.reduce((a,b)=>scores[a]>=scores[b]?a:b)]+=diff;const lead=traits.reduce((a,b)=>scores[a]>=scores[b]?a:b),p=profiles[lead];
+async function finish(){
+  if(testToken){
+    const button=$("nextBtn");button.disabled=true;button.textContent="Enviando respostas...";
+    try{const response=await fetch(`${API_BASE}/api/public/recruitment/disc/${encodeURIComponent(testToken)}/complete`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({answers})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Não foi possível concluir a avaliação.");show("submitted");window.scrollTo({top:0,behavior:"smooth"});return}catch(error){$("validation").textContent=error.message;button.disabled=false;button.textContent="Concluir avaliação ✓";return}
+  }
+  const counts={D:0,I:0,S:0,C:0};answers.forEach(i=>counts[traits[i]]++);const total=answers.length;const scores=Object.fromEntries(traits.map(t=>[t,Math.round(counts[t]/total*100)]));let diff=100-Object.values(scores).reduce((a,b)=>a+b,0);scores[traits.reduce((a,b)=>scores[a]>=scores[b]?a:b)]+=diff;const lead=traits.reduce((a,b)=>scores[a]>=scores[b]?a:b),p=profiles[lead];
   // Perfil-alvo: forte iniciativa comercial, autonomia e disciplina de processo.
   const target={D:35,I:25,S:15,C:25};const distance=traits.reduce((sum,t)=>sum+Math.abs(scores[t]-target[t]),0);const match=Math.max(40,Math.min(98,Math.round(100-distance*.62)));
   window.discScores=scores;
@@ -42,3 +49,16 @@ function renderFitIndicators(scores){
   $("fitIndicators").innerHTML=indicators.map(item=>{const [label,cls]=level(item.value);const color=cls==="high"?"#43ae79":cls==="medium"?"#e8ad36":"#ef6a62";return `<div class="fit-row"><div class="fit-name"><b>${item.name}</b><small>${item.sub}</small></div><div class="bar-track"><i style="width:${item.value}%;background:${color}"></i></div><div class="fit-value ${cls}">${label} · ${item.value}%</div><p class="fit-note">${item.note}</p></div>`}).join("");
 }
 new MutationObserver(()=>{if(!$("result").hidden&&window.discScores)renderFitIndicators(window.discScores)}).observe($("result"),{attributes:true,attributeFilter:["hidden"]});
+
+async function setupRemoteTest(){
+  if(!testToken)return;
+  show("intro");$("startBtn").disabled=true;$("startBtn").textContent="Carregando avaliação...";
+  try{
+    const response=await fetch(`${API_BASE}/api/public/recruitment/disc/${encodeURIComponent(testToken)}`),data=await response.json();
+    if(!response.ok)throw new Error(data.error||"Este link não está disponível.");
+    const name=data.candidate?.name||"Candidato";$("candidateName").textContent=name;$("candidateAvatar").textContent=name.split(/\s+/).slice(0,2).map(part=>part[0]).join("").toUpperCase();$("vacancyName").textContent=data.vacancy?.title||"Consultor comercial";
+    const logo=document.querySelector(".brand img");if(logo&&data.vacancy?.logo)logo.src=data.vacancy.logo;
+    $("startBtn").disabled=false;$("startBtn").innerHTML="Começar avaliação <span>→</span>";
+  }catch(error){$("linkErrorMessage").textContent=error.message+" Você pode fechar esta página.";show("linkError")}
+}
+setupRemoteTest();

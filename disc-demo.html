@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Teste de perfil profissional | Lungo</title>
-  <link rel="stylesheet" href="disc-demo.css">
-  <script src="disc-demo.js" defer></script>
+  <link rel="stylesheet" href="disc-demo.css?v=20260818-2">
+  <script src="config.js?v=20260818-2"></script>
+  <script src="disc-demo.js?v=20260818-2" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -18,7 +19,7 @@
       <span class="eyebrow">Etapa de avaliação</span>
       <h1>Mapeamento de perfil profissional</h1>
       <p class="lead">Queremos conhecer melhor sua forma de agir, comunicar e tomar decisões no trabalho.</p>
-      <div class="candidate"><div class="avatar">MC</div><div><small>Candidato(a)</small><strong>Mariana Costa</strong><span>Consultor(a) comercial</span></div></div>
+      <div class="candidate"><div id="candidateAvatar" class="avatar">MC</div><div><small>Candidato(a)</small><strong id="candidateName">Mariana Costa</strong><span id="vacancyName">Consultor(a) comercial</span></div></div>
       <div class="info-grid">
         <div><b>12</b><span>situações</span></div><div><b>5 min</b><span>em média</span></div><div><b>1 resposta</b><span>por situação</span></div>
       </div>
@@ -49,6 +50,17 @@
       <div class="result-grid"><section><h3>Pontos que se destacam</h3><ul id="strengths"></ul></section><section><h3>Pontos para explorar na entrevista</h3><ul id="attention"></ul></section></div>
       <div class="notice compact"><b>Importante</b><span>Este mapeamento indica tendências comportamentais e deve ser combinado com entrevista, experiência e critérios objetivos da vaga.</span></div>
       <button id="restartBtn" class="secondary full" type="button">Refazer demonstração</button>
+    </section>
+
+    <section id="submitted" class="card result final-success" hidden>
+      <div class="success-icon">✓</div><span class="eyebrow">Avaliação finalizada</span><h1>Respostas enviadas com sucesso!</h1>
+      <p class="lead">Obrigado por concluir esta etapa. A equipe responsável recebeu seu resultado e dará continuidade ao processo seletivo.</p>
+      <div class="notice"><b>Você já pode fechar esta página.</b><span>Este link individual foi descontinuado e não poderá ser utilizado novamente.</span></div>
+    </section>
+
+    <section id="linkError" class="card result" hidden>
+      <div class="success-icon neutral">i</div><span class="eyebrow">Avaliação indisponível</span><h1 id="linkErrorTitle">Este link não está mais disponível</h1>
+      <p id="linkErrorMessage" class="lead">A avaliação já foi finalizada ou o endereço não é válido. Você pode fechar esta página.</p>
     </section>
   </main>
 </body>

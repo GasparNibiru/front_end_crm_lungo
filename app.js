@@ -1942,11 +1942,19 @@
     });
   }
 
-  const RH_STAGES = [['novo', 'Novos'], ['triagem', 'Triagem'], ['contato', 'Contato'], ['entrevista', 'Entrevista'], ['aprovado', 'Aprovados'], ['recusado', 'Recusados']];
+  const RH_STAGES = [['novo', 'Novos'], ['teste_enviado', 'Teste enviado'], ['teste_realizado', 'Teste realizado'], ['triagem', 'Triagem'], ['entrevista', 'Entrevista'], ['aprovado', 'Aprovados'], ['recusado', 'Recusados']];
 
   function recruitmentLink() { const vacancy = recruitmentData.vacancy; return vacancy ? `${location.origin}${location.pathname}?vaga=${encodeURIComponent(vacancy.slug)}` : ''; }
   function candidateWhatsApp(candidate) { const phone = String(candidate.phone || '').replace(/\D/g, ''); const text = `Olá, ${candidate.name}! Recebemos sua candidatura para a vaga de ${recruitmentData.vacancy?.title || 'Consultor de Planos de Saúde'}. Gostaríamos de conversar sobre a oportunidade. Podemos falar agora?`; return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`; }
-  function recruitmentCandidateAction(candidate) { if (candidate.stage === 'aprovado' && !candidate.hiredUserId) return candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`; if (candidate.hiredUserId) return '<span class="rh-hire-pending done">Corretor cadastrado</span>'; return ''; }
+  function recruitmentCandidateAction(candidate) {
+    const actions = [];
+    if (!candidate.disc?.sentAt && candidate.stage === 'novo') actions.push(`<button class="btn small primary" type="button" data-rh-disc-send="${candidate.id}">Enviar teste DISC</button>`);
+    else if (candidate.disc?.completedAt) actions.push(`<button class="rh-disc-result-btn" type="button" data-rh-disc-result="${candidate.id}" title="Abrir resultado DISC" aria-label="Abrir resultado DISC">✓ DISC <b>${Number(candidate.disc.result?.match || 0)}%</b></button>`);
+    else if (candidate.disc?.sentAt) actions.push('<span class="rh-disc-waiting">Aguardando teste</span>');
+    if (candidate.stage === 'aprovado' && !candidate.hiredUserId) actions.push(candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`);
+    if (candidate.hiredUserId) actions.push('<span class="rh-hire-pending done">Corretor cadastrado</span>');
+    return actions.join('');
+  }
 
   function ensureRhEditorModal() {
     let modal = $('#rhEditorModal');
@@ -1993,6 +2001,30 @@
     await window.LungoSupervisorApi.updateCandidate(candidateId, { stage, seen: true }, supervisorAccessToken);
     if (stage === 'aprovado') { const candidate = recruitmentData.candidates.find((item) => item.id === candidateId); if (candidate && await popupConfirm(`Deseja enviar ${candidate.name} para a aba Corretores aguardando a geração do token?`, 'Candidato aprovado')) await window.LungoSupervisorApi.updateCandidate(candidateId, { hirePending: true, seen: true }, supervisorAccessToken); }
     await loadRecruitment(false, true);
+  }
+
+  async function sendCandidateDisc(candidate) {
+    if (!candidate?.email) return toast('Cadastre um e-mail válido para o candidato antes de enviar o teste.');
+    const button = $(`[data-rh-disc-send="${candidate.id}"]`); if (button) { button.disabled = true; button.textContent = 'Enviando...'; }
+    try {
+      const result = await window.LungoSupervisorApi.sendCandidateDisc(candidate.id, supervisorAccessToken);
+      await loadRecruitment(false, true); toast(`Teste enviado para ${result.recipient}.`);
+      if (result.previewUrl && await popupConfirm('O e-mail foi enviado. Deseja abrir agora o mesmo link recebido pelo candidato para testar a jornada?', 'Teste DISC enviado', 'Abrir teste')) window.open(result.previewUrl, '_blank', 'noopener');
+    } catch (error) { toast(error.message); if (button) { button.disabled = false; button.textContent = 'Enviar teste DISC'; } }
+  }
+
+  function discLevel(value) { return Number(value) >= 70 ? 'Alto' : Number(value) >= 50 ? 'Moderado' : 'Baixo'; }
+  function openDiscResult(candidate) {
+    const result = candidate?.disc?.result; if (!result) return toast('O resultado ainda não está disponível.');
+    let modal = $('#rhDiscResultModal');
+    if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="rhDiscResultModal" class="modal rh-disc-modal"><div class="modal-card"><header><div><h2 id="rhDiscResultTitle">Resultado DISC</h2><p id="rhDiscResultSubtitle"></p></div><button class="btn icon" type="button" data-rh-disc-close>×</button></header><div id="rhDiscResultBody" class="rh-disc-result-body"></div><footer><button id="rhDiscDeclineBtn" class="btn danger" type="button">Declinar candidato</button><span class="footer-spacer"></span><button class="btn" type="button" data-rh-disc-close>Manter nesta etapa</button><button id="rhDiscAdvanceBtn" class="btn primary" type="button">Avançar candidato</button></footer></div></dialog>'); modal = $('#rhDiscResultModal'); modal.querySelectorAll('[data-rh-disc-close]').forEach((button) => button.onclick = () => modal.close()); }
+    const labels = { D: 'Dominância', I: 'Influência', S: 'Estabilidade', C: 'Conformidade' }, indicatorLabels = { commercialDrive: 'Impulso comercial', autonomy: 'Autonomia', discipline: 'Disciplina', processAdherence: 'Aderência a processos' };
+    $('#rhDiscResultTitle').textContent = `Resultado DISC · ${candidate.name}`; $('#rhDiscResultSubtitle').textContent = `Concluído em ${new Date(candidate.disc.completedAt).toLocaleString('pt-BR')}`;
+    $('#rhDiscResultBody').innerHTML = `<section class="rh-disc-match"><div><span>Match com a vaga</span><b>${Number(result.match || 0)}%</b></div><strong>${escapeHtml(result.predominant || '—')} · ${escapeHtml(labels[result.predominant] || 'Perfil misto')}</strong></section><h3>Composição DISC</h3><div class="rh-disc-bars">${Object.entries(result.scores || {}).map(([key, value]) => `<div><span>${escapeHtml(key)} · ${escapeHtml(labels[key])}</span><i><em style="width:${Number(value)}%"></em></i><b>${Number(value)}%</b></div>`).join('')}</div><h3>Indicadores para a vaga</h3><div class="rh-disc-indicators">${Object.entries(result.indicators || {}).map(([key, value]) => `<article><span>${escapeHtml(indicatorLabels[key] || key)}</span><b>${discLevel(value)} · ${Number(value)}%</b></article>`).join('')}</div><div id="rhDeclineComposer" class="rh-decline-composer" hidden><label><span>Mensagem ao candidato</span><textarea id="rhDeclineMessage" rows="5">Neste momento, seguiremos com outros perfis mais aderentes às necessidades da vaga. Agradecemos seu interesse e desejamos sucesso em sua trajetória profissional.</textarea></label><button id="rhConfirmDeclineBtn" class="btn danger" type="button">Confirmar e enviar e-mail</button></div>`;
+    $('#rhDiscAdvanceBtn').onclick = async () => { try { await updateRecruitmentStage(candidate.id, 'triagem'); modal.close(); toast('Candidato avançado para Triagem.'); } catch (error) { toast(error.message); } };
+    $('#rhDiscDeclineBtn').onclick = () => { $('#rhDeclineComposer').hidden = false; $('#rhDeclineMessage').focus(); };
+    $('#rhConfirmDeclineBtn').onclick = async () => { const message = $('#rhDeclineMessage').value.trim(); if (!message) return toast('Escreva a mensagem de retorno.'); const button = $('#rhConfirmDeclineBtn'); button.disabled = true; button.textContent = 'Enviando...'; try { await window.LungoSupervisorApi.declineCandidate(candidate.id, message, supervisorAccessToken); await loadRecruitment(false, true); modal.close(); toast('E-mail enviado e candidato movido para Recusados.'); } catch (error) { toast(error.message); button.disabled = false; button.textContent = 'Confirmar e enviar e-mail'; } };
+    modal.showModal();
   }
 
   async function loadPublicVacancy(slug) {
@@ -5294,7 +5326,9 @@
     $('#rhCandidateKanban')?.addEventListener('change', async (event) => { const select = event.target.closest('[data-rh-stage]'); if (!select) return; try { await updateRecruitmentStage(select.dataset.rhStage, select.value); } catch (error) { toast(error.message); } });
     $('#rhCandidateKanban')?.addEventListener('click', (event) => { const button = event.target.closest('[data-rh-details]'); if (!button) return; const candidate = recruitmentData.candidates.find((item) => item.id === button.dataset.rhDetails); if (!candidate) return; openSupervisorModal(candidate.name, 'Candidato à vaga', [['WhatsApp', candidate.phone], ['E-mail', candidate.email || '—'], ['Cidade', candidate.city || '—'], ['Experiência', candidate.experience || '—'], ['Currículo', candidate.resumeUrl || '—'], ['Apresentação', candidate.message || '—']]); });
     $('#rhCandidateKanban')?.addEventListener('click', async (event) => {
-      const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]');
+      const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]'); const discSend = event.target.closest('[data-rh-disc-send]'); const discResult = event.target.closest('[data-rh-disc-result]');
+      if (discSend) { const candidate = recruitmentData.candidates.find((item) => item.id === discSend.dataset.rhDiscSend); if (candidate) await sendCandidateDisc(candidate); }
+      if (discResult) { const candidate = recruitmentData.candidates.find((item) => item.id === discResult.dataset.rhDiscResult); if (candidate) openDiscResult(candidate); }
       if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await popupConfirm(`${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`, 'Cadastrar novo corretor')) return; await window.LungoSupervisorApi.updateCandidate(candidate.id, { hirePending: true, seen: true }, supervisorAccessToken); await loadRecruitment(false, true); renderSupervisorMocks(); setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
       if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir o card de ${candidate.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir candidato', 'Excluir')) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
     });
