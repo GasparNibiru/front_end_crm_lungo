@@ -32,6 +32,8 @@
   const updateCandidate = (id, payload, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'PATCH', token, body: payload });
   const deleteCandidate = (id, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'DELETE', token });
   const markCandidatesSeen = (token) => request('/api/supervisor/recruitment/candidates/seen', { method: 'POST', token, body: {} });
+  const sendCandidateDisc = (id, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}/disc/send`, { method: 'POST', token, body: {} });
+  const declineCandidate = (id, message, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}/decline`, { method: 'POST', token, body: { message } });
   const getCalendarEvents = (token) => request('/api/calendar/events', { token });
   const createCalendarEvent = (payload, token) => request('/api/calendar/events', { method: 'POST', token, body: payload });
   const deleteCalendarEvent = (id, token) => request(`/api/calendar/events/${encodeURIComponent(id)}`, { method: 'DELETE', token });
@@ -41,5 +43,5 @@
   const buyMarketplaceLead = (id, token) => request(`/api/lead-marketplace/${encodeURIComponent(id)}/buy`, { method: 'POST', token, body: {} });
   const getTeamGoal = (token) => request('/api/team/goal', { token });
   const updateTeamGoal = (teamGoal, token) => request('/api/team/goal', { method: 'PUT', token, body: { teamGoal } });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal });
+  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal });
 })();

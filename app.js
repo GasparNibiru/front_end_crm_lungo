@@ -1724,7 +1724,7 @@
     const activeBrokerIds = new Set(SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo").map((broker) => String(broker.id)));
     const activeBrokerNames = new Set(SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo").map((broker) => stripAccents(broker.name).toLowerCase()));
     const belongsToActiveBroker = (lead) => lead.brokerUserId ? activeBrokerIds.has(String(lead.brokerUserId)) : activeBrokerNames.has(stripAccents(lead.brokerName || "").toLowerCase());
-    SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && belongsToActiveBroker(lead)).map((lead) => ({ id: lead.id, brokerUserId: lead.brokerUserId || null, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
+    SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && belongsToActiveBroker(lead)).map((lead) => ({ id: lead.id, brokerUserId: lead.brokerUserId || null, assignedBrokerUserId: lead.assignedBrokerUserId || lead.brokerUserId || null, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "", companyProvided: Boolean(lead.companyProvided), firstAssignedAt: lead.firstAssignedAt || lead.assignedAt || null, lastTransferredAt: lead.lastTransferredAt || null, assignmentHistory: Array.isArray(lead.assignmentHistory) ? lead.assignmentHistory : [] })));
     SUPERVISOR_BROKERS.forEach((broker) => {
       const closed = SUPERVISOR_DEALS.filter((deal) => deal.stage === 'fechamento' && stripAccents(deal.seller).toLowerCase() === stripAccents(broker.name).toLowerCase());
       broker.sales = closed.length;
@@ -1786,7 +1786,9 @@
       block: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
       reactivate: '<path d="M7 10V7a4 4 0 0 1 7.5-2"/><rect x="5" y="10" width="14" height="10" rx="2"/>',
       edit: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
-      archive: '<path d="M6 6l12 12M18 6 6 18"/>'
+      archive: '<path d="M6 6l12 12M18 6 6 18"/>',
+      whatsapp: '<path d="M20 11.7a8 8 0 0 1-11.7 7.1L4 20l1.2-4.1A8 8 0 1 1 20 11.7Z"/><path d="M9 8.7c.2 2.7 2 5 4.8 6.2l1.4-1.3 2 .5"/>',
+      details: '<circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/>'
     };
     return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ''}</svg>`;
   }
@@ -1881,7 +1883,7 @@
       const deals = SUPERVISOR_DEALS.filter((deal) => deal.stage === key);
       const total = deals.reduce((sum, deal) => sum + Number(String(deal.value || "").replace(/[^0-9,]/g, "").replace(",", ".") || 0), 0);
       const totalLabel = ["novos", "em_atendimento"].includes(key) ? "Valor especulativo" : key === "fechamento" ? "Realizado" : key === "perdida" ? "Perdido" : "Previsto";
-      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b><span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
+      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal ${deal.companyProvided ? 'company-provided' : ''}"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b>${deal.companyProvided ? '<em class="supervisor-company-lead">Lead da empresa</em>' : ''}<span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
     }).join("");
 
     renderSupervisorCustomers();
@@ -1942,11 +1944,19 @@
     });
   }
 
-  const RH_STAGES = [['novo', 'Novos'], ['triagem', 'Triagem'], ['contato', 'Contato'], ['entrevista', 'Entrevista'], ['aprovado', 'Aprovados'], ['recusado', 'Recusados']];
+  const RH_STAGES = [['novo', 'Novos'], ['teste_enviado', 'Teste enviado'], ['teste_realizado', 'Teste realizado'], ['triagem', 'Triagem'], ['entrevista', 'Entrevista'], ['aprovado', 'Aprovados'], ['recusado', 'Recusados']];
 
   function recruitmentLink() { const vacancy = recruitmentData.vacancy; return vacancy ? `${location.origin}${location.pathname}?vaga=${encodeURIComponent(vacancy.slug)}` : ''; }
   function candidateWhatsApp(candidate) { const phone = String(candidate.phone || '').replace(/\D/g, ''); const text = `Olá, ${candidate.name}! Recebemos sua candidatura para a vaga de ${recruitmentData.vacancy?.title || 'Consultor de Planos de Saúde'}. Gostaríamos de conversar sobre a oportunidade. Podemos falar agora?`; return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`; }
-  function recruitmentCandidateAction(candidate) { if (candidate.stage === 'aprovado' && !candidate.hiredUserId) return candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`; if (candidate.hiredUserId) return '<span class="rh-hire-pending done">Corretor cadastrado</span>'; return ''; }
+  function recruitmentCandidateAction(candidate) {
+    const actions = [];
+    if (!candidate.disc?.sentAt && candidate.stage === 'novo') actions.push(`<button class="btn small primary" type="button" data-rh-disc-send="${candidate.id}">Enviar teste DISC</button>`);
+    else if (candidate.disc?.completedAt) actions.push(`<button class="rh-disc-result-btn" type="button" data-rh-disc-result="${candidate.id}" title="Abrir resultado DISC" aria-label="Abrir resultado DISC">✓ <b>${Number(candidate.disc.result?.match || 0)}%</b></button>`);
+    else if (candidate.disc?.sentAt) actions.push('<span class="rh-disc-waiting">Aguardando teste</span>');
+    if (candidate.stage === 'aprovado' && !candidate.hiredUserId) actions.push(candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`);
+    if (candidate.hiredUserId) actions.push('<span class="rh-hire-pending done">Corretor cadastrado</span>');
+    return actions.join('');
+  }
 
   function ensureRhEditorModal() {
     let modal = $('#rhEditorModal');
@@ -1962,7 +1972,7 @@
     const vacancy = recruitmentData.vacancy || {}; const fields = { rhVacancyTitle: vacancy.title, rhVacancyHeadline: vacancy.headline, rhVacancyLocation: vacancy.location, rhVacancyWorkModel: vacancy.workModel, rhVacancyDescription: vacancy.description, rhVacancyRequirements: vacancy.requirements, rhVacancyBenefits: vacancy.benefits, rhVacancyActive: String(Boolean(vacancy.active)) };
     if (!preserveForm && !rhFormDirty) Object.entries(fields).forEach(([id, value]) => { if ($(`#${id}`)) $(`#${id}`).value = value || ''; });
     const kanban = $('#rhCandidateKanban'); if (!kanban) return;
-    kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane" data-rh-lane="${stage}"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}" draggable="true" data-rh-candidate="${candidate.id}"><header><b>${escapeHtml(candidate.name)}</b><span class="rh-candidate-head-actions">${candidate.seenAt ? '' : '<em>Novo</em>'}<button class="tiny-btn icon-action-btn danger" type="button" data-rh-delete="${candidate.id}" title="Excluir candidato" aria-label="Excluir candidato">${actionIcon('archive')}</button></span></header><small>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</small><p>${escapeHtml(candidate.phone)}${candidate.email ? ` · ${escapeHtml(candidate.email)}` : ''}</p><select data-rh-stage="${candidate.id}">${RH_STAGES.map(([value, text]) => `<option value="${value}" ${value === candidate.stage ? 'selected' : ''}>${text}</option>`).join('')}</select><div><a class="btn small" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener">WhatsApp</a><button class="btn small" type="button" data-rh-details="${candidate.id}">Detalhes</button>${recruitmentCandidateAction(candidate)}</div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
+    kanban.innerHTML = RH_STAGES.map(([stage, label]) => { const rows = recruitmentData.candidates.filter((item) => item.stage === stage); return `<section class="rh-lane" data-rh-lane="${stage}"><header><b>${label}</b><span>${rows.length}</span></header><div>${rows.map((candidate) => `<article class="rh-candidate-card ${candidate.seenAt ? '' : 'new'}" draggable="true" data-rh-candidate="${candidate.id}"><header><b>${escapeHtml(candidate.name)}</b><span class="rh-candidate-head-actions">${candidate.seenAt ? '' : '<em>Novo</em>'}<button class="tiny-btn icon-action-btn danger" type="button" data-rh-delete="${candidate.id}" title="Excluir candidato" aria-label="Excluir candidato">${actionIcon('archive')}</button></span></header><div class="rh-candidate-summary"><span>⌖ ${escapeHtml(candidate.city || 'Cidade não informada')}</span><span>Experiência: ${escapeHtml(candidate.experience || 'Não informada')}</span>${candidate.email ? `<span title="${escapeHtml(candidate.email)}">${escapeHtml(candidate.email)}</span>` : '<span>Sem e-mail informado</span>'}</div><div class="rh-card-actions"><a class="rh-card-icon whatsapp" href="${candidateWhatsApp(candidate)}" target="_blank" rel="noopener" title="Falar no WhatsApp" aria-label="Falar no WhatsApp">${actionIcon('whatsapp')}</a><button class="rh-card-icon" type="button" data-rh-details="${candidate.id}" title="Ver detalhes" aria-label="Ver detalhes">${actionIcon('details')}</button>${recruitmentCandidateAction(candidate)}</div></article>`).join('') || '<div class="empty-state compact-empty">Nenhum candidato</div>'}</div></section>`; }).join('');
     if ($('#rhVacancyStatus')) $('#rhVacancyStatus').textContent = vacancy.active ? `Vaga publicada: ${recruitmentLink()}` : 'Vaga salva, mas ainda desativada.';
   }
 
@@ -1993,6 +2003,32 @@
     await window.LungoSupervisorApi.updateCandidate(candidateId, { stage, seen: true }, supervisorAccessToken);
     if (stage === 'aprovado') { const candidate = recruitmentData.candidates.find((item) => item.id === candidateId); if (candidate && await popupConfirm(`Deseja enviar ${candidate.name} para a aba Corretores aguardando a geração do token?`, 'Candidato aprovado')) await window.LungoSupervisorApi.updateCandidate(candidateId, { hirePending: true, seen: true }, supervisorAccessToken); }
     await loadRecruitment(false, true);
+  }
+
+  async function sendCandidateDisc(candidate) {
+    if (!candidate?.email) return toast('Cadastre um e-mail válido para o candidato antes de enviar o teste.');
+    const button = $(`[data-rh-disc-send="${candidate.id}"]`); if (button) { button.disabled = true; button.textContent = 'Enviando...'; }
+    try {
+      const result = await window.LungoSupervisorApi.sendCandidateDisc(candidate.id, supervisorAccessToken);
+      await loadRecruitment(false, true); toast(`Teste enviado para ${result.recipient}.`);
+      if (result.previewUrl && await popupConfirm('O e-mail foi enviado. Deseja abrir agora o mesmo link recebido pelo candidato para testar a jornada?', 'Teste DISC enviado', 'Abrir teste')) window.open(result.previewUrl, '_blank', 'noopener');
+    } catch (error) { toast(error.message); if (button) { button.disabled = false; button.textContent = 'Enviar teste DISC'; } }
+  }
+
+  function discLevel(value) { return Number(value) >= 70 ? 'Alto' : Number(value) >= 50 ? 'Moderado' : 'Baixo'; }
+  function openDiscResult(candidate) {
+    const result = candidate?.disc?.result; if (!result) return toast('O resultado ainda não está disponível.');
+    let modal = $('#rhDiscResultModal');
+    if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="rhDiscResultModal" class="modal rh-disc-modal"><div class="modal-card"><header><div><h2 id="rhDiscResultTitle">Resultado DISC</h2><p id="rhDiscResultSubtitle"></p></div><button class="btn icon" type="button" data-rh-disc-close>×</button></header><div id="rhDiscResultBody" class="rh-disc-result-body"></div><footer><button id="rhDiscDeclineBtn" class="btn danger" type="button">Declinar candidato</button><span class="footer-spacer"></span><button class="btn" type="button" data-rh-disc-close>Manter nesta etapa</button><button id="rhDiscAdvanceBtn" class="btn primary" type="button">Avançar candidato</button></footer></div></dialog>'); modal = $('#rhDiscResultModal'); modal.querySelectorAll('[data-rh-disc-close]').forEach((button) => button.onclick = () => modal.close()); }
+    const labels = { D: 'Dominância', I: 'Influência', S: 'Estabilidade', C: 'Conformidade' }, indicatorLabels = { commercialDrive: 'Impulso comercial', autonomy: 'Autonomia', discipline: 'Disciplina', processAdherence: 'Aderência a processos' };
+    $('#rhDiscResultTitle').textContent = `Resultado DISC · ${candidate.name}`; $('#rhDiscResultSubtitle').textContent = `Concluído em ${new Date(candidate.disc.completedAt).toLocaleString('pt-BR')}`;
+    $('#rhDiscResultBody').innerHTML = `<section class="rh-disc-match"><div><span>Match com a vaga</span><b>${Number(result.match || 0)}%</b></div><strong>${escapeHtml(result.predominant || '—')} · ${escapeHtml(labels[result.predominant] || 'Perfil misto')}</strong></section><h3>Composição DISC</h3><div class="rh-disc-bars">${Object.entries(result.scores || {}).map(([key, value]) => `<div><span>${escapeHtml(key)} · ${escapeHtml(labels[key])}</span><i><em style="width:${Number(value)}%"></em></i><b>${Number(value)}%</b></div>`).join('')}</div><h3>Indicadores para a vaga</h3><div class="rh-disc-indicators">${Object.entries(result.indicators || {}).map(([key, value]) => `<article><span>${escapeHtml(indicatorLabels[key] || key)}</span><b>${discLevel(value)} · ${Number(value)}%</b></article>`).join('')}</div><div id="rhDeclineComposer" class="rh-decline-composer" hidden><label><span>Mensagem ao candidato</span><textarea id="rhDeclineMessage" rows="5">Neste momento, seguiremos com outros perfis mais aderentes às necessidades da vaga. Agradecemos seu interesse e desejamos sucesso em sua trajetória profissional.</textarea></label><button id="rhConfirmDeclineBtn" class="btn danger" type="button">Confirmar e enviar e-mail</button></div>`;
+    const discDescriptions = { D: ['Dominância', 'Iniciativa, objetividade, competitividade e rapidez para enfrentar desafios.'], I: ['Influência', 'Comunicação, persuasão, entusiasmo e facilidade para criar relacionamentos.'], S: ['Estabilidade', 'Paciência, constância, cooperação e segurança no acompanhamento das pessoas.'], C: ['Conformidade', 'Disciplina, organização, precisão e respeito a regras e processos.'] };
+    $('.rh-disc-bars', $('#rhDiscResultBody'))?.insertAdjacentHTML('afterend', `<div class="rh-disc-explanations">${Object.entries(discDescriptions).map(([key, [title, text]]) => `<article><b>${key} · ${title}</b><p>${text}</p></article>`).join('')}</div>`);
+    $('#rhDiscAdvanceBtn').onclick = async () => { try { await updateRecruitmentStage(candidate.id, 'triagem'); modal.close(); toast('Candidato avançado para Triagem.'); } catch (error) { toast(error.message); } };
+    $('#rhDiscDeclineBtn').onclick = () => { $('#rhDeclineComposer').hidden = false; $('#rhDeclineMessage').focus(); };
+    $('#rhConfirmDeclineBtn').onclick = async () => { const message = $('#rhDeclineMessage').value.trim(); if (!message) return toast('Escreva a mensagem de retorno.'); const button = $('#rhConfirmDeclineBtn'); button.disabled = true; button.textContent = 'Enviando...'; try { await window.LungoSupervisorApi.declineCandidate(candidate.id, message, supervisorAccessToken); await loadRecruitment(false, true); modal.close(); toast('E-mail enviado e candidato movido para Recusados.'); } catch (error) { toast(error.message); button.disabled = false; button.textContent = 'Confirmar e enviar e-mail'; } };
+    modal.showModal();
   }
 
   async function loadPublicVacancy(slug) {
@@ -2050,10 +2086,19 @@
 
   function openSupervisorModal(title, subtitle, fields) {
     if (!el.supervisorDetailModal) return;
+    $('#supervisorReassignLeadBtn')?.remove();
     el.supervisorModalTitle.textContent = title;
     el.supervisorModalSubtitle.textContent = subtitle || "";
     el.supervisorModalBody.innerHTML = fields.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("");
     el.supervisorDetailModal.showModal();
+  }
+
+  function openSupervisorDealDetails(deal, stageLabels) {
+    const fields = [['Nome', deal.client], ['Telefone', deal.phone || '—'], ['E-mail', deal.email || '—'], ['CNPJ ou PF', deal.personType || 'PF'], ['Número CNPJ/CPF', deal.document || '—'], ['Qtd. de vidas', String(deal.lives || 1)], ['Valor do negócio', deal.value || '—'], ['Produto de interesse', deal.product || '—'], ['Cidade', deal.city || '—'], ['Vendedor responsável', deal.seller], ['Etapa atual', stageLabels[deal.stage] || deal.stage], ['Observações', deal.notes || 'Sem observações.']];
+    if (deal.companyProvided) { fields.splice(10, 0, ['Origem', 'Lead fornecido pela empresa'], ['Primeiro envio', deal.firstAssignedAt ? new Date(deal.firstAssignedAt).toLocaleString('pt-BR') : '—'], ['Última transferência', deal.lastTransferredAt ? new Date(deal.lastTransferredAt).toLocaleString('pt-BR') : 'Ainda não transferido']); }
+    openSupervisorModal(deal.client, deal.companyProvided ? 'Lead da empresa · acompanhamento e titularidade' : 'Ficha completa do lead', fields);
+    const footer = el.supervisorDetailModal?.querySelector('footer'), previous = $('#supervisorReassignLeadBtn'); previous?.remove();
+    if (deal.companyProvided && footer) { const button = document.createElement('button'); button.id = 'supervisorReassignLeadBtn'; button.className = 'btn primary'; button.type = 'button'; button.textContent = 'Enviar para outro corretor'; button.onclick = () => { el.supervisorDetailModal.close(); openLeadAssignmentModal({ id: deal.id, nome: deal.client, assignedBrokerUserId: deal.assignedBrokerUserId }); }; footer.insertBefore(button, el.supervisorModalFooterCloseBtn); }
   }
 
   function showAccessLimitModal() {
@@ -2474,6 +2519,20 @@
     return Number.isNaN(dt.getTime()) ? true : dt >= new Date();
   }
 
+  function supervisorLeadAssignment(lead) {
+    if (!supervisorAccessToken || !lead?.assignedBrokerUserId) return null;
+    const broker = SUPERVISOR_BROKERS.find((item) => String(item.id) === String(lead.assignedBrokerUserId));
+    return { id: lead.assignedBrokerUserId, name: broker?.name || lead.assignedBrokerName || 'Corretor' };
+  }
+
+  function isCompanyProvidedLead(lead) { return Boolean(lead?.companyProvided); }
+
+  function leadAssignmentBadge(lead) {
+    if (!isCompanyProvidedLead(lead)) return '';
+    const assignment = supervisorLeadAssignment(lead), label = assignment?.name || 'Lead da empresa';
+    return `<span class="lead-owner-badge" title="${assignment ? `Lead em posse de ${escapeHtml(label)}` : 'Lead fornecido pela empresa'}">${iconSvg('team')}<b>${escapeHtml(label)}</b></span>`;
+  }
+
   function actionButtons(lead) {
     const wa = whatsappUrl(lead);
     const whatsapp = wa
@@ -2481,7 +2540,7 @@
       : `<button class="icon-action disabled" type="button" title="WhatsApp indisponível">${iconSvg("whatsapp")}</button>`;
     const scheduled = leadScheduleActive(lead);
     const scheduleBtn = `<button class="icon-action schedule ${scheduled ? "active-schedule" : ""}" type="button" data-action="schedule" data-id="${escapeHtml(lead.id)}" title="Programar mensagem">${iconSvg("clock")}</button>`;
-    const teamBtn = supervisorAccessToken ? `<button class="icon-action team" type="button" data-action="assign-team" data-id="${escapeHtml(lead.id)}" title="Enviar para corretor">${iconSvg("team")}</button>` : "";
+    const teamBtn = supervisorAccessToken ? `<button class="icon-action team ${supervisorLeadAssignment(lead) ? 'assigned' : ''}" type="button" data-action="assign-team" data-id="${escapeHtml(lead.id)}" title="${supervisorLeadAssignment(lead) ? 'Repassar para outro corretor' : 'Enviar para corretor'}">${iconSvg("team")}</button>` : "";
     return `<div class="row-buttons">${whatsapp}${scheduleBtn}<button class="icon-action" type="button" data-action="view" data-id="${escapeHtml(lead.id)}" title="Ver mais">${iconSvg("edit")}</button>${teamBtn}</div>`;
   }
 
@@ -2494,8 +2553,8 @@
     modal.id = "leadAssignmentModal";
     modal.className = "modal lead-assignment-modal";
     modal.innerHTML = `<form method="dialog" class="modal-card">
-      <header><div><h2>Enviar lead para a equipe</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
-      <div class="lead-assignment-list">${activeBrokers.length ? activeBrokers.map((broker) => `<label><input type="radio" name="leadBroker" value="${escapeHtml(broker.id)}"><span><b>${escapeHtml(broker.name)}</b><small>${escapeHtml(broker.email || "Corretor ativo")}</small></span></label>`).join("") : `<p class="lead-assignment-empty">Nenhum corretor ativo disponível.</p>`}</div>
+      <header><div><h2>${supervisorLeadAssignment(lead) ? 'Repassar lead para a equipe' : 'Enviar lead para a equipe'}</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}. Após o envio, acompanhe este lead pelo Funil de Vendas.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
+      <div class="lead-assignment-list">${activeBrokers.length ? activeBrokers.map((broker) => `<label><input type="radio" name="leadBroker" value="${escapeHtml(broker.id)}" ${String(broker.id) === String(lead.assignedBrokerUserId || '') ? 'checked' : ''}><span><b>${escapeHtml(broker.name)}</b><small>${escapeHtml(broker.email || "Corretor ativo")}</small></span></label>`).join("") : `<p class="lead-assignment-empty">Nenhum corretor ativo disponível.</p>`}</div>
       <footer><button class="btn ghost" type="button" data-close-assignment>Cancelar</button><button class="btn primary" type="submit" ${activeBrokers.length ? "" : "disabled"}>Enviar lead</button></footer>
     </form>`;
     document.body.appendChild(modal);
@@ -2546,7 +2605,7 @@
     }
 
     el.crmRows.innerHTML = leads.map((lead) => `
-      <tr data-id="${escapeHtml(lead.id)}" class="lead-row status-row-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""}">
+      <tr data-id="${escapeHtml(lead.id)}" class="lead-row status-row-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${isCompanyProvidedLead(lead) ? "lead-assigned" : ""}">
         <td class="select-col"><input type="checkbox" data-select-lead="${escapeHtml(lead.id)}" ${state.selectedLeadIds.has(lead.id) ? "checked" : ""} aria-label="Selecionar lead"></td>
         <td>
           <div class="contact-cell">
@@ -2554,6 +2613,7 @@
             <div class="contact-main">
               <b title="${escapeHtml(displayName(lead))}">${unreadDotHtml(lead)}${escapeHtml(displayName(lead))}</b>
               <span>${escapeHtml(displayPhone(lead) || "—")}${lead.email ? ` • ${escapeHtml(lead.email)}` : ""}</span>
+              ${leadAssignmentBadge(lead)}
             </div>
           </div>
         </td>
@@ -2585,8 +2645,9 @@
               <header><b>${status.label}</b><span>${grouped[status.value].length}</span></header>
               <div class="kanban-lane" data-lane="${status.value}">
                 ${grouped[status.value].map((lead) => `
-                  <article class="kanban-card status-card-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""}" draggable="true" data-id="${escapeHtml(lead.id)}">
+                  <article class="kanban-card status-card-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${isCompanyProvidedLead(lead) ? "lead-assigned" : ""}" draggable="true" data-id="${escapeHtml(lead.id)}">
                     <div class="top">${avatarHtml(lead)}<b title="${escapeHtml(displayName(lead))}">${unreadDotHtml(lead)}${escapeHtml(displayName(lead))}</b></div>
+                    ${leadAssignmentBadge(lead)}
                     <small>${escapeHtml(displayPhone(lead) || "—")}</small>
                     <small title="${escapeHtml(lead.lastMessage)}">${escapeHtml(lead.lastMessage || lead.planoInteresse || "Sem mensagem")}</small>
                     <div class="card-meta">
@@ -5291,10 +5352,11 @@
     $('#rhVacancyForm')?.addEventListener('input', () => { rhFormDirty = true; });
     $('#rhRefreshBtn')?.addEventListener('click', () => loadRecruitment(false));
     $('#rhCopyLinkBtn')?.addEventListener('click', async () => { const link = recruitmentLink(); if (!link) return toast('Salve a vaga primeiro.'); await navigator.clipboard.writeText(link); toast('Link público da vaga copiado.'); });
-    $('#rhCandidateKanban')?.addEventListener('change', async (event) => { const select = event.target.closest('[data-rh-stage]'); if (!select) return; try { await updateRecruitmentStage(select.dataset.rhStage, select.value); } catch (error) { toast(error.message); } });
     $('#rhCandidateKanban')?.addEventListener('click', (event) => { const button = event.target.closest('[data-rh-details]'); if (!button) return; const candidate = recruitmentData.candidates.find((item) => item.id === button.dataset.rhDetails); if (!candidate) return; openSupervisorModal(candidate.name, 'Candidato à vaga', [['WhatsApp', candidate.phone], ['E-mail', candidate.email || '—'], ['Cidade', candidate.city || '—'], ['Experiência', candidate.experience || '—'], ['Currículo', candidate.resumeUrl || '—'], ['Apresentação', candidate.message || '—']]); });
     $('#rhCandidateKanban')?.addEventListener('click', async (event) => {
-      const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]');
+      const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]'); const discSend = event.target.closest('[data-rh-disc-send]'); const discResult = event.target.closest('[data-rh-disc-result]');
+      if (discSend) { const candidate = recruitmentData.candidates.find((item) => item.id === discSend.dataset.rhDiscSend); if (candidate) await sendCandidateDisc(candidate); }
+      if (discResult) { const candidate = recruitmentData.candidates.find((item) => item.id === discResult.dataset.rhDiscResult); if (candidate) openDiscResult(candidate); }
       if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await popupConfirm(`${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`, 'Cadastrar novo corretor')) return; await window.LungoSupervisorApi.updateCandidate(candidate.id, { hirePending: true, seen: true }, supervisorAccessToken); await loadRecruitment(false, true); renderSupervisorMocks(); setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
       if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir o card de ${candidate.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir candidato', 'Excluir')) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
     });
@@ -5317,7 +5379,7 @@
       if (dealButton) {
         const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
         const stageLabels = { novos: "Novos", em_atendimento: "Em atendimento", cotacao: "Cotação Enviada", documentacao: "Documentação recebida", venda: "Venda cadastrada", boleto: "Boleto Gerado", fechamento: "Fechamento", perdida: "Venda Perdida" };
-        if (deal) openSupervisorModal(deal.client, "Ficha completa do lead", [["Nome", deal.client], ["Telefone", deal.phone || "—"], ["E-mail", deal.email || "—"], ["CNPJ ou PF", deal.personType || "PF"], ["Número CNPJ/CPF", deal.document || "—"], ["Qtd. de vidas", String(deal.lives || 1)], ["Valor do negócio", deal.value || "—"], ["Produto de interesse", deal.product || "—"], ["Cidade", deal.city || "—"], ["Vendedor responsável", deal.seller], ["Etapa atual", stageLabels[deal.stage] || deal.stage], ["Observações", deal.notes || "Sem observações."]]);
+        if (deal) openSupervisorDealDetails(deal, stageLabels);
         return;
       }
       const brokerButton = event.target.closest("[data-supervisor-broker-action]");
