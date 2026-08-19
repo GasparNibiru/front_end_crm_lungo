@@ -1724,7 +1724,7 @@
     const activeBrokerIds = new Set(SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo").map((broker) => String(broker.id)));
     const activeBrokerNames = new Set(SUPERVISOR_BROKERS.filter((broker) => broker.statusLabel === "Ativo").map((broker) => stripAccents(broker.name).toLowerCase()));
     const belongsToActiveBroker = (lead) => lead.brokerUserId ? activeBrokerIds.has(String(lead.brokerUserId)) : activeBrokerNames.has(stripAccents(lead.brokerName || "").toLowerCase());
-    SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && belongsToActiveBroker(lead)).map((lead) => ({ id: lead.id, brokerUserId: lead.brokerUserId || null, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "" })));
+    SUPERVISOR_DEALS.splice(0, SUPERVISOR_DEALS.length, ...(leadsResult.leads || []).filter((lead) => !["arquivado", "lixeira"].includes(lead.status) && belongsToActiveBroker(lead)).map((lead) => ({ id: lead.id, brokerUserId: lead.brokerUserId || null, assignedBrokerUserId: lead.assignedBrokerUserId || lead.brokerUserId || null, stage: stageMap[lead.status] || "novos", client: lead.nome || lead.pushName || lead.telefone || "Lead", seller: lead.brokerName || "Corretor", phone: lead.telefone || lead.phone || "—", email: lead.email || "", personType: lead.pessoaTipo || "", document: lead.cnpjOuPf || "", lives: Number(lead.qtdVidas || 0), product: lead.planoInteresse || "—", city: lead.cidade || "", value: lead.valorNegocio ? formatMoney(lead.valorNegocio) : "R$ 0", notes: lead.observacao || lead.lastMessage || "", companyProvided: Boolean(lead.companyProvided), firstAssignedAt: lead.firstAssignedAt || lead.assignedAt || null, lastTransferredAt: lead.lastTransferredAt || null, assignmentHistory: Array.isArray(lead.assignmentHistory) ? lead.assignmentHistory : [] })));
     SUPERVISOR_BROKERS.forEach((broker) => {
       const closed = SUPERVISOR_DEALS.filter((deal) => deal.stage === 'fechamento' && stripAccents(deal.seller).toLowerCase() === stripAccents(broker.name).toLowerCase());
       broker.sales = closed.length;
@@ -1883,7 +1883,7 @@
       const deals = SUPERVISOR_DEALS.filter((deal) => deal.stage === key);
       const total = deals.reduce((sum, deal) => sum + Number(String(deal.value || "").replace(/[^0-9,]/g, "").replace(",", ".") || 0), 0);
       const totalLabel = ["novos", "em_atendimento"].includes(key) ? "Valor especulativo" : key === "fechamento" ? "Realizado" : key === "perdida" ? "Perdido" : "Previsto";
-      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b><span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
+      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal ${deal.companyProvided ? 'company-provided' : ''}"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b>${deal.companyProvided ? '<em class="supervisor-company-lead">Lead da empresa</em>' : ''}<span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
     }).join("");
 
     renderSupervisorCustomers();
@@ -2086,10 +2086,19 @@
 
   function openSupervisorModal(title, subtitle, fields) {
     if (!el.supervisorDetailModal) return;
+    $('#supervisorReassignLeadBtn')?.remove();
     el.supervisorModalTitle.textContent = title;
     el.supervisorModalSubtitle.textContent = subtitle || "";
     el.supervisorModalBody.innerHTML = fields.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join("");
     el.supervisorDetailModal.showModal();
+  }
+
+  function openSupervisorDealDetails(deal, stageLabels) {
+    const fields = [['Nome', deal.client], ['Telefone', deal.phone || '—'], ['E-mail', deal.email || '—'], ['CNPJ ou PF', deal.personType || 'PF'], ['Número CNPJ/CPF', deal.document || '—'], ['Qtd. de vidas', String(deal.lives || 1)], ['Valor do negócio', deal.value || '—'], ['Produto de interesse', deal.product || '—'], ['Cidade', deal.city || '—'], ['Vendedor responsável', deal.seller], ['Etapa atual', stageLabels[deal.stage] || deal.stage], ['Observações', deal.notes || 'Sem observações.']];
+    if (deal.companyProvided) { fields.splice(10, 0, ['Origem', 'Lead fornecido pela empresa'], ['Primeiro envio', deal.firstAssignedAt ? new Date(deal.firstAssignedAt).toLocaleString('pt-BR') : '—'], ['Última transferência', deal.lastTransferredAt ? new Date(deal.lastTransferredAt).toLocaleString('pt-BR') : 'Ainda não transferido']); }
+    openSupervisorModal(deal.client, deal.companyProvided ? 'Lead da empresa · acompanhamento e titularidade' : 'Ficha completa do lead', fields);
+    const footer = el.supervisorDetailModal?.querySelector('footer'), previous = $('#supervisorReassignLeadBtn'); previous?.remove();
+    if (deal.companyProvided && footer) { const button = document.createElement('button'); button.id = 'supervisorReassignLeadBtn'; button.className = 'btn primary'; button.type = 'button'; button.textContent = 'Enviar para outro corretor'; button.onclick = () => { el.supervisorDetailModal.close(); openLeadAssignmentModal({ id: deal.id, nome: deal.client, assignedBrokerUserId: deal.assignedBrokerUserId }); }; footer.insertBefore(button, el.supervisorModalFooterCloseBtn); }
   }
 
   function showAccessLimitModal() {
@@ -2516,9 +2525,12 @@
     return { id: lead.assignedBrokerUserId, name: broker?.name || lead.assignedBrokerName || 'Corretor' };
   }
 
+  function isCompanyProvidedLead(lead) { return Boolean(lead?.companyProvided); }
+
   function leadAssignmentBadge(lead) {
-    const assignment = supervisorLeadAssignment(lead); if (!assignment) return '';
-    return `<span class="lead-owner-badge" title="Lead em posse de ${escapeHtml(assignment.name)}">${iconSvg('team')}<b>${escapeHtml(assignment.name)}</b></span>`;
+    if (!isCompanyProvidedLead(lead)) return '';
+    const assignment = supervisorLeadAssignment(lead), label = assignment?.name || 'Lead da empresa';
+    return `<span class="lead-owner-badge" title="${assignment ? `Lead em posse de ${escapeHtml(label)}` : 'Lead fornecido pela empresa'}">${iconSvg('team')}<b>${escapeHtml(label)}</b></span>`;
   }
 
   function actionButtons(lead) {
@@ -2541,7 +2553,7 @@
     modal.id = "leadAssignmentModal";
     modal.className = "modal lead-assignment-modal";
     modal.innerHTML = `<form method="dialog" class="modal-card">
-      <header><div><h2>${supervisorLeadAssignment(lead) ? 'Repassar lead para a equipe' : 'Enviar lead para a equipe'}</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}. O card continuará visível para o supervisor.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
+      <header><div><h2>${supervisorLeadAssignment(lead) ? 'Repassar lead para a equipe' : 'Enviar lead para a equipe'}</h2><p>Escolha quem receberá o lead de ${escapeHtml(displayName(lead) || "cliente sem nome")}. Após o envio, acompanhe este lead pelo Funil de Vendas.</p></div><button class="btn ghost" type="button" data-close-assignment aria-label="Fechar">×</button></header>
       <div class="lead-assignment-list">${activeBrokers.length ? activeBrokers.map((broker) => `<label><input type="radio" name="leadBroker" value="${escapeHtml(broker.id)}" ${String(broker.id) === String(lead.assignedBrokerUserId || '') ? 'checked' : ''}><span><b>${escapeHtml(broker.name)}</b><small>${escapeHtml(broker.email || "Corretor ativo")}</small></span></label>`).join("") : `<p class="lead-assignment-empty">Nenhum corretor ativo disponível.</p>`}</div>
       <footer><button class="btn ghost" type="button" data-close-assignment>Cancelar</button><button class="btn primary" type="submit" ${activeBrokers.length ? "" : "disabled"}>Enviar lead</button></footer>
     </form>`;
@@ -2593,7 +2605,7 @@
     }
 
     el.crmRows.innerHTML = leads.map((lead) => `
-      <tr data-id="${escapeHtml(lead.id)}" class="lead-row status-row-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${supervisorLeadAssignment(lead) ? "lead-assigned" : ""}">
+      <tr data-id="${escapeHtml(lead.id)}" class="lead-row status-row-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${isCompanyProvidedLead(lead) ? "lead-assigned" : ""}">
         <td class="select-col"><input type="checkbox" data-select-lead="${escapeHtml(lead.id)}" ${state.selectedLeadIds.has(lead.id) ? "checked" : ""} aria-label="Selecionar lead"></td>
         <td>
           <div class="contact-cell">
@@ -2633,7 +2645,7 @@
               <header><b>${status.label}</b><span>${grouped[status.value].length}</span></header>
               <div class="kanban-lane" data-lane="${status.value}">
                 ${grouped[status.value].map((lead) => `
-                  <article class="kanban-card status-card-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${supervisorLeadAssignment(lead) ? "lead-assigned" : ""}" draggable="true" data-id="${escapeHtml(lead.id)}">
+                  <article class="kanban-card status-card-${escapeHtml(lead.status)} ${isLeadUnread(lead) ? "lead-unread" : ""} ${isCompanyProvidedLead(lead) ? "lead-assigned" : ""}" draggable="true" data-id="${escapeHtml(lead.id)}">
                     <div class="top">${avatarHtml(lead)}<b title="${escapeHtml(displayName(lead))}">${unreadDotHtml(lead)}${escapeHtml(displayName(lead))}</b></div>
                     ${leadAssignmentBadge(lead)}
                     <small>${escapeHtml(displayPhone(lead) || "—")}</small>
@@ -5367,7 +5379,7 @@
       if (dealButton) {
         const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
         const stageLabels = { novos: "Novos", em_atendimento: "Em atendimento", cotacao: "Cotação Enviada", documentacao: "Documentação recebida", venda: "Venda cadastrada", boleto: "Boleto Gerado", fechamento: "Fechamento", perdida: "Venda Perdida" };
-        if (deal) openSupervisorModal(deal.client, "Ficha completa do lead", [["Nome", deal.client], ["Telefone", deal.phone || "—"], ["E-mail", deal.email || "—"], ["CNPJ ou PF", deal.personType || "PF"], ["Número CNPJ/CPF", deal.document || "—"], ["Qtd. de vidas", String(deal.lives || 1)], ["Valor do negócio", deal.value || "—"], ["Produto de interesse", deal.product || "—"], ["Cidade", deal.city || "—"], ["Vendedor responsável", deal.seller], ["Etapa atual", stageLabels[deal.stage] || deal.stage], ["Observações", deal.notes || "Sem observações."]]);
+        if (deal) openSupervisorDealDetails(deal, stageLabels);
         return;
       }
       const brokerButton = event.target.closest("[data-supervisor-broker-action]");
