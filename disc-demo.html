@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teste de perfil profissional | Lungo</title>
+  <link rel="stylesheet" href="disc-demo.css">
+  <script src="disc-demo.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><div><strong>Lungo</strong><small>Processo seletivo</small></div></div>
+    <span class="secure">Ambiente seguro</span>
+  </header>
+
+  <main class="page">
+    <section id="intro" class="card intro">
+      <span class="eyebrow">Etapa de avaliação</span>
+      <h1>Mapeamento de perfil profissional</h1>
+      <p class="lead">Queremos conhecer melhor sua forma de agir, comunicar e tomar decisões no trabalho.</p>
+      <div class="candidate"><div class="avatar">MC</div><div><small>Candidato(a)</small><strong>Mariana Costa</strong><span>Consultor(a) comercial</span></div></div>
+      <div class="info-grid">
+        <div><b>12</b><span>situações</span></div><div><b>5 min</b><span>em média</span></div><div><b>1 resposta</b><span>por situação</span></div>
+      </div>
+      <div class="notice"><b>Não existem respostas certas ou erradas.</b><span>Escolha a alternativa que mais se aproxima de como você realmente costuma agir.</span></div>
+      <button id="startBtn" class="primary" type="button">Começar avaliação <span>→</span></button>
+      <small class="consent">Ao iniciar, você concorda com o uso das respostas exclusivamente neste processo seletivo.</small>
+    </section>
+
+    <section id="quiz" class="card quiz" hidden>
+      <div class="quiz-head"><div><span id="stepLabel" class="eyebrow"></span><h2 id="questionTitle"></h2></div><b id="progressText"></b></div>
+      <div class="progress"><i id="progressBar"></i></div>
+      <p class="instruction">Qual alternativa mais combina com você?</p>
+      <div id="options" class="options"></div>
+      <div class="quiz-actions"><button id="backBtn" class="secondary" type="button">← Voltar</button><button id="nextBtn" class="primary" type="button" disabled>Continuar →</button></div>
+      <p id="validation" class="validation" aria-live="polite"></p>
+    </section>
+
+    <section id="result" class="card result" hidden>
+      <div class="success-icon">✓</div><span class="eyebrow">Avaliação concluída</span><h1>Obrigado, Mariana!</h1>
+      <p class="lead">Suas respostas foram registradas. Esta é uma prévia do resultado que a equipe de recrutamento receberá.</p>
+      <div class="match"><div><small>Compatibilidade com a vaga comercial</small><strong id="matchValue">0%</strong><span id="matchLabel"></span></div><div class="match-ring"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34"></circle><circle id="matchCircle" class="filled" cx="40" cy="40" r="34"></circle></svg></div></div>
+      <section class="profile-summary"><div><span>Perfil predominante</span><h2 id="profileTitle"></h2><p id="profileDescription"></p></div><span id="profileLetter" class="profile-letter"></span></section>
+      <div id="bars" class="bars"></div>
+      <section class="job-fit">
+        <div class="section-heading"><div><span>Leitura para a vaga</span><h3>Indicadores profissionais</h3></div><small>Perfil procurado: comercial intenso, autônomo e disciplinado</small></div>
+        <div id="fitIndicators" class="fit-indicators"></div>
+      </section>
+      <div class="result-grid"><section><h3>Pontos que se destacam</h3><ul id="strengths"></ul></section><section><h3>Pontos para explorar na entrevista</h3><ul id="attention"></ul></section></div>
+      <div class="notice compact"><b>Importante</b><span>Este mapeamento indica tendências comportamentais e deve ser combinado com entrevista, experiência e critérios objetivos da vaga.</span></div>
+      <button id="restartBtn" class="secondary full" type="button">Refazer demonstração</button>
+    </section>
+  </main>
+</body>
+</html>
