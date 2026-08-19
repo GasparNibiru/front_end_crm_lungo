@@ -2450,12 +2450,19 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .rh-candidate-card header span { color: var(--primary-2); font-size: 8px; text-transform: uppercase; }
 .rh-candidate-card small, .rh-candidate-card p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
 .rh-candidate-card > div { display: grid; gap: 5px; }
+.rh-candidate-summary { min-width: 0; padding: 7px; border-radius: 4px; background: var(--surface-2); }
+.rh-candidate-summary span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 9px; }
+.rh-card-actions { display: flex !important; align-items: center; gap: 5px; min-width: 0; }
+.rh-card-icon { width: 29px; height: 29px; flex: 0 0 29px; display: grid; place-items: center; padding: 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); color: var(--text); }
+.rh-card-icon:hover { border-color: var(--primary); color: var(--primary-2); }.rh-card-icon.whatsapp { color: #21a366; }
+.rh-card-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.rh-card-actions > .btn.primary { flex: 1; min-width: 0; padding-inline: 6px; font-size: 8px; }
 .rh-candidate-card[draggable="true"] { cursor: grab; }
 .rh-candidate-card[draggable="true"]:active { cursor: grabbing; }
 .rh-hire-pending { padding: 5px; border-radius: 4px; background: color-mix(in srgb, #f5b301 14%, transparent); color: #d99b00; font-size: 8px; line-height: 1.3; }
 .rh-hire-pending.done { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
 .rh-disc-waiting { padding: 5px; border-radius: 4px; background: color-mix(in srgb, #f5b301 14%, transparent); color: #d99b00; font-size: 8px; text-align: center; }
-.rh-disc-result-btn { min-height: 28px; border: 1px solid color-mix(in srgb, var(--success) 55%, var(--border)); border-radius: 5px; background: color-mix(in srgb, var(--success) 12%, var(--surface)); color: var(--success); font-size: 9px; font-weight: 700; }
+.rh-disc-result-btn { height: 29px; flex: 1; min-width: 52px; border: 1px solid color-mix(in srgb, var(--success) 55%, var(--border)); border-radius: 5px; background: color-mix(in srgb, var(--success) 12%, var(--surface)); color: var(--success); font-size: 9px; font-weight: 700; }
 .rh-disc-result-btn b { margin-left: 4px; font-size: 11px; }
 .rh-disc-modal .modal-card { width: min(680px, calc(100vw - 28px)); }
 .rh-disc-result-body { display: grid; gap: 15px; padding: 18px; overflow: auto; }
@@ -2463,6 +2470,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .rh-disc-match { display: flex; align-items: center; justify-content: space-between; padding: 17px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); }
 .rh-disc-match div { display: grid; }.rh-disc-match span { color: var(--muted); font-size: 10px; }.rh-disc-match div b { font-size: 28px; color: var(--primary-2); }
 .rh-disc-bars { display: grid; gap: 9px; }.rh-disc-bars > div { display: grid; grid-template-columns: 115px 1fr 35px; gap: 9px; align-items: center; font-size: 10px; }.rh-disc-bars i { height: 7px; overflow: hidden; border-radius: 10px; background: var(--surface-3); }.rh-disc-bars em { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+.rh-disc-explanations { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.rh-disc-explanations article { padding: 10px; border-radius: 6px; background: var(--surface-2); border-left: 3px solid var(--primary); }.rh-disc-explanations b { font-size: 10px; }.rh-disc-explanations p { margin: 4px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
 .rh-disc-indicators { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.rh-disc-indicators article { display: grid; gap: 3px; padding: 11px; border: 1px solid var(--border); border-radius: 6px; }.rh-disc-indicators span { color: var(--muted); font-size: 10px; }.rh-disc-indicators b { font-size: 12px; }
 .rh-decline-composer { display: grid; gap: 9px; padding: 13px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border)); border-radius: 7px; }.rh-decline-composer label { display: grid; gap: 6px; }.rh-decline-composer textarea { resize: vertical; }
 .pending-hire-row { background: color-mix(in srgb, var(--primary) 7%, transparent); }
