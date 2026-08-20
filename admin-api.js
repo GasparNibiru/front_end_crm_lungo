@@ -54,15 +54,16 @@
   const updatePayment = (id, payload, adminKey) => request(`/api/admin/payments/${encodeURIComponent(id)}`, { method: "PATCH", adminKey, body: payload });
   const confirmPayment = (id, payload, adminKey) => request(`/api/admin/payments/${encodeURIComponent(id)}/confirm`, { method: "POST", adminKey, body: payload });
   const getPaymentHistory = (organizationId, adminKey) => request(`/api/admin/organizations/${encodeURIComponent(organizationId)}/payment-history`, { adminKey });
-  const getTrainings = (adminKey) => request('/api/admin/trainings', { adminKey });
-  const createTraining = (payload, adminKey) => request('/api/admin/trainings', { method: 'POST', adminKey, body: payload });
-  const updateTraining = (id, payload, adminKey) => request(`/api/admin/trainings/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
-  const deleteTraining = (id, adminKey) => request(`/api/admin/trainings/${encodeURIComponent(id)}`, { method: 'DELETE', adminKey });
+  const getTrainings = (adminKey) => request('/api/admin/training-center', { adminKey });
+  const createTraining = (payload, adminKey) => request('/api/admin/training-center', { method: 'POST', adminKey, body: payload });
+  const updateTraining = (id, payload, adminKey) => request(`/api/admin/training-center/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
+  const deleteTraining = (id, adminKey) => request(`/api/admin/training-center/${encodeURIComponent(id)}`, { method: 'DELETE', adminKey });
+  const getTrainingMetrics = (id, adminKey) => request(`/api/admin/training-center/${encodeURIComponent(id)}/metrics`, { adminKey });
   const getLeadMarketplace = (adminKey) => request('/api/admin/lead-marketplace', { adminKey });
   const updateLeadMarketplaceSettings = (payload, adminKey) => request('/api/admin/lead-marketplace/settings', { method: 'PATCH', adminKey, body: payload });
   const adjustLeadCredits = (payload, adminKey) => request('/api/admin/lead-marketplace/credits', { method: 'POST', adminKey, body: payload });
   const createMarketplaceLead = (payload, adminKey) => request('/api/admin/lead-marketplace/leads', { method: 'POST', adminKey, body: payload });
   const updateMarketplaceLead = (id, payload, adminKey) => request(`/api/admin/lead-marketplace/leads/${encodeURIComponent(id)}`, { method: 'PATCH', adminKey, body: payload });
 
-  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, getArchivedOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, archiveAccess, changeAccess, renewAccess, invalidateAccess, resendAccessEmail, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining, getLeadMarketplace, updateLeadMarketplaceSettings, adjustLeadCredits, createMarketplaceLead, updateMarketplaceLead });
+  window.LungoAdminApi = Object.freeze({ verifyAdminKey, getDashboard, getOrganizations, getArchivedOrganizations, createSubscription, updateOrganization, changeOrganizationStatus, getSupervisors, getAccesses, createAccess, updateAccess, archiveAccess, changeAccess, renewAccess, invalidateAccess, resendAccessEmail, getFinancial, getFinancialCalendar, getPayment, updatePayment, confirmPayment, getPaymentHistory, getTrainings, createTraining, updateTraining, deleteTraining, getTrainingMetrics, getLeadMarketplace, updateLeadMarketplaceSettings, adjustLeadCredits, createMarketplaceLead, updateMarketplaceLead });
 })();

@@ -2362,6 +2362,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-library-header h2, .training-library-header p { margin: 0; }
 .training-library-header p { margin-top: 4px; color: var(--muted); }
 .training-library-header select { width: min(250px, 100%); }
+.training-library-actions { display: flex; align-items: center; gap: 8px; }
 .training-tracks { min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 18px; padding-right: 4px; }
 .training-track { display: grid; gap: 9px; }
 .training-track > header { display: flex; align-items: end; justify-content: space-between; gap: 10px; }
@@ -2375,6 +2376,12 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-thumb:hover img { transform: scale(1.03); }
 .training-thumb span { position: absolute; inset: auto 8px 8px; width: max-content; padding: 5px 8px; border-radius: 4px; background: rgba(0,0,0,.78); color: #fff; font-size: 9px; }
 .training-card > div { padding: 11px; display: grid; gap: 5px; }
+.training-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.training-eye { min-width: 30px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--primary-2); cursor: pointer; }
+.training-progress { display: grid; gap: 4px; margin-top: 4px; }
+.training-progress > span { height: 5px; overflow: hidden; border-radius: 99px; background: var(--border); }
+.training-progress i { display: block; height: 100%; border-radius: inherit; background: var(--primary-2); }
+.training-progress b { color: var(--muted); font-size: 9px; font-weight: 600; }
 .training-card small { color: var(--primary-2); font-size: 9px; text-transform: uppercase; }
 .training-card h4, .training-card p { margin: 0; }
 .training-card h4 { font-size: 13px; line-height: 1.3; }
@@ -2391,6 +2398,21 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-player-modal .modal-card { width: 100%; max-width: none; }
 .training-player-frame { width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
 .training-player-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.training-player-frame > div { width: 100%; height: 100%; }
+.training-metrics-modal .modal-card, .training-manager-modal .modal-card { width: min(900px, calc(100vw - 24px)); max-width: none; }
+.training-metrics-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.training-metrics-summary article { padding: 14px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); display: grid; gap: 5px; }
+.training-metrics-summary span, .training-viewer-list span { color: var(--muted); font-size: 10px; }
+.training-metrics-summary b { font-size: 20px; }
+.training-viewer-list { display: grid; gap: 7px; max-height: 52vh; overflow-y: auto; }
+.training-viewer-list article { display: grid; grid-template-columns: minmax(0, 1fr) 130px 170px; align-items: center; gap: 12px; padding: 11px; border: 1px solid var(--border); border-radius: 7px; }
+.training-viewer-list article > div { min-width: 0; display: grid; gap: 3px; }
+.training-viewer-progress b { color: var(--primary-2); }
+.training-viewer-list time { color: var(--muted); font-size: 10px; text-align: right; }
+.training-manager-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.training-manager-form label { display: grid; gap: 5px; }
+.training-manager-form label > span { color: var(--muted); font-size: 10px; }
+.training-manager-form .full { grid-column: 1 / -1; }
 
 @media print {
   body * { visibility: hidden !important; }
@@ -2808,12 +2830,18 @@ body[data-company-background]:not([data-company-background="none"]) .kanban-card
   .rh-vacancy-form > * { grid-column: 1 !important; }
   .training-library { height: auto; overflow: visible; }
   .training-library-header { align-items: stretch; flex-direction: column; }
+  .training-library-actions { align-items: stretch; flex-direction: column; }
   .training-library-header select { width: 100%; }
   .training-tracks { overflow: visible; }
   .training-card-grid { grid-template-columns: 1fr; }
   .training-admin-item { grid-template-columns: 76px minmax(0, 1fr); }
   .training-admin-item img { width: 76px; }
   .training-admin-item .admin-master-actions { grid-column: 1 / -1; }
+  .training-metrics-summary { grid-template-columns: 1fr; }
+  .training-viewer-list article { grid-template-columns: 1fr auto; }
+  .training-viewer-list time { grid-column: 1 / -1; text-align: left; }
+  .training-manager-form { grid-template-columns: 1fr; }
+  .training-manager-form .full { grid-column: auto; }
   /* Supervisor: metas sem sobreposição */
   body.supervisor-mode .supervisor-goal-summary { grid-template-columns: 1fr; }
   body.supervisor-mode .supervisor-goal-summary article { min-height: 72px; align-content: center; }
