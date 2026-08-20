@@ -2363,6 +2363,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-library-header p { margin-top: 4px; color: var(--muted); }
 .training-library-header select { width: min(250px, 100%); }
 .training-library-actions { display: flex; align-items: center; gap: 8px; }
+.training-library-actions select { min-width: 170px; }
 .training-tracks { min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 18px; padding-right: 4px; }
 .training-track { display: grid; gap: 9px; }
 .training-track > header { display: flex; align-items: end; justify-content: space-between; gap: 10px; }
@@ -2394,6 +2395,12 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-admin-layout { display: grid; grid-template-columns: minmax(300px, .8fr) minmax(380px, 1.2fr); gap: 12px; align-items: start; }
 .training-admin-list { display: grid; gap: 8px; }
 .training-admin-item { min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.training-admin-sortable { grid-template-columns: 24px 76px minmax(0, 1fr) auto; cursor: grab; transition: opacity .16s ease, transform .16s ease, border-color .16s ease; }
+.training-admin-sortable:active { cursor: grabbing; }
+.training-admin-sortable.dragging { opacity: .5; border-color: var(--primary-2); transform: scale(.99); }
+.training-admin-sortable > img { width: 76px; }
+.training-drag-handle { width: 24px; height: 36px; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 17px; cursor: grab; }
+.training-form label:has(#adminTrainingOrder) { display: none; }
 .training-admin-item img { width: 96px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; }
 .training-admin-item > div { min-width: 0; display: grid; gap: 3px; }
 .training-admin-item span, .training-admin-item small { color: var(--muted); font-size: 9px; }
