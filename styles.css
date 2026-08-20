@@ -2369,13 +2369,17 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-track > header span { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
 .training-track > header h3 { margin: 2px 0 0; font-size: 17px; }
 .training-track > header > b { color: var(--primary-2); font-size: 10px; }
-.training-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.training-card-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .training-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.training-card-admin { border-color: color-mix(in srgb, var(--primary-2) 55%, var(--border)); box-shadow: inset 0 2px 0 color-mix(in srgb, var(--primary-2) 75%, transparent); }
+.training-card-watching { box-shadow: inset 0 2px 0 #f5b301; }
+.training-track-featured > header h3 { color: var(--primary-2); }
 .training-thumb { position: relative; width: 100%; aspect-ratio: 16 / 9; display: block; padding: 0; overflow: hidden; border: 0; border-radius: 0; background: #111; text-align: left; }
 .training-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s ease; }
 .training-thumb:hover img { transform: scale(1.03); }
 .training-thumb span { position: absolute; inset: auto 8px 8px; width: max-content; padding: 5px 8px; border-radius: 4px; background: rgba(0,0,0,.78); color: #fff; font-size: 9px; }
-.training-card > div { padding: 11px; display: grid; gap: 5px; }
+.training-thumb .training-watching-badge { position: absolute; inset: 7px 7px auto auto; padding: 4px 6px; border-radius: 4px; background: #f5b301; color: #191600; font-size: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.training-card > div { padding: 8px; display: grid; gap: 4px; }
 .training-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .training-eye { min-width: 30px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--primary-2); cursor: pointer; }
 .training-progress { display: grid; gap: 4px; margin-top: 4px; }
@@ -2384,8 +2388,8 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-progress b { color: var(--muted); font-size: 9px; font-weight: 600; }
 .training-card small { color: var(--primary-2); font-size: 9px; text-transform: uppercase; }
 .training-card h4, .training-card p { margin: 0; }
-.training-card h4 { font-size: 13px; line-height: 1.3; }
-.training-card p { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.training-card h4 { min-height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; line-height: 1.3; }
+.training-card p { min-height: 28px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--muted); font-size: 9px; line-height: 1.45; }
 .training-stars { color: #f5b301; letter-spacing: 1px; font-size: 11px; }
 .training-admin-layout { display: grid; grid-template-columns: minmax(300px, .8fr) minmax(380px, 1.2fr); gap: 12px; align-items: start; }
 .training-admin-list { display: grid; gap: 8px; }

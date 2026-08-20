@@ -1537,7 +1537,20 @@
   function trainingCards(trainings, options = {}) {
     if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado nesta trilha.</div>';
     const tracks = [...new Set(trainings.map((item) => item.track || 'Geral'))];
-    return tracks.map((track) => `<section class="training-track"><header><div><span>Trilha de conhecimento</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter((item) => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter((item) => (item.track || 'Geral') === track).map((item) => { const progress = item.progress || { percent: 0, status: 'not_started' }; return `<article class="training-card"><button type="button" class="training-thumb" data-training-id="${escapeHtml(item.id)}" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span></button><div><div class="training-card-meta"><small>${item.ownerType === 'supervisor' ? 'Trilha da equipe' : 'Conteúdo Lungo'}</small>${options.metrics ? `<button class="training-eye" type="button" data-training-metrics="${escapeHtml(item.id)}" title="Visto por" aria-label="Ver quem assistiu">&#128065;</button>` : ''}</div><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p><div class="training-progress"><span><i style="width:${Number(progress.percent || 0)}%"></i></span><b>${Number(progress.percent || 0)}%${progress.status === 'completed' ? ' · Concluído' : progress.status === 'in_progress' ? ' · Em andamento' : ''}</b></div></div></article>`; }).join('')}</div></section>`).join('');
+    return tracks.map((track) => `<section class="training-track ${options.featured ? 'training-track-featured' : ''}"><header><div><span>${escapeHtml(options.eyebrow || 'Trilha de conhecimento')}</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter((item) => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter((item) => (item.track || 'Geral') === track).map((item) => { const progress = item.progress || { percent: 0, status: 'not_started' }; return `<article class="training-card ${item.ownerType === 'admin' ? 'training-card-admin' : ''} ${progress.status === 'in_progress' ? 'training-card-watching' : ''}"><button type="button" class="training-thumb" data-training-id="${escapeHtml(item.id)}" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span>${progress.status === 'in_progress' ? '<b class="training-watching-badge">Em andamento</b>' : ''}</button><div><div class="training-card-meta"><small>${item.ownerType === 'supervisor' ? 'Trilha da equipe' : 'Conteúdo Lungo'}</small>${options.metrics ? `<button class="training-eye" type="button" data-training-metrics="${escapeHtml(item.id)}" title="Visto por" aria-label="Ver quem assistiu">&#128065;</button>` : ''}</div><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p><div class="training-progress"><span><i style="width:${Number(progress.percent || 0)}%"></i></span><b>${Number(progress.percent || 0)}%${progress.status === 'completed' ? ' · Concluído' : progress.status === 'in_progress' ? ' · Em andamento' : ''}</b></div></div></article>`; }).join('')}</div></section>`).join('');
+  }
+
+  function orderedTrainings(trainings) {
+    return trainings.slice().sort((a, b) => (a.ownerType === 'admin' ? 0 : 1) - (b.ownerType === 'admin' ? 0 : 1) || Number(a.order || 0) - Number(b.order || 0) || String(a.track || '').localeCompare(String(b.track || '')) || String(a.title || '').localeCompare(String(b.title || '')));
+  }
+
+  function trainingLibraryContent(trainings, options = {}) {
+    if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado.</div>';
+    const inProgress = trainings.filter((item) => item.progress?.status === 'in_progress').sort((a, b) => String(b.progress?.lastViewedAt || '').localeCompare(String(a.progress?.lastViewedAt || '')));
+    const activeIds = new Set(inProgress.map((item) => item.id));
+    const admin = orderedTrainings(trainings.filter((item) => !activeIds.has(item.id) && item.ownerType === 'admin'));
+    const team = orderedTrainings(trainings.filter((item) => !activeIds.has(item.id) && item.ownerType === 'supervisor'));
+    return `${inProgress.length ? trainingCards(inProgress, { ...options, featured: true, eyebrow: 'Continue assistindo' }) : ''}${admin.length ? trainingCards(admin, { ...options, featured: true, eyebrow: 'Em destaque · Lungo' }) : ''}${team.length ? trainingCards(team, { ...options, eyebrow: 'Trilha da equipe' }) : ''}`;
   }
 
   let trainingPlayback = null;
@@ -1566,7 +1579,7 @@
     modal.showModal();
     await loadYoutubeApi();
     const player = new window.YT.Player('trainingPlayerFrame', { videoId: button.dataset.trainingPlay, playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 }, events: { onStateChange(event) { if (!trainingPlayback) return; clearInterval(trainingPlayback.timer); if (event.data === window.YT.PlayerState.PLAYING) trainingPlayback.timer = setInterval(() => saveTrainingPlayback(10), 10000); } } });
-    trainingPlayback = { id: button.dataset.trainingId, player, timer: null, token: calendarToken() };
+    trainingPlayback = { id: button.dataset.trainingId, player, timer: null, token: calendarToken(), target: supervisorAccessToken ? 'supervisor' : 'broker' };
   }
 
   async function saveTrainingPlayback(delta = 0) {
@@ -1577,7 +1590,7 @@
 
   function closeTrainingPlayer() {
     const modal = $('#trainingPlayerModal');
-    if (trainingPlayback) { clearInterval(trainingPlayback.timer); saveTrainingPlayback(0); try { trainingPlayback.player.destroy(); } catch {} trainingPlayback = null; }
+    if (trainingPlayback) { const finished = trainingPlayback; clearInterval(finished.timer); saveTrainingPlayback(0); try { finished.player.destroy(); } catch {} trainingPlayback = null; setTimeout(() => loadTrainingLibrary(finished.token, finished.target), 250); }
     if (!$('#trainingPlayerFrame')) $('.training-player-frame')?.insertAdjacentHTML('beforeend', '<div id="trainingPlayerFrame"></div>');
     if (modal?.open) modal.close();
   }
@@ -1664,15 +1677,15 @@
       const result = await window.LungoSupervisorApi.getTrainings(token);
       const trainings = result.trainings || [];
       if (target === 'supervisor') {
-        library.innerHTML = `<div class="training-library"><header class="training-library-header"><div><h2>Central de treinamentos</h2><p>Conteúdos Lungo e trilhas exclusivas da sua equipe.</p></div><div class="training-library-actions"><select id="supervisorTrainingTrackFilter" class="select"><option value="">Todas as trilhas</option></select><button class="btn primary" type="button" data-supervisor-training-manage>Gerenciar trilhas</button></div></header><div id="supervisorTrainingLibrary" class="training-tracks">${trainingCards(trainings, { metrics: true })}</div></div>`;
+        library.innerHTML = `<div class="training-library"><header class="training-library-header"><div><h2>Central de treinamentos</h2><p>Conteúdos Lungo em destaque e trilhas exclusivas da sua equipe.</p></div><div class="training-library-actions"><select id="supervisorTrainingTrackFilter" class="select"><option value="">Todas as trilhas</option></select><button class="btn primary" type="button" data-supervisor-training-manage>Gerenciar trilhas</button></div></header><div id="supervisorTrainingLibrary" class="training-tracks">${trainingLibraryContent(trainings, { metrics: true })}</div></div>`;
         const filter = $('#supervisorTrainingTrackFilter');
         [...new Set(trainings.map((item) => item.track || 'Geral'))].forEach((track) => filter.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(track)}">${escapeHtml(track)}</option>`));
-        filter.addEventListener('change', () => { $('#supervisorTrainingLibrary').innerHTML = trainingCards(filter.value ? trainings.filter((item) => (item.track || 'Geral') === filter.value) : trainings, { metrics: true }); });
+        filter.addEventListener('change', () => { $('#supervisorTrainingLibrary').innerHTML = trainingLibraryContent(filter.value ? trainings.filter((item) => (item.track || 'Geral') === filter.value) : trainings, { metrics: true }); });
         library.querySelector('[data-supervisor-training-manage]').onclick = () => openSupervisorTrainingManager(token);
       } else {
-        library.innerHTML = trainingCards(trainings);
+        library.innerHTML = trainingLibraryContent(trainings);
         el.brokerTrainingTrackFilter.innerHTML = '<option value="">Todas as trilhas</option>' + [...new Set(trainings.map((item) => item.track || 'Geral'))].map((track) => `<option value="${escapeHtml(track)}">${escapeHtml(track)}</option>`).join('');
-        el.brokerTrainingTrackFilter.onchange = () => { library.innerHTML = trainingCards(el.brokerTrainingTrackFilter.value ? trainings.filter((item) => (item.track || 'Geral') === el.brokerTrainingTrackFilter.value) : trainings); };
+        el.brokerTrainingTrackFilter.onchange = () => { library.innerHTML = trainingLibraryContent(el.brokerTrainingTrackFilter.value ? trainings.filter((item) => (item.track || 'Geral') === el.brokerTrainingTrackFilter.value) : trainings); };
         if (status) status.textContent = `${trainings.length} treinamento(s) disponível(is).`;
       }
     } catch (error) { if (status) { status.textContent = error.message; status.classList.add('error'); } else library.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
@@ -4804,7 +4817,7 @@
     if (!$('#adminTrainingNew')) list.insertAdjacentHTML('beforebegin', '<div class="training-admin-toolbar"><button id="adminTrainingNew" class="btn primary" type="button">Cadastrar novo</button></div>');
     const tracks = [...new Set(adminTrainings.map((item) => item.track || 'Geral'))];
     if ($('#adminTrainingTrackList')) $('#adminTrainingTrackList').innerHTML = tracks.map((track) => `<option value="${escapeHtml(track)}"></option>`).join('');
-    list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => (a.track || '').localeCompare(b.track || '') || a.order - b.order).map((item) => `<article class="training-admin-item"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track || 'Geral')} · Ordem ${Number(item.order || 0)}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn training-eye" type="button" data-training-action="metrics" data-id="${item.id}" title="Visto por">&#128065; Visto por</button><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
+    list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || (a.track || '').localeCompare(b.track || '') || (a.title || '').localeCompare(b.title || '')).map((item) => `<article class="training-admin-item"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>Posição ${Number(item.order || 0)} · ${escapeHtml(item.track || 'Geral')}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn training-eye" type="button" data-training-action="metrics" data-id="${item.id}" title="Visto por">&#128065; Visto por</button><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
   }
 
   async function loadAdminTrainings() {
