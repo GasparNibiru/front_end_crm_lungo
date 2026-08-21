@@ -4846,10 +4846,11 @@
 
   function renderCampaignMedia(campaigns) {
     document.querySelectorAll('.global-campaign-banner').forEach((item) => item.remove());
+    document.querySelectorAll('.campaign-banner-active').forEach((item) => item.classList.remove('campaign-banner-active'));
     const banner = campaigns?.banner;
     const host = document.body.classList.contains('supervisor-mode') ? $('.supervisor-topbar') : $('.topbar');
     if (banner?.image && host) {
-      const image = document.createElement('img'); image.className = 'global-campaign-banner'; image.src = banner.image; image.alt = '';
+      const image = document.createElement('img'); image.className = 'global-campaign-banner'; image.src = banner.image; image.alt = ''; host.classList.add('campaign-banner-active');
       host.insertBefore(image, host.lastElementChild);
     }
     document.querySelectorAll('.global-campaign-popup').forEach((item) => item.remove());
