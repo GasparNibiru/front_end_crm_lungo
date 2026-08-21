@@ -2740,24 +2740,6 @@
     renderKanban();
   }
 
-  function setupSupervisorNavAccordions() {
-    const nav = document.querySelector('.supervisor-nav'); if (!nav || nav.dataset.accordionReady) return;
-    nav.dataset.accordionReady = 'true';
-    [...nav.querySelectorAll('.supervisor-nav-group-title')].forEach((title, index) => {
-      const key = index === 0 ? 'operation' : 'management'; const items = [];
-      let sibling = title.nextElementSibling; while (sibling && !sibling.classList.contains('supervisor-nav-group-title')) { const next = sibling.nextElementSibling; items.push(sibling); sibling = next; }
-      const section = document.createElement('section'); section.className = 'supervisor-nav-accordion'; section.dataset.supervisorNavGroup = key;
-      const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'supervisor-nav-group-toggle'; toggle.innerHTML = `<b>${title.textContent.trim()}</b><span aria-hidden="true">⌄</span>`;
-      const content = document.createElement('div'); content.className = 'supervisor-nav-group-content'; items.forEach((item) => content.appendChild(item));
-      title.replaceWith(section); section.append(toggle, content);
-    });
-    const sections = [...nav.querySelectorAll('.supervisor-nav-accordion')];
-    const openGroup = (key) => { sections.forEach((section) => { const open = section.dataset.supervisorNavGroup === key; section.classList.toggle('open', open); section.querySelector('.supervisor-nav-group-toggle')?.setAttribute('aria-expanded', String(open)); }); localStorage.setItem('lungo-supervisor-nav-group', key); };
-    sections.forEach((section) => { section.querySelector('.supervisor-nav-group-toggle').onclick = () => openGroup(section.dataset.supervisorNavGroup); section.querySelectorAll('.supervisor-nav-item').forEach((item) => item.addEventListener('click', () => openGroup(section.dataset.supervisorNavGroup))); });
-    const stored = localStorage.getItem('lungo-supervisor-nav-group'); const active = sections.find((section) => section.querySelector('.supervisor-nav-item.active'))?.dataset.supervisorNavGroup;
-    openGroup(active || stored || 'management');
-  }
-
   function consolidateLeadCards(leads) {
     const unique = new Map();
     (leads || []).forEach((lead) => {
@@ -5824,7 +5806,6 @@
     hardenAutocomplete();
     bindBrazilPhoneMasks();
     renderCompanyIdentity();
-    setupSupervisorNavAccordions();
     toggleCustomPeriodFields();
     toggleClientCustomPeriodFields();
     // Perfis usam sessões distintas. Se houver uma sessão de Supervisor,
