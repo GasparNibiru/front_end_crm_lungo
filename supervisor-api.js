@@ -10,6 +10,7 @@
     return data;
   }
   const verify = (token) => request("/api/access/auth/verify", { method: "POST", token, body: {} });
+  const updateOwnProfile = (name, token) => request('/api/access/profile', { method: 'PATCH', token, body: { name } });
   const getDashboard = (token) => request("/api/supervisor/dashboard", { token });
   const getBrokers = (token) => request("/api/supervisor/brokers", { token });
   const createBroker = (payload, token) => request("/api/supervisor/brokers", { method: "POST", token, body: payload });
@@ -49,5 +50,6 @@
   const buyMarketplaceLead = (id, token) => request(`/api/lead-marketplace/${encodeURIComponent(id)}/buy`, { method: 'POST', token, body: {} });
   const getTeamGoal = (token) => request('/api/team/goal', { token });
   const updateTeamGoal = (teamGoal, token) => request('/api/team/goal', { method: 'PUT', token, body: { teamGoal } });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal });
+  const updateOrganizationBranding = (payload, token) => request('/api/supervisor/branding', { method: 'PATCH', token, body: payload });
+  window.LungoSupervisorApi = Object.freeze({ verify, updateOwnProfile, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal, updateOrganizationBranding });
 })();

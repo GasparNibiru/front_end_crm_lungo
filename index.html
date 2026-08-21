@@ -7,13 +7,13 @@
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <script>try{if(localStorage.getItem("lungo-auth-session-v1")||localStorage.getItem("lungo-suite-access-v5")||localStorage.getItem("lungo-supervisor-session-v1"))document.documentElement.classList.add("session-restoring")}catch{}</script>
-  <link rel="stylesheet" href="styles.css?v=20260820-training-drag-3">
+  <link rel="stylesheet" href="styles.css?v=20260821-persistence-branding-2">
   <script src="config.js?v=20260808-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="admin-api.js?v=20260820-training-center-1" defer></script>
-  <script src="supervisor-api.js?v=20260820-training-center-1" defer></script>
-  <script src="app.js?v=20260820-training-drag-3" defer></script>
+  <script src="supervisor-api.js?v=20260820-persistence-branding-1" defer></script>
+  <script src="app.js?v=20260821-persistence-branding-2" defer></script>
 </head>
 <body class="auth-locked">
   <section id="publicVacancyScreen" class="public-vacancy-screen" hidden><main class="public-vacancy-page"><header><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><span>Oportunidade profissional</span></header><section class="public-vacancy-hero"><div><span id="publicVacancyLocation">Vaga comercial</span><h1 id="publicVacancyTitle">Consultor de Planos de Saúde</h1><p id="publicVacancyHeadline"></p></div></section><div class="public-vacancy-content"><article><h2>Sobre a oportunidade</h2><p id="publicVacancyDescription"></p><h3>Requisitos</h3><div id="publicVacancyRequirements" class="public-vacancy-list"></div><h3>Benefícios</h3><div id="publicVacancyBenefits" class="public-vacancy-list"></div></article><form id="publicApplicationForm" class="public-application-form"><h2>Candidate-se</h2><p>Preencha seus dados para participar do processo seletivo.</p><label><span>Nome completo</span><input id="applicationName" required></label><label><span>WhatsApp</span><input id="applicationPhone" required inputmode="tel"></label><label><span>E-mail</span><input id="applicationEmail" type="email"></label><label><span>Cidade</span><input id="applicationCity"></label><label><span>Experiência comercial</span><select id="applicationExperience"><option value="Sem experiência">Sem experiência</option><option value="Até 1 ano">Até 1 ano</option><option value="1 a 3 anos">1 a 3 anos</option><option value="Mais de 3 anos">Mais de 3 anos</option></select></label><label><span>Link do currículo</span><input id="applicationResumeUrl" type="url" placeholder="Google Drive, LinkedIn..."></label><label class="full"><span>Conte um pouco sobre você</span><textarea id="applicationMessage" rows="4"></textarea></label><input id="applicationWebsite" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary" type="submit">Enviar candidatura</button><div id="publicApplicationStatus" class="auth-status">Seus dados serão enviados à equipe responsável.</div></form></div></main></section>
@@ -116,8 +116,10 @@
         <button class="supervisor-nav-item" data-supervisor-view="reports" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-7"/></svg></span><b>Relatórios</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="messages" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 5h16v12H7l-3 3zM7 9h10M7 13h7"/></svg></span><b>Mensagens</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="rh" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M17 8h4M19 6v4"/></svg></span><b>Recursos Humanos</b></button>
-        <button class="supervisor-nav-item" data-supervisor-view="settings" type="button"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6l-.3-2.6h-4L10.4 6A7 7 0 0 0 9 7L6.6 6l-2 3.4 2 1.5a7 7 0 0 0 0 2L4.6 14.5l2 3.4L9 17a7 7 0 0 0 1.4.9l.3 2.6h4l.3-2.6A7 7 0 0 0 16.5 17l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></span><b>Configurações da Corretora</b></button>
       </nav>
+      <div class="supervisor-sidebar-footer">
+        <button class="supervisor-nav-item supervisor-settings-item" data-supervisor-view="settings" type="button"><span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A7 7 0 0 0 15 6l-.3-2.6h-4L10.4 6A7 7 0 0 0 9 7L6.6 6l-2 3.4 2 1.5a7 7 0 0 0 0 2L4.6 14.5l2 3.4L9 17a7 7 0 0 0 1.4.9l.3 2.6h4l.3-2.6A7 7 0 0 0 16.5 17l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></span><b>Configurações da Corretora</b></button>
+      </div>
     </aside>
 
     <main class="supervisor-main">

@@ -1333,6 +1333,14 @@
     return { name: String(stored.name || "").trim(), logo: String(stored.logo || ""), sidebarColor: String(stored.sidebarColor || "").trim(), background: String(stored.background || "none") };
   }
 
+  function applyOrganizationIdentity(organization) {
+    if (!organization) return;
+    const current = loadCompanyIdentity();
+    const identity = { ...current, name: String(organization.name || current.name || 'Corretora').trim(), logo: String(organization.logoUrl || organization.logo_url || '') };
+    try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); } catch {}
+    renderCompanyIdentity(); renderCompanyBranding();
+  }
+
   const COMPANY_BACKGROUNDS = {
     "mountain-lake": "assets/backgrounds/mountain-lake.jpg",
     "misty-forest": "assets/backgrounds/misty-forest.jpg",
@@ -1357,7 +1365,7 @@
   function loadBrokerPersonalization() {
     if (!state.token) return { photo: "", sidebarColor: "", background: "none", theme: "" };
     const stored = readLocalObject(brokerPreferenceKey());
-    return { photo: String(stored.photo || ""), sidebarColor: String(stored.sidebarColor || ""), background: String(stored.background || "none"), theme: stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : "" };
+    return { photo: String(stored.photo || ""), displayName: String(stored.displayName || ""), sidebarColor: String(stored.sidebarColor || ""), background: String(stored.background || "none"), theme: stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : "" };
   }
 
   function brokerInitials() {
@@ -1365,6 +1373,7 @@
   }
 
   function applyBrokerPersonalization(preferences = loadBrokerPersonalization()) {
+    if (!$('#brokerDisplayName')) { const companyField = el.brokerFixedCompanyName?.closest('label'); companyField?.insertAdjacentHTML('afterend', '<label><span>Meu nome</span><input id="brokerDisplayName" maxlength="120"><small>Nome exibido no seu acesso.</small></label>'); }
     const company = loadCompanyIdentity();
     const color = preferences.sidebarColor || company.sidebarColor || "#0b7658";
     const background = applyCompanyBackground(preferences.background || "none");
@@ -1372,6 +1381,7 @@
     applyCompanySidebarColor(color);
     el.root.dataset.theme = theme;
     if (el.brokerFixedCompanyName) el.brokerFixedCompanyName.value = company.name || "Lungo";
+    if ($('#brokerDisplayName')) $('#brokerDisplayName').value = preferences.displayName || state.clientName || '';
     if (el.brokerSidebarColor) el.brokerSidebarColor.value = color;
     if (el.brokerThemeSelect) el.brokerThemeSelect.value = theme;
     const radio = document.querySelector(`input[name="brokerBackground"][value="${background}"]`) || document.querySelector('input[name="brokerBackground"][value="none"]');
@@ -1387,10 +1397,14 @@
     if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = pendingBrokerProfilePhoto ? "Foto pessoal salva" : "Nenhuma foto";
   }
 
-  function saveBrokerPersonalization(event) {
+  async function saveBrokerPersonalization(event) {
     event.preventDefault();
     if (!state.token) return;
-    const preferences = { photo: pendingBrokerProfilePhoto, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
+    const displayName = String($('#brokerDisplayName')?.value || state.clientName || '').trim();
+    if (displayName.length < 2) return toast('Informe seu nome.');
+    try { const result = await window.LungoSupervisorApi.updateOwnProfile(displayName, state.token); state.clientName = result.user?.name || displayName; saveAccess(); renderAccess(); }
+    catch (error) { toast(error.message); return; }
+    const preferences = { photo: pendingBrokerProfilePhoto, displayName: state.clientName, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
     try { localStorage.setItem(brokerPreferenceKey(), JSON.stringify(preferences)); }
     catch { toast("Não foi possível salvar. Tente uma foto menor."); return; }
     applyBrokerPersonalization(preferences);
@@ -1804,6 +1818,7 @@
       state.token = token;
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
+      applyOrganizationIdentity(auth.user.organization);
       localStorage.setItem(SUPERVISOR_SESSION_KEY, token);
       localStorage.setItem(ACTIVE_PROFILE_KEY, "supervisor");
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "supervisor", token }));
@@ -2319,6 +2334,7 @@
     try {
       const verified = await api("/api/access/auth/verify", { method: "POST", headers: { "Content-Type": "application/json", "x-access-token": value }, body: "{}" });
       if (verified.user?.role !== "broker") throw new Error("Este token não pertence a um Corretor.");
+      applyOrganizationIdentity(verified.user.organization);
       data = { client: { nome: verified.user.name, instanceName: verified.client?.instanceName || "" }, instanceName: verified.client?.instanceName || "", accessUser: verified.user };
     } catch (realAccessError) {
       if (/não pertence a um Corretor/i.test(realAccessError.message || "")) throw realAccessError;
@@ -2724,11 +2740,45 @@
     renderKanban();
   }
 
+  function setupSupervisorNavAccordions() {
+    const nav = document.querySelector('.supervisor-nav'); if (!nav || nav.dataset.accordionReady) return;
+    nav.dataset.accordionReady = 'true';
+    [...nav.querySelectorAll('.supervisor-nav-group-title')].forEach((title, index) => {
+      const key = index === 0 ? 'operation' : 'management'; const items = [];
+      let sibling = title.nextElementSibling; while (sibling && !sibling.classList.contains('supervisor-nav-group-title')) { const next = sibling.nextElementSibling; items.push(sibling); sibling = next; }
+      const section = document.createElement('section'); section.className = 'supervisor-nav-accordion'; section.dataset.supervisorNavGroup = key;
+      const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'supervisor-nav-group-toggle'; toggle.innerHTML = `<b>${title.textContent.trim()}</b><span aria-hidden="true">⌄</span>`;
+      const content = document.createElement('div'); content.className = 'supervisor-nav-group-content'; items.forEach((item) => content.appendChild(item));
+      title.replaceWith(section); section.append(toggle, content);
+    });
+    const sections = [...nav.querySelectorAll('.supervisor-nav-accordion')];
+    const openGroup = (key) => { sections.forEach((section) => { const open = section.dataset.supervisorNavGroup === key; section.classList.toggle('open', open); section.querySelector('.supervisor-nav-group-toggle')?.setAttribute('aria-expanded', String(open)); }); localStorage.setItem('lungo-supervisor-nav-group', key); };
+    sections.forEach((section) => { section.querySelector('.supervisor-nav-group-toggle').onclick = () => openGroup(section.dataset.supervisorNavGroup); section.querySelectorAll('.supervisor-nav-item').forEach((item) => item.addEventListener('click', () => openGroup(section.dataset.supervisorNavGroup))); });
+    const stored = localStorage.getItem('lungo-supervisor-nav-group'); const active = sections.find((section) => section.querySelector('.supervisor-nav-item.active'))?.dataset.supervisorNavGroup;
+    openGroup(active || stored || 'management');
+  }
+
+  function consolidateLeadCards(leads) {
+    const unique = new Map();
+    (leads || []).forEach((lead) => {
+      const phone = normalizePhone(lead.telefone || lead.phone || '');
+      const key = phone.length >= 10 ? `phone:${phone}` : `id:${lead.id}`;
+      const current = unique.get(key);
+      if (!current) { unique.set(key, lead); return; }
+      const currentScheduled = Boolean(current.mensagemProgramada?.ativo !== false && current.mensagemProgramada?.data);
+      const incomingScheduled = Boolean(lead.mensagemProgramada?.ativo !== false && lead.mensagemProgramada?.data);
+      const preferred = incomingScheduled && !currentScheduled ? lead : current;
+      const secondary = preferred === current ? lead : current;
+      unique.set(key, { ...secondary, ...preferred, mensagemProgramada: preferred.mensagemProgramada || secondary.mensagemProgramada || null, companyProvided: Boolean(preferred.companyProvided || secondary.companyProvided), assignmentHistory: preferred.assignmentHistory || secondary.assignmentHistory || [] });
+    });
+    return [...unique.values()];
+  }
+
   async function loadCrm(silent = false) {
     try {
       if (!state.token) return;
       const data = await api(`/api/crm/auto-leads?token=${tokenQuery()}&limit=500&includeArchived=true&_=${Date.now()}`);
-      state.leads = (data.leads || []).map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).filter((lead) => normalizeStatus(lead.status) !== "lixeira" && isUsableLead(lead));
+      state.leads = consolidateLeadCards((data.leads || []).map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).filter((lead) => normalizeStatus(lead.status) !== "lixeira" && isUsableLead(lead)));
       if (data.client) {
         state.clientName = data.client.nome || state.clientName;
         state.instanceName = data.client.instanceName || state.instanceName;
@@ -3098,7 +3148,7 @@
       await loadCrm(true);
       if (!silent && Array.isArray(sync.leads) && sync.leads.length) {
         const syncedIds = new Set(sync.leads.map((lead) => lead.id));
-        state.leads = sync.leads.map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).concat(state.leads.filter((lead) => !syncedIds.has(lead.id)));
+        state.leads = consolidateLeadCards(sync.leads.map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).concat(state.leads.filter((lead) => !syncedIds.has(lead.id))));
       }
       if (!silent) saveWhatsappConversationWindow();
       renderCrm();
@@ -5322,9 +5372,11 @@
       renderSupervisorGoalsAndReport();
       try {
         const logo = await compactRecruitmentLogo(identity.logo || '');
+        const branding = await window.LungoSupervisorApi.updateOrganizationBranding({ name: identity.name, logo }, supervisorAccessToken);
+        applyOrganizationIdentity(branding.organization);
         const result = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken);
         recruitmentData.vacancy = result.vacancy;
-      } catch (error) { toast(`Identidade salva, mas a landing page não foi atualizada: ${error.message}`); }
+      } catch (error) { toast(`Identidade salva apenas neste dispositivo: ${error.message}`); }
     });
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
@@ -5772,6 +5824,7 @@
     hardenAutocomplete();
     bindBrazilPhoneMasks();
     renderCompanyIdentity();
+    setupSupervisorNavAccordions();
     toggleCustomPeriodFields();
     toggleClientCustomPeriodFields();
     // Perfis usam sessões distintas. Se houver uma sessão de Supervisor,
