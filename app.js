@@ -153,6 +153,8 @@
   let adminMasterCurrentView = "dashboard";
   const adminMasterViewHistory = [];
   let adminTrainings = [];
+  let adminCampaignMedia = { banner: null, popup: null };
+  let pendingCampaignImages = { banner: '', popup: '' };
   let brokerMessageTimer = null;
   let supervisorMessageTimer = null;
   let recruitmentData = { vacancy: null, candidates: [] };
@@ -1829,6 +1831,7 @@
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
       supervisorOrganizationName = auth.user.organization?.name || "Corretora";
       openSupervisorArea();
+      loadCampaignMedia(token);
     } catch (error) { supervisorAccessToken = ""; supervisorUserId = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
     finally { el.supervisorLoginBtn.disabled = false; }
   }
@@ -2402,6 +2405,7 @@
       setWhatsappPending(false);
       setAuthStatus(state.connected ? "Acesso liberado. WhatsApp conectado." : "Acesso liberado. A conexão com o WhatsApp é opcional.", "ok");
       setView("crm");
+      loadCampaignMedia(token);
       loadCrm(true); startCrmRealtime();
       return true;
     } catch (error) {
@@ -4840,6 +4844,69 @@
     Object.entries(values).forEach(([id, value]) => { const field = document.getElementById(id); if (field) field.value = value; });
   }
 
+  function renderCampaignMedia(campaigns) {
+    document.querySelectorAll('.global-campaign-banner').forEach((item) => item.remove());
+    const banner = campaigns?.banner;
+    const host = document.body.classList.contains('supervisor-mode') ? $('.supervisor-topbar') : $('.topbar');
+    if (banner?.image && host) {
+      const image = document.createElement('img'); image.className = 'global-campaign-banner'; image.src = banner.image; image.alt = '';
+      host.insertBefore(image, host.lastElementChild);
+    }
+    document.querySelectorAll('.global-campaign-popup').forEach((item) => item.remove());
+    const popup = campaigns?.popup;
+    if (!popup?.image || localStorage.getItem(`lungo-campaign-popup-closed:${popup.id}`) === '1') return;
+    const overlay = document.createElement('div'); overlay.className = 'global-campaign-popup'; overlay.innerHTML = `<div><img src="${popup.image}" alt=""><button type="button" aria-label="Fechar divulgação" title="Fechar">×</button></div>`;
+    overlay.querySelector('button').onclick = () => { localStorage.setItem(`lungo-campaign-popup-closed:${popup.id}`, '1'); overlay.remove(); };
+    document.body.appendChild(overlay);
+  }
+
+  async function loadCampaignMedia(token = supervisorAccessToken || state.token) {
+    if (!token) return;
+    try { const result = await window.LungoSupervisorApi.getCampaignMedia(token); renderCampaignMedia(result.campaigns || {}); } catch {}
+  }
+
+  function campaignLocalDate(value) {
+    if (!value) return '';
+    const date = new Date(value); if (Number.isNaN(date.getTime())) return '';
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000); return local.toISOString().slice(0, 16);
+  }
+
+  async function campaignImage(file, type) {
+    if (!file || !/^image\/(png|jpeg|webp)$/i.test(file.type)) throw new Error('Escolha uma imagem PNG, JPG ou WebP.');
+    const source = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('Não foi possível abrir a imagem.')); reader.readAsDataURL(file); });
+    const image = await new Promise((resolve, reject) => { const value = new Image(); value.onload = () => resolve(value); value.onerror = () => reject(new Error('Imagem inválida.')); value.src = source; });
+    const bounds = type === 'banner' ? [1600, 200] : [1500, 1080]; const scale = Math.min(1, bounds[0] / image.naturalWidth, bounds[1] / image.naturalHeight);
+    const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale)); canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+    const result = canvas.toDataURL('image/webp', .88); if (result.length > 3400000) throw new Error('A imagem ficou muito pesada. Use um arquivo menor.'); return result;
+  }
+
+  function fillAdminCampaignMedia() {
+    ['banner', 'popup'].forEach((type) => { const item = adminCampaignMedia[type]; const preview = $(`#admin${type === 'banner' ? 'Banner' : 'Popup'}CampaignPreview`); if (preview) { preview.src = item?.image || ''; preview.hidden = !item?.image; } pendingCampaignImages[type] = item?.image || ''; const active = $(`#admin${type === 'banner' ? 'Banner' : 'Popup'}CampaignActive`); if (active) active.value = String(item?.active !== false); });
+    if ($('#adminPopupCampaignStart')) $('#adminPopupCampaignStart').value = campaignLocalDate(adminCampaignMedia.popup?.startAt);
+    if ($('#adminPopupCampaignEnd')) $('#adminPopupCampaignEnd').value = campaignLocalDate(adminCampaignMedia.popup?.endAt);
+    if ($('#adminBannerCampaignStatus')) $('#adminBannerCampaignStatus').textContent = adminCampaignMedia.banner ? 'Banner carregado.' : 'Nenhum banner carregado.';
+    if ($('#adminPopupCampaignStatus')) $('#adminPopupCampaignStatus').textContent = adminCampaignMedia.popup ? 'Popup carregado.' : 'Nenhum popup carregado.';
+  }
+
+  async function loadAdminCampaignMedia() {
+    try { const result = await window.LungoAdminApi.getCampaignMedia(adminMasterKey); adminCampaignMedia = result.campaigns || { banner: null, popup: null }; fillAdminCampaignMedia(); }
+    catch (error) { toast(error.message); }
+  }
+
+  async function saveAdminCampaignMedia(event, type) {
+    event.preventDefault(); const label = type === 'banner' ? 'Banner' : 'Popup'; const status = $(`#admin${label}CampaignStatus`);
+    if (!pendingCampaignImages[type]) { status.textContent = 'Escolha uma imagem antes de salvar.'; status.className = 'auth-status error'; return; }
+    const payload = { image: pendingCampaignImages[type], active: $(`#admin${label}CampaignActive`).value === 'true' };
+    if (type === 'popup') { const start = $('#adminPopupCampaignStart').value, end = $('#adminPopupCampaignEnd').value; payload.startAt = start ? new Date(start).toISOString() : null; payload.endAt = end ? new Date(end).toISOString() : null; }
+    try { const result = await window.LungoAdminApi.saveCampaignMedia(type, payload, adminMasterKey); adminCampaignMedia[type] = result.campaign; fillAdminCampaignMedia(); status.textContent = `${label} salvo com sucesso.`; status.className = 'auth-status ok'; toast(status.textContent); }
+    catch (error) { status.textContent = error.message; status.className = 'auth-status error'; }
+  }
+
+  async function removeAdminCampaignMedia(type) {
+    if (!await popupConfirm(`Remover ${type === 'banner' ? 'o banner' : 'o popup'} atual?`, 'Remover campanha')) return;
+    try { await window.LungoAdminApi.saveCampaignMedia(type, { remove: true }, adminMasterKey); adminCampaignMedia[type] = null; fillAdminCampaignMedia(); toast('Campanha removida.'); } catch (error) { toast(error.message); }
+  }
+
   function resetAdminTrainingForm() {
     $('#adminTrainingForm')?.reset();
     if ($('#adminTrainingId')) $('#adminTrainingId').value = '';
@@ -4939,8 +5006,8 @@
 
   function ensureAdminMobileMoreSheet() {
     const screen = $("#adminMasterScreen"); if (!screen || $("#adminMobileMoreSheet")) return;
-    const views = ["calendar", "receivables", "archived", "trainings", "lead-marketplace", "settings"];
-    const labels = { calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
+    const views = ["calendar", "receivables", "archived", "trainings", "campaigns", "lead-marketplace", "settings"];
+    const labels = { calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", campaigns:"Campanhas visuais", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
     const items = views.map((view) => { const source = $(`[data-admin-master-view="${view}"]`); return `<button type="button" data-mobile-more-view="${view}"><span>${source?.querySelector("svg")?.outerHTML || ""}</span><b>${labels[view]}</b><svg class="admin-mobile-more-next" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`; }).join("");
     screen.insertAdjacentHTML("beforeend", `<section id="adminMobileMoreSheet" class="admin-mobile-more-sheet" hidden><header><div><span>Menu</span><h2>Mais funcionalidades</h2></div><button type="button" data-mobile-more-close aria-label="Fechar">×</button></header><nav>${items}</nav><button class="admin-mobile-more-logout" type="button" data-mobile-more-logout>Sair do Admin</button></section>`);
     const sheet = $("#adminMobileMoreSheet");
@@ -4957,7 +5024,7 @@
     ensureAdminMobileHeader();
     if (window.matchMedia("(max-width: 600px)").matches && options.remember !== false && view !== adminMasterCurrentView) adminMasterViewHistory.push(adminMasterCurrentView);
     adminMasterCurrentView = view;
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
@@ -4965,6 +5032,7 @@
     closeAdminMobileMore();
     $("#adminMobileBackBtn")?.classList.toggle("visible", view !== "dashboard");
     if (view === 'trainings') loadAdminTrainings();
+    if (view === 'campaigns') loadAdminCampaignMedia();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
   }
 
@@ -5184,6 +5252,12 @@
     $('#adminTrainingList')?.parentElement?.addEventListener('click', (event) => { if (event.target.closest('#adminTrainingNew')) { resetAdminTrainingForm(); $('#adminTrainingForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('#adminTrainingTitle')?.focus(), 250); } });
     $('#adminTrainingRefresh')?.addEventListener('click', loadAdminTrainings);
     $('#adminTrainingList')?.addEventListener('click', adminTrainingAction);
+    $('#adminBannerCampaignFile')?.addEventListener('change', async (event) => { try { pendingCampaignImages.banner = await campaignImage(event.target.files?.[0], 'banner'); $('#adminBannerCampaignPreview').src = pendingCampaignImages.banner; $('#adminBannerCampaignPreview').hidden = false; } catch (error) { toast(error.message); } });
+    $('#adminPopupCampaignFile')?.addEventListener('change', async (event) => { try { pendingCampaignImages.popup = await campaignImage(event.target.files?.[0], 'popup'); $('#adminPopupCampaignPreview').src = pendingCampaignImages.popup; $('#adminPopupCampaignPreview').hidden = false; } catch (error) { toast(error.message); } });
+    $('#adminBannerCampaignForm')?.addEventListener('submit', (event) => saveAdminCampaignMedia(event, 'banner'));
+    $('#adminPopupCampaignForm')?.addEventListener('submit', (event) => saveAdminCampaignMedia(event, 'popup'));
+    $('#adminBannerCampaignRemove')?.addEventListener('click', () => removeAdminCampaignMedia('banner'));
+    $('#adminPopupCampaignRemove')?.addEventListener('click', () => removeAdminCampaignMedia('popup'));
     $('#adminLeadCreditBtn')?.addEventListener('click', () => openAdminLeadCredit());
     $('#adminLeadNewBtn')?.addEventListener('click', () => { openAdminNewLead(); addLivesFieldToAdminLeadForm(); });
     $('#adminLeadSettingsBtn')?.addEventListener('click', openAdminLeadSettings);

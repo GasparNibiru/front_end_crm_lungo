@@ -24,6 +24,7 @@
   const assignLead = (id, brokerId, token) => request(`/api/supervisor/leads/${encodeURIComponent(id)}/assign`, { method: "POST", token, body: { brokerId } });
   const getOperationalClients = (token) => request("/api/supervisor/operational-clients", { token });
   const getTrainings = (token) => request('/api/training-center', { token });
+  const getCampaignMedia = (token) => request('/api/campaign-media', { token });
   const updateTrainingProgress = (id, payload, token) => request(`/api/training-center/${encodeURIComponent(id)}/progress`, { method: 'POST', token, body: payload });
   const getSupervisorTrainings = (token) => request('/api/training-center/supervisor/manage', { token });
   const createSupervisorTraining = (payload, token) => request('/api/training-center/supervisor', { method: 'POST', token, body: payload });
@@ -51,5 +52,5 @@
   const getTeamGoal = (token) => request('/api/team/goal', { token });
   const updateTeamGoal = (teamGoal, token) => request('/api/team/goal', { method: 'PUT', token, body: { teamGoal } });
   const updateOrganizationBranding = (payload, token) => request('/api/supervisor/branding', { method: 'PATCH', token, body: payload });
-  window.LungoSupervisorApi = Object.freeze({ verify, updateOwnProfile, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal, updateOrganizationBranding });
+  window.LungoSupervisorApi = Object.freeze({ verify, updateOwnProfile, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getCampaignMedia, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal, updateOrganizationBranding });
 })();
