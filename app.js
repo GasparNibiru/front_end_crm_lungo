@@ -5097,7 +5097,7 @@
     if (!planSelect) return;
     planSelect.innerHTML = ADMIN_PLAN_DEFINITIONS.map((plan) => `<option value="${plan.id}">${plan.name} — ${formatCurrency(plan.price)}</option>`).join("");
     const today = adminIsoDate(new Date());
-    $("#adminSaleDate").value = today; $("#adminSalePaymentDate").value = today;
+    $("#adminSaleDate").value = today; $("#adminSalePaymentDate").value = today; if ($("#adminSalePaymentStatus")) $("#adminSalePaymentStatus").value = "pending";
     updateAdminSaleCalculation();
     prepareAdminMobileSaleFlow(1);
     const filter = $("#adminReceivablePlan");
@@ -5131,7 +5131,7 @@
 
   function updateAdminSaleCalculation() {
     const plan = getPlanDefinition($("#adminSalePlan")?.value), extras = Math.max(0, Number($("#adminSaleExtras")?.value) || 0), paymentDate = $("#adminSalePaymentDate")?.value, dueMode = $("#adminSaleDueMode")?.value || "30days", fixedDay = $("#adminSaleFixedDay")?.value;
-    const isFree=plan.id==="free",extrasField=$("#adminSaleExtras"),paymentStatus=$("#adminSalePaymentStatus");if(extrasField){extrasField.disabled=isFree;if(isFree)extrasField.value="0"}if(paymentStatus){paymentStatus.disabled=isFree;if(isFree)paymentStatus.value="paid"}
+    const isFree=plan.id==="free",extrasField=$("#adminSaleExtras"),paymentStatus=$("#adminSalePaymentStatus");if(extrasField){extrasField.disabled=isFree;if(isFree)extrasField.value="0"}if(paymentStatus){paymentStatus.disabled=isFree;paymentStatus.value=isFree?"paid":"pending"}
     if ($("#adminSaleBaseValue")) $("#adminSaleBaseValue").value = formatCurrency(plan.price);
     if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(isFree?0:extras*ADMIN_EXTRA_ACCESS_PRICE);
     if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id,isFree?0:extras));
@@ -5148,8 +5148,8 @@
     try {
       const result = await window.LungoAdminApi.createSubscription(payload, adminMasterKey);
       await loadAdminRemoteData(); renderAdminV2(); form.reset(); prepareAdminSaleForm();
-      const emailSent=result?.emailDelivery?.sent===true;$("#adminSaleStatus").textContent=emailSent?"Venda, acesso e e-mail registrados com sucesso.":"Venda e acesso registrados; o e-mail não pôde ser enviado.";$("#adminSaleStatus").classList.toggle("ok",emailSent);toast(emailSent?"Acesso criado e enviado por e-mail.":"Acesso criado, mas o e-mail falhou.");
-      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Token criado",emailSent?"Acesso enviado automaticamente por e-mail":"E-mail não enviado; copie o token abaixo",`<section class="admin-modal-history full"><div class="auth-status ${emailSent?'ok':'error'}">${emailSent?'E-mail enviado para o cliente.':'Não foi possível enviar o e-mail. O acesso continua válido.'}</div><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
+      const emailSent=result?.emailDelivery?.sent===true,billing=result?.billing||{},paymentUrl=billing.invoiceUrl||'';$("#adminSaleStatus").textContent=billing.pending?`Venda registrada; integração Asaas pendente: ${billing.error||'tente novamente.'}`:emailSent?"Venda, cobrança, acesso e e-mail registrados com sucesso.":"Venda, cobrança e acesso registrados; o e-mail não pôde ser enviado.";$("#adminSaleStatus").classList.toggle("ok",!billing.pending&&emailSent);toast(billing.pending?"Venda criada, mas a cobrança Asaas ficou pendente.":emailSent?"Acesso e cobrança criados.":"Cobrança criada, mas o e-mail falhou.");
+      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Acesso e cobrança criados",emailSent?"Acesso enviado automaticamente por e-mail":"E-mail não enviado; copie os dados abaixo",`<section class="admin-modal-history full"><div class="auth-status ${billing.pending||!emailSent?'error':'ok'}">${billing.pending?'A cobrança Asaas ficou pendente de sincronização.':emailSent?'E-mail enviado para o cliente.':'Não foi possível enviar o e-mail. O acesso continua válido.'}</div>${paymentUrl?`<a class="btn primary" href="${escapeHtml(paymentUrl)}" target="_blank" rel="noopener">Abrir link de pagamento</a><button class="btn" type="button" data-copy-new-token="${escapeHtml(paymentUrl)}">Copiar link de pagamento</button>`:''}<code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
     } catch (error) { $("#adminSaleStatus").textContent = error.message; $("#adminSaleStatus").classList.remove("ok"); }
     finally { if (submit?.isConnected) submit.disabled = false; }
   }
