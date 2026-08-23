@@ -2148,7 +2148,7 @@
       }
     }
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
-    if (name === "settings") renderCompanyIdentity();
+    if (name === "settings") { renderCompanyIdentity(); refreshSubscriptionCancellation(supervisorAccessToken, 'company'); }
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
     if (name === 'rh') loadRecruitment(false);
@@ -2473,6 +2473,7 @@
     if (name === "treinamentos") loadTrainingLibrary(state.token, 'broker');
     if (name === "agenda") { renderTeamCalendar('broker'); startCalendarReminders(); }
     if (name === "comprar_leads") renderLeadStorefront('broker');
+    if (name === "settings") refreshSubscriptionCancellation(state.token, 'broker');
   }
 
   function tokenQuery() {
@@ -2742,6 +2743,25 @@
     renderMetrics();
     renderList();
     renderKanban();
+  }
+
+  async function refreshSubscriptionCancellation(token, target) {
+    const isBroker = target === 'broker';
+    const status = $(isBroker ? '#brokerSubscriptionStatus' : '#companySubscriptionStatus');
+    const button = $(isBroker ? '#cancelBrokerSubscriptionBtn' : '#cancelCompanySubscriptionBtn');
+    if (!status || !button || !token) return;
+    try {
+      const result = await window.LungoSupervisorApi.getSubscription(token), subscription = result.subscription;
+      if (!subscription) { status.textContent = 'Nenhuma assinatura ativa encontrada.'; button.hidden = true; return; }
+      if (subscription.cancellation_status === 'scheduled') {
+        const date = subscription.cancellation_effective_at ? new Date(subscription.cancellation_effective_at).toLocaleDateString('pt-BR') : 'o fim do período';
+        status.textContent = `Cancelamento agendado para ${date}. O acesso permanece ativo até essa data.`;
+        status.className = 'auth-status ok'; button.disabled = true; button.textContent = 'Cancelamento agendado';
+      } else { status.textContent = `Plano ${subscription.plans?.name || ''} ativo. Próximo vencimento: ${subscription.next_due_date ? new Date(`${subscription.next_due_date}T12:00:00`).toLocaleDateString('pt-BR') : 'não informado'}.`; status.className = 'auth-status'; button.hidden = false; button.disabled = false; button.textContent = 'Cancelar assinatura'; }
+    } catch (error) {
+      if (error.status === 403) { button.closest('.company-settings-section').hidden = true; return; }
+      status.textContent = error.message; status.className = 'auth-status error';
+    }
   }
 
   function consolidateLeadCards(leads) {
@@ -4560,7 +4580,9 @@
         extraAccesses: Number(subscription.extra_accesses || subscription.extraAccesses || 0), activeAccesses: organizationAccesses.filter((access) => adminRemoteStatus(access.status) === "active").length,
         legacy: Boolean(subscription.legacy), saleDate: String(organization.created_at || "").slice(0, 10), nextDue: String(subscription.next_due_date || subscription.nextDueDate || organization.latest_payment?.due_date || "").slice(0, 10),
         financialStatus: adminRemoteStatus(organization.latest_payment?.status || subscription.status, "pending"), accountStatus: adminRemoteStatus(organization.status),
-        dueMode: subscription.due_mode === "fixed_day" ? "fixed" : "30days", fixedDay: Number(subscription.fixed_due_day || 1), notes: "", history: []
+        dueMode: subscription.due_mode === "fixed_day" ? "fixed" : "30days", fixedDay: Number(subscription.fixed_due_day || 1),
+        cancellationStatus: subscription.cancellation_status || 'none', cancellationEffectiveAt: subscription.cancellation_effective_at || null,
+        cancellationReason: subscription.cancellation_reason || '', notes: "", history: []
       };
     });
     const clientByName = (name) => clients.find((client) => client.name === name);
@@ -4606,7 +4628,7 @@
 
   function renderAdminClients() {
     const rows = $("#adminClientRows"); if (!rows) return;
-    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); return `<tr data-mobile-client-card="${client.id}"><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus))}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
+    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); const accountBadge = client.cancellationStatus === 'scheduled' ? adminMasterStatus('attention', `Cancela em ${formatDate(String(client.cancellationEffectiveAt || '').slice(0,10))}`) : adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus)); return `<tr data-mobile-client-card="${client.id}"><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${accountBadge}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
   }
 
   function renderAccessTokens() {
@@ -4614,7 +4636,7 @@
     const accessActions=access=>{const invalid=access.status==="invalid",suspended=access.status==="blocked"||access.status==="suspended",canEmail=access.token?.startsWith("LNG-")&&access.raw?.email;return `<div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${canEmail?`<button class="tiny-btn icon-action-btn" data-token-action="email" data-id="${access.id}" title="Reenviar acesso por e-mail" aria-label="Reenviar acesso por e-mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg></button>`:''}${!invalid?`<button class="tiny-btn icon-action-btn ${suspended?'success':'warning'}" data-token-action="${suspended?'reactivate':'block'}" data-id="${access.id}" title="${suspended?'Reativar':'Bloquear'} acesso" aria-label="${suspended?'Reativar':'Bloquear'} acesso">${actionIcon(suspended?'reactivate':'block')}</button>`:''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Excluir acesso" aria-label="Excluir acesso">${actionIcon('archive')}</button></div>`};
     const accessRow=(access,principal=false)=>{const canCopy=access.token?.startsWith("LNG-"),suspended=access.status==="blocked"||access.status==="suspended",statusLabel=access.status==="active"?"Ativo":suspended?"Suspenso":"Inválido";return `<div class="admin-access-person ${principal?'principal':''}"><div><b>${escapeHtml(access.user)}</b><small>${escapeHtml(access.profile)} · ${escapeHtml(access.raw?.email||'Sem e-mail')}</small></div><div class="admin-access-token"><code>${escapeHtml(access.token)}</code>${canCopy?`<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>`:""}</div><span>${adminMasterStatus(adminStatusClass(access.status),statusLabel)}</span><small>${access.lastAccess||"Sem acesso"}</small>${accessActions(access)}</div>`};
     const groups=adminData.clients.map(client=>{const accesses=adminData.accesses.filter(access=>String(access.clientId)===String(client.id)).sort((a,b)=>{const priority=item=>item.profile==="Admin Master"?0:item.profile==="Supervisor"?1:2;return priority(a)-priority(b)});return {client,principal:accesses[0],children:accesses.slice(1),accesses}}).filter(group=>group.accesses.length);
-    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="true"><span aria-hidden="true">›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.principal.profile==="Supervisor"?"Supervisor e equipe":"Acesso individual"} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}</small></div><em title="Corretores vinculados">${group.children.length}</em></button><div class="admin-access-principal"><label>${group.principal.profile==="Supervisor"?"Supervisor / acesso principal":"Acesso principal"} <button class="tiny-btn danger" type="button" data-admin-client-action="remove" data-id="${group.client.id}">Cancelar plano</button></label>${accessRow(group.principal,true)}</div><div class="admin-access-children">${group.children.length?`<label>Equipe / corretores vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum corretor vinculado a este supervisor.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
+    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="true"><span aria-hidden="true">›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.principal.profile==="Supervisor"?"Supervisor e equipe":"Acesso individual"} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}${group.client.cancellationStatus==='scheduled'?` · Cancelamento em ${formatDate(String(group.client.cancellationEffectiveAt||'').slice(0,10))}`:''}</small></div><em title="Corretores vinculados">${group.children.length}</em></button><div class="admin-access-principal"><label>${group.principal.profile==="Supervisor"?"Supervisor / acesso principal":"Acesso principal"} <button class="tiny-btn danger" type="button" data-admin-client-action="remove" data-id="${group.client.id}" ${group.client.cancellationStatus==='scheduled'?'disabled':''}>${group.client.cancellationStatus==='scheduled'?'Cancelamento agendado':'Cancelar plano'}</button></label>${accessRow(group.principal,true)}</div><div class="admin-access-children">${group.children.length?`<label>Equipe / corretores vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum corretor vinculado a este supervisor.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
     rows.querySelectorAll('.admin-access-toggle').forEach(button=>{button.onclick=()=>{const children=button.parentElement.querySelector('.admin-access-children');const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));children.hidden=expanded;};});
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
