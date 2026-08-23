@@ -52,7 +52,7 @@
   const getTeamGoal = (token) => request('/api/team/goal', { token });
   const updateTeamGoal = (teamGoal, token) => request('/api/team/goal', { method: 'PUT', token, body: { teamGoal } });
   const updateOrganizationBranding = (payload, token) => request('/api/supervisor/branding', { method: 'PATCH', token, body: payload });
-  const getSubscription = (token) => request('/api/supervisor/subscription', { token });
-  const cancelSubscription = (payload, token) => request('/api/supervisor/subscription/cancel', { method: 'POST', token, body: payload });
+  const getSubscription = (token) => request('/api/access/subscription', { token });
+  const cancelSubscription = (payload, token) => request('/api/access/subscription/cancel', { method: 'POST', token, body: payload });
   window.LungoSupervisorApi = Object.freeze({ verify, updateOwnProfile, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getCampaignMedia, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal, updateOrganizationBranding, getSubscription, cancelSubscription });
 })();
