@@ -122,6 +122,8 @@
   ];
   let supervisorAccessToken = "";
   let supervisorUserId = "";
+  let activeOrganizationId = "";
+  let activeAccessProfile = null;
   let supervisorDashboard = null;
   let supervisorOrganizationName = "";
   const supervisorSelectedClientIds = new Set();
@@ -1249,12 +1251,44 @@
     catch { return {}; }
   }
 
+  function companyStorageKey(baseKey) {
+    return activeOrganizationId ? `${baseKey}:${activeOrganizationId}` : baseKey;
+  }
+
+  function readScopedCompanyObject(baseKey) {
+    const scopedKey = companyStorageKey(baseKey);
+    const scoped = readLocalObject(scopedKey);
+    return scoped;
+  }
+
+  function readScopedCompanyText(baseKey) {
+    const scopedKey = companyStorageKey(baseKey);
+    const scoped = localStorage.getItem(scopedKey);
+    return scoped || "";
+  }
+
+  function migrateMatchingLegacyCompanyData(organization) {
+    if (!activeOrganizationId || localStorage.getItem(companyStorageKey(COMPANY_BRANDING_KEY)) !== null) return;
+    const legacyBranding = readLocalObject(COMPANY_BRANDING_KEY);
+    const legacyName = String(legacyBranding.name || "").trim().toLocaleLowerCase("pt-BR");
+    const remoteName = String(organization?.name || "").trim().toLocaleLowerCase("pt-BR");
+    if (!legacyName || legacyName !== remoteName) return;
+    try {
+      localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(legacyBranding));
+      [COMPANY_GOALS_KEY, COMPANY_THEME_KEY].forEach((key) => {
+        const value = localStorage.getItem(key); if (value !== null) localStorage.setItem(companyStorageKey(key), value);
+      });
+      const message = localStorage.getItem(COMPANY_MESSAGE_KEY);
+      if (message !== null) localStorage.setItem(companyStorageKey(COMPANY_MESSAGE_KEY), message);
+    } catch {}
+  }
+
   function loadCompanyBranding() {
     return {
-      branding: readLocalObject(COMPANY_BRANDING_KEY),
-      goals: readLocalObject(COMPANY_GOALS_KEY),
-      message: localStorage.getItem(COMPANY_MESSAGE_KEY) || "",
-      theme: readLocalObject(COMPANY_THEME_KEY)
+      branding: readScopedCompanyObject(COMPANY_BRANDING_KEY),
+      goals: readScopedCompanyObject(COMPANY_GOALS_KEY),
+      message: readScopedCompanyText(COMPANY_MESSAGE_KEY),
+      theme: readScopedCompanyObject(COMPANY_THEME_KEY)
     };
   }
 
@@ -1298,10 +1332,10 @@
     const message = el.companyWeeklyMessageInput?.value.trim() || "";
     const theme = { primary: el.companyPrimaryColorInput?.value || "#0ea5a5", secondary: el.companySecondaryColorInput?.value || "#10b8a8", mode: document.querySelector('input[name="companyTheme"]:checked')?.value || "dark" };
     try {
-      localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(branding));
-      localStorage.setItem(COMPANY_GOALS_KEY, JSON.stringify(goals));
-      localStorage.setItem(COMPANY_MESSAGE_KEY, message);
-      localStorage.setItem(COMPANY_THEME_KEY, JSON.stringify(theme));
+      localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(branding));
+      localStorage.setItem(companyStorageKey(COMPANY_GOALS_KEY), JSON.stringify(goals));
+      localStorage.setItem(companyStorageKey(COMPANY_MESSAGE_KEY), message);
+      localStorage.setItem(companyStorageKey(COMPANY_THEME_KEY), JSON.stringify(theme));
     } catch {
       if (el.companySettingsStatus) { el.companySettingsStatus.textContent = "Não foi possível salvar. Use imagens menores."; el.companySettingsStatus.classList.add("error"); }
       return null;
@@ -1331,15 +1365,22 @@
   }
 
   function loadCompanyIdentity() {
-    const stored = readLocalObject(COMPANY_BRANDING_KEY);
+    const stored = readScopedCompanyObject(COMPANY_BRANDING_KEY);
     return { name: String(stored.name || "").trim(), logo: String(stored.logo || ""), sidebarColor: String(stored.sidebarColor || "").trim(), background: String(stored.background || "none") };
   }
 
   function applyOrganizationIdentity(organization) {
     if (!organization) return;
+    activeOrganizationId = String(organization.id || activeOrganizationId || "");
+    migrateMatchingLegacyCompanyData(organization);
     const current = loadCompanyIdentity();
-    const identity = { ...current, name: String(organization.name || current.name || 'Corretora').trim(), logo: String(organization.logoUrl || organization.logo_url || '') };
-    try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); } catch {}
+    const identity = {
+      ...current, name: String(organization.name || current.name || 'Corretora').trim(),
+      logo: String(organization.logoUrl || organization.logo_url || ''),
+      sidebarColor: String(organization.sidebarColor || organization.sidebar_color || current.sidebarColor || ''),
+      background: String(organization.background || organization.background_key || current.background || 'none')
+    };
+    try { localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(identity)); } catch {}
     renderCompanyIdentity(); renderCompanyBranding();
   }
 
@@ -1365,9 +1406,16 @@
   }
 
   function loadBrokerPersonalization() {
-    if (!state.token) return { photo: "", sidebarColor: "", background: "none", theme: "" };
+    if (!state.token) return { photo: "", sidebarColor: "", background: "", theme: "" };
     const stored = readLocalObject(brokerPreferenceKey());
-    return { photo: String(stored.photo || ""), displayName: String(stored.displayName || ""), sidebarColor: String(stored.sidebarColor || ""), background: String(stored.background || "none"), theme: stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : "" };
+    const remote = activeAccessProfile || {};
+    return {
+      photo: String(remote.profilePhotoUrl || remote.profile_photo_url || stored.photo || ""),
+      displayName: String(remote.name || stored.displayName || ""),
+      sidebarColor: String(remote.sidebarColor || remote.sidebar_color || stored.sidebarColor || ""),
+      background: String(remote.background || remote.background_key || stored.background || ""),
+      theme: ["light", "dark"].includes(remote.theme || remote.preferred_theme) ? (remote.theme || remote.preferred_theme) : stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : ""
+    };
   }
 
   function brokerInitials() {
@@ -1378,7 +1426,7 @@
     if (!$('#brokerDisplayName')) { const companyField = el.brokerFixedCompanyName?.closest('label'); companyField?.insertAdjacentHTML('afterend', '<label><span>Meu nome</span><input id="brokerDisplayName" maxlength="120"><small>Nome exibido no seu acesso.</small></label>'); }
     const company = loadCompanyIdentity();
     const color = preferences.sidebarColor || company.sidebarColor || "#0b7658";
-    const background = applyCompanyBackground(preferences.background || "none");
+    const background = applyCompanyBackground(preferences.background || company.background || "none");
     const theme = preferences.theme || localStorage.getItem(THEME_KEY) || "dark";
     applyCompanySidebarColor(color);
     el.root.dataset.theme = theme;
@@ -1404,9 +1452,13 @@
     if (!state.token) return;
     const displayName = String($('#brokerDisplayName')?.value || state.clientName || '').trim();
     if (displayName.length < 2) return toast('Informe seu nome.');
-    try { const result = await window.LungoSupervisorApi.updateOwnProfile(displayName, state.token); state.clientName = result.user?.name || displayName; saveAccess(); renderAccess(); }
+    const preferences = { photo: pendingBrokerProfilePhoto, displayName, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
+    try {
+      const result = await window.LungoSupervisorApi.updateOwnProfile({ name: displayName, photo: preferences.photo, sidebarColor: preferences.sidebarColor, background: preferences.background, theme: preferences.theme }, state.token);
+      activeAccessProfile = { ...(activeAccessProfile || {}), ...(result.user || {}) };
+      state.clientName = result.user?.name || displayName; preferences.displayName = state.clientName; saveAccess(); renderAccess();
+    }
     catch (error) { toast(error.message); return; }
-    const preferences = { photo: pendingBrokerProfilePhoto, displayName: state.clientName, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
     try { localStorage.setItem(brokerPreferenceKey(), JSON.stringify(preferences)); }
     catch { toast("Não foi possível salvar. Tente uma foto menor."); return; }
     applyBrokerPersonalization(preferences);
@@ -1489,7 +1541,7 @@
     const current = loadCompanyIdentity();
     const selectedBackground = document.querySelector('input[name="companyBackground"]:checked')?.value || current.background || "none";
     const identity = { name, logo: pendingCompanyLogo || current.logo || "", sidebarColor: applyCompanySidebarColor(el.companySidebarColor?.value || current.sidebarColor || "#0b7658"), background: applyCompanyBackground(selectedBackground) };
-    try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); }
+    try { localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(identity)); }
     catch {
       el.companySettingsStatus.textContent = "Não foi possível salvar. Use uma imagem menor.";
       el.companySettingsStatus.classList.add("error");
@@ -1817,6 +1869,7 @@
       if (auth.user?.role !== "supervisor") throw new Error("Este token não pertence a um Supervisor.");
       supervisorAccessToken = token;
       supervisorUserId = auth.user.id || "";
+      activeAccessProfile = auth.user || null;
       state.token = token;
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
@@ -1942,7 +1995,7 @@
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token ativo — valor protegido" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
     el.supervisorBrokerRows?.querySelectorAll('[data-supervisor-broker-action="archive"]').forEach((button) => { button.title = 'Excluir corretor'; button.setAttribute('aria-label', 'Excluir corretor'); });
 
     const stages = [
@@ -2337,6 +2390,7 @@
     try {
       const verified = await api("/api/access/auth/verify", { method: "POST", headers: { "Content-Type": "application/json", "x-access-token": value }, body: "{}" });
       if (verified.user?.role !== "broker") throw new Error("Este token não pertence a um Corretor.");
+      activeAccessProfile = verified.user || null;
       applyOrganizationIdentity(verified.user.organization);
       data = { client: { nome: verified.user.name, instanceName: verified.client?.instanceName || "" }, instanceName: verified.client?.instanceName || "", accessUser: verified.user };
     } catch (realAccessError) {
@@ -4589,7 +4643,7 @@
     adminData = {
       version: ADMIN_DATA_VERSION, remote: true, clients,
       archivedClients: archivedOrganizations.map((organization) => ({ id: String(organization.id), name: organization.name || "Organização", type: organization.organization_type === "individual" ? "Individual" : "Corretora / equipe", plan: organization.subscription?.plan_name || "—", createdAt: String(organization.created_at || "").slice(0, 10), status: "Excluído" })),
-      accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
+      accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token ativo — valor protegido" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
       receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })).filter((payment) => payment.clientId),
       supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, salesTimeline: dashboardResult?.salesTimeline || [], settings: {}, sequence: 0
     };
@@ -5455,7 +5509,7 @@
       renderSupervisorGoalsAndReport();
       try {
         const logo = await compactRecruitmentLogo(identity.logo || '');
-        const branding = await window.LungoSupervisorApi.updateOrganizationBranding({ name: identity.name, logo }, supervisorAccessToken);
+        const branding = await window.LungoSupervisorApi.updateOrganizationBranding({ name: identity.name, logo, sidebarColor: identity.sidebarColor, background: identity.background }, supervisorAccessToken);
         applyOrganizationIdentity(branding.organization);
         const result = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken);
         recruitmentData.vacancy = result.vacancy;

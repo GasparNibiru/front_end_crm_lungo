@@ -10,7 +10,7 @@
     return data;
   }
   const verify = (token) => request("/api/access/auth/verify", { method: "POST", token, body: {} });
-  const updateOwnProfile = (name, token) => request('/api/access/profile', { method: 'PATCH', token, body: { name } });
+  const updateOwnProfile = (payload, token) => request('/api/access/profile', { method: 'PATCH', token, body: payload });
   const getDashboard = (token) => request("/api/supervisor/dashboard", { token });
   const getBrokers = (token) => request("/api/supervisor/brokers", { token });
   const createBroker = (payload, token) => request("/api/supervisor/brokers", { method: "POST", token, body: payload });
