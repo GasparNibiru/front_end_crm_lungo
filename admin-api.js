@@ -38,7 +38,7 @@
   const getArchivedOrganizations = (adminKey) => request("/api/admin/organizations-archived", { adminKey });
   const createSubscription = (payload, adminKey) => request("/api/admin/subscriptions", { method: "POST", adminKey, body: payload });
   const updateOrganization = (id, payload, adminKey) => request(`/api/admin/organizations/${encodeURIComponent(id)}`, { method: "PATCH", adminKey, body: payload });
-  const changeOrganizationStatus = (id, action, adminKey) => request(`/api/admin/organizations/${encodeURIComponent(id)}/${action}`, { method: "POST", adminKey, body: {} });
+  const changeOrganizationStatus = (id, action, adminKey, body = {}) => request(`/api/admin/organizations/${encodeURIComponent(id)}/${action}`, { method: "POST", adminKey, body });
   const getSupervisors = (adminKey) => request("/api/admin/supervisors", { adminKey });
   const getAccesses = (adminKey) => request("/api/admin/accesses", { adminKey });
   const createAccess = (payload, adminKey) => request("/api/admin/accesses", { method: "POST", adminKey, body: payload });

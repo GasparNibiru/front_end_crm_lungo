@@ -5169,8 +5169,11 @@
     if (action === "plan") openPlanModal(client);
     if (action === "tokens") { setAdminMasterView("tokens"); toast(`Acessos de ${client.name} disponíveis na tabela.`); }
     if (action === "remove") {
-      if (!await popupConfirm(`Excluir o cliente ${client.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, "Excluir cliente", "Excluir")) return;
-      try { await window.LungoAdminApi.changeOrganizationStatus(client.id, "cancel", adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast("Cliente excluído das áreas ativas."); }
+      const choice = String(prompt(`Cancelamento de ${client.name}\n\nDigite FIM para manter o acesso até o vencimento.\nDigite AGORA para encerrar o acesso imediatamente.`) || '').trim().toUpperCase();
+      if (!['FIM','AGORA'].includes(choice)) return;
+      const reason = String(prompt('Motivo do cancelamento (opcional):') || '').trim();
+      if (!await popupConfirm(choice === 'AGORA' ? 'Confirmar encerramento imediato do acesso e da cobrança?' : 'Confirmar cancelamento ao fim do período contratado?', 'Cancelar assinatura', 'Confirmar')) return;
+      try { await window.LungoAdminApi.changeOrganizationStatus(client.id, "cancel", adminMasterKey, { mode: choice === 'AGORA' ? 'immediate' : 'period_end', reason }); await loadAdminRemoteData(); renderAdminV2(); toast(choice === 'AGORA' ? 'Assinatura e acesso encerrados.' : 'Cancelamento agendado para o fim do período.'); }
       catch (error) { toast(error.message); }
     }
   }
@@ -5434,6 +5437,15 @@
         const result = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken);
         recruitmentData.vacancy = result.vacancy;
       } catch (error) { toast(`Identidade salva apenas neste dispositivo: ${error.message}`); }
+    });
+    $('#cancelCompanySubscriptionBtn')?.addEventListener('click', async () => {
+      const confirmation = String(prompt('Para confirmar, digite CANCELAR:') || '').trim().toUpperCase();
+      if (confirmation !== 'CANCELAR') return;
+      const reason = String(prompt('Conte brevemente o motivo do cancelamento (opcional):') || '').trim();
+      if (!await popupConfirm('As próximas cobranças serão interrompidas e o acesso continuará até o vencimento atual. Confirmar?', 'Cancelar assinatura', 'Confirmar cancelamento')) return;
+      const button = $('#cancelCompanySubscriptionBtn'), status = $('#companySubscriptionStatus'); button.disabled = true; status.textContent = 'Processando cancelamento no Asaas...';
+      try { const result = await window.LungoSupervisorApi.cancelSubscription({ confirmation, reason }, supervisorAccessToken); const date = result.subscription?.cancellation_effective_at ? new Date(result.subscription.cancellation_effective_at).toLocaleDateString('pt-BR') : 'o fim do período'; status.textContent = `Cancelamento agendado. Seu acesso permanece ativo até ${date}.`; status.className = 'auth-status ok'; button.textContent = 'Cancelamento agendado'; }
+      catch (error) { status.textContent = error.message; status.className = 'auth-status error'; button.disabled = false; }
     });
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);
