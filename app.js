@@ -1644,21 +1644,51 @@
     const modal = ensureTrainingPlayer();
     $('#trainingPlayerTitle').textContent = button.dataset.trainingTitle || 'Treinamento';
     $('#trainingPlayerTrack').textContent = `Trilha: ${button.dataset.trainingTrack || 'Geral'}`;
+    $('#trainingPlayerProgress').textContent = 'Preparando o acompanhamento...';
     modal.showModal();
     await loadYoutubeApi();
-    const player = new window.YT.Player('trainingPlayerFrame', { videoId: button.dataset.trainingPlay, playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 }, events: { onStateChange(event) { if (!trainingPlayback) return; clearInterval(trainingPlayback.timer); if (event.data === window.YT.PlayerState.PLAYING) trainingPlayback.timer = setInterval(() => saveTrainingPlayback(10), 10000); } } });
-    trainingPlayback = { id: button.dataset.trainingId, player, timer: null, token: calendarToken(), target: supervisorAccessToken ? 'supervisor' : 'broker' };
+    const playback = { id: button.dataset.trainingId, player: null, timer: null, token: calendarToken(), target: supervisorAccessToken ? 'supervisor' : 'broker', saving: false };
+    trainingPlayback = playback;
+    playback.player = new window.YT.Player('trainingPlayerFrame', {
+      videoId: button.dataset.trainingPlay,
+      playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 },
+      events: {
+        onReady(event) {
+          playback.player = event.target;
+          saveTrainingPlayback(0, playback);
+        },
+        onStateChange(event) {
+          clearInterval(playback.timer);
+          playback.timer = null;
+          if (event.data === window.YT.PlayerState.PLAYING) {
+            saveTrainingPlayback(0, playback);
+            playback.timer = setInterval(() => saveTrainingPlayback(5, playback), 5000);
+          } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
+            saveTrainingPlayback(0, playback);
+          }
+        }
+      }
+    });
   }
 
-  async function saveTrainingPlayback(delta = 0) {
-    const active = trainingPlayback; if (!active?.player?.getDuration) return;
+  async function saveTrainingPlayback(delta = 0, playback = trainingPlayback) {
+    const active = playback; if (!active?.player?.getDuration || active.saving) return;
     const duration = active.player.getDuration(), currentTime = active.player.getCurrentTime(); if (!duration) return;
-    try { const result = await window.LungoSupervisorApi.updateTrainingProgress(active.id, { duration, currentTime, watchedSecondsDelta: delta }, active.token); const progress = result.progress; if ($('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `${progress.percent}% assistido${progress.status === 'completed' ? ' · Treinamento concluído' : ''}`; } catch {}
+    active.saving = true;
+    try {
+      const result = await window.LungoSupervisorApi.updateTrainingProgress(active.id, { duration, currentTime, watchedSecondsDelta: delta }, active.token);
+      const progress = result.progress;
+      if ($('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `${progress.percent}% assistido${progress.status === 'completed' ? ' · Treinamento concluído' : ''}`;
+    } catch (error) {
+      if ($('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `Não foi possível salvar o progresso: ${error.message}`;
+    } finally {
+      active.saving = false;
+    }
   }
 
   function closeTrainingPlayer() {
     const modal = $('#trainingPlayerModal');
-    if (trainingPlayback) { const finished = trainingPlayback; clearInterval(finished.timer); saveTrainingPlayback(0); try { finished.player.destroy(); } catch {} trainingPlayback = null; setTimeout(() => loadTrainingLibrary(finished.token, finished.target), 250); }
+    if (trainingPlayback) { const finished = trainingPlayback; clearInterval(finished.timer); saveTrainingPlayback(0, finished); try { finished.player.destroy(); } catch {} trainingPlayback = null; setTimeout(() => loadTrainingLibrary(finished.token, finished.target), 500); }
     if (!$('#trainingPlayerFrame')) $('.training-player-frame')?.insertAdjacentHTML('beforeend', '<div id="trainingPlayerFrame"></div>');
     if (modal?.open) modal.close();
   }
