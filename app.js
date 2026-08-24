@@ -5241,6 +5241,9 @@
   function updateAdminSaleCalculation() {
     const plan = getPlanDefinition($("#adminSalePlan")?.value), extras = Math.max(0, Number($("#adminSaleExtras")?.value) || 0), paymentDate = $("#adminSalePaymentDate")?.value, dueMode = $("#adminSaleDueMode")?.value || "30days", fixedDay = $("#adminSaleFixedDay")?.value;
     const isFree=plan.id==="free",blocksExtras=["free","individual"].includes(plan.id),extrasField=$("#adminSaleExtras"),paymentStatus=$("#adminSalePaymentStatus");if(extrasField){extrasField.disabled=blocksExtras;if(blocksExtras)extrasField.value="0"}if(paymentStatus){paymentStatus.disabled=isFree;paymentStatus.value=isFree?"paid":"pending"}
+    const documentField = $("#adminSaleDocument"), documentLabel = documentField?.closest("label")?.querySelector("span");
+    if (documentField) documentField.required = !isFree;
+    if (documentLabel) documentLabel.innerHTML = `CPF/CNPJ <small>(${isFree ? "opcional no Plano Free" : "obrigatório para cobrança"})</small>`;
     if ($("#adminSaleBaseValue")) $("#adminSaleBaseValue").value = formatCurrency(plan.price);
     if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(blocksExtras?0:extras*ADMIN_EXTRA_ACCESS_PRICE);
     if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id,blocksExtras?0:extras));
@@ -5259,7 +5262,7 @@
       await loadAdminRemoteData(); renderAdminV2(); form.reset(); prepareAdminSaleForm();
       const emailSent=result?.emailDelivery?.sent===true,billing=result?.billing||{},paymentUrl=billing.invoiceUrl||'';$("#adminSaleStatus").textContent=billing.pending?`Venda registrada; integração Asaas pendente: ${billing.error||'tente novamente.'}`:emailSent?"Venda, cobrança, acesso e e-mail registrados com sucesso.":"Venda, cobrança e acesso registrados; o e-mail não pôde ser enviado.";$("#adminSaleStatus").classList.toggle("ok",!billing.pending&&emailSent);toast(billing.pending?"Venda criada, mas a cobrança Asaas ficou pendente.":emailSent?"Acesso e cobrança criados.":"Cobrança criada, mas o e-mail falhou.");
       const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Acesso e cobrança criados",emailSent?"Acesso enviado automaticamente por e-mail":"E-mail não enviado; copie os dados abaixo",`<section class="admin-modal-history full"><div class="auth-status ${billing.pending||!emailSent?'error':'ok'}">${billing.pending?'A cobrança Asaas ficou pendente de sincronização.':emailSent?'E-mail enviado para o cliente.':'Não foi possível enviar o e-mail. O acesso continua válido.'}</div>${paymentUrl?`<a class="btn primary" href="${escapeHtml(paymentUrl)}" target="_blank" rel="noopener">Abrir link de pagamento</a><button class="btn" type="button" data-copy-new-token="${escapeHtml(paymentUrl)}">Copiar link de pagamento</button>`:''}<code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
-    } catch (error) { $("#adminSaleStatus").textContent = error.message; $("#adminSaleStatus").classList.remove("ok"); }
+    } catch (error) { const details = Array.isArray(error.details?.details) ? error.details.details.join(" ") : ""; $("#adminSaleStatus").textContent = details || error.message; $("#adminSaleStatus").classList.remove("ok"); }
     finally { if (submit?.isConnected) submit.disabled = false; }
   }
 
