@@ -1647,7 +1647,7 @@
     $('#trainingPlayerProgress').textContent = 'Preparando o acompanhamento...';
     modal.showModal();
     await loadYoutubeApi();
-    const playback = { id: button.dataset.trainingId, player: null, timer: null, token: calendarToken(), target: supervisorAccessToken ? 'supervisor' : 'broker', saving: false };
+    const playback = { id: button.dataset.trainingId, player: null, timer: null, token: calendarToken(), target: supervisorAccessToken ? 'supervisor' : 'broker', saving: false, lastCurrentTime: 0 };
     trainingPlayback = playback;
     playback.player = new window.YT.Player('trainingPlayerFrame', {
       videoId: button.dataset.trainingPlay,
@@ -1655,14 +1655,14 @@
       events: {
         onReady(event) {
           playback.player = event.target;
+          playback.lastCurrentTime = Number(event.target.getCurrentTime?.() || 0);
           saveTrainingPlayback(0, playback);
+          clearInterval(playback.timer);
+          playback.timer = setInterval(() => saveTrainingPlayback(null, playback), 3000);
         },
         onStateChange(event) {
-          clearInterval(playback.timer);
-          playback.timer = null;
           if (event.data === window.YT.PlayerState.PLAYING) {
             saveTrainingPlayback(0, playback);
-            playback.timer = setInterval(() => saveTrainingPlayback(5, playback), 5000);
           } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
             saveTrainingPlayback(0, playback);
           }
@@ -1674,9 +1674,11 @@
   async function saveTrainingPlayback(delta = 0, playback = trainingPlayback) {
     const active = playback; if (!active?.player?.getDuration || active.saving) return;
     const duration = active.player.getDuration(), currentTime = active.player.getCurrentTime(); if (!duration) return;
+    const calculatedDelta = delta === null ? Math.max(0, Math.min(15, currentTime - Number(active.lastCurrentTime || 0))) : delta;
+    active.lastCurrentTime = Math.max(Number(active.lastCurrentTime || 0), currentTime);
     active.saving = true;
     try {
-      const result = await window.LungoSupervisorApi.updateTrainingProgress(active.id, { duration, currentTime, watchedSecondsDelta: delta }, active.token);
+      const result = await window.LungoSupervisorApi.updateTrainingProgress(active.id, { duration, currentTime, watchedSecondsDelta: calculatedDelta }, active.token);
       const progress = result.progress;
       if ($('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `${progress.percent}% assistido${progress.status === 'completed' ? ' · Treinamento concluído' : ''}`;
     } catch (error) {
