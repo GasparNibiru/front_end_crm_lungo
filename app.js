@@ -122,6 +122,8 @@
   ];
   let supervisorAccessToken = "";
   let supervisorUserId = "";
+  let activeOrganizationId = "";
+  let activeAccessProfile = null;
   let supervisorDashboard = null;
   let supervisorOrganizationName = "";
   const supervisorSelectedClientIds = new Set();
@@ -153,6 +155,8 @@
   let adminMasterCurrentView = "dashboard";
   const adminMasterViewHistory = [];
   let adminTrainings = [];
+  let adminCampaignMedia = { banner: null, popup: null };
+  let pendingCampaignImages = { banner: '', popup: '' };
   let brokerMessageTimer = null;
   let supervisorMessageTimer = null;
   let recruitmentData = { vacancy: null, candidates: [] };
@@ -1247,12 +1251,44 @@
     catch { return {}; }
   }
 
+  function companyStorageKey(baseKey) {
+    return activeOrganizationId ? `${baseKey}:${activeOrganizationId}` : baseKey;
+  }
+
+  function readScopedCompanyObject(baseKey) {
+    const scopedKey = companyStorageKey(baseKey);
+    const scoped = readLocalObject(scopedKey);
+    return scoped;
+  }
+
+  function readScopedCompanyText(baseKey) {
+    const scopedKey = companyStorageKey(baseKey);
+    const scoped = localStorage.getItem(scopedKey);
+    return scoped || "";
+  }
+
+  function migrateMatchingLegacyCompanyData(organization) {
+    if (!activeOrganizationId || localStorage.getItem(companyStorageKey(COMPANY_BRANDING_KEY)) !== null) return;
+    const legacyBranding = readLocalObject(COMPANY_BRANDING_KEY);
+    const legacyName = String(legacyBranding.name || "").trim().toLocaleLowerCase("pt-BR");
+    const remoteName = String(organization?.name || "").trim().toLocaleLowerCase("pt-BR");
+    if (!legacyName || legacyName !== remoteName) return;
+    try {
+      localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(legacyBranding));
+      [COMPANY_GOALS_KEY, COMPANY_THEME_KEY].forEach((key) => {
+        const value = localStorage.getItem(key); if (value !== null) localStorage.setItem(companyStorageKey(key), value);
+      });
+      const message = localStorage.getItem(COMPANY_MESSAGE_KEY);
+      if (message !== null) localStorage.setItem(companyStorageKey(COMPANY_MESSAGE_KEY), message);
+    } catch {}
+  }
+
   function loadCompanyBranding() {
     return {
-      branding: readLocalObject(COMPANY_BRANDING_KEY),
-      goals: readLocalObject(COMPANY_GOALS_KEY),
-      message: localStorage.getItem(COMPANY_MESSAGE_KEY) || "",
-      theme: readLocalObject(COMPANY_THEME_KEY)
+      branding: readScopedCompanyObject(COMPANY_BRANDING_KEY),
+      goals: readScopedCompanyObject(COMPANY_GOALS_KEY),
+      message: readScopedCompanyText(COMPANY_MESSAGE_KEY),
+      theme: readScopedCompanyObject(COMPANY_THEME_KEY)
     };
   }
 
@@ -1296,10 +1332,10 @@
     const message = el.companyWeeklyMessageInput?.value.trim() || "";
     const theme = { primary: el.companyPrimaryColorInput?.value || "#0ea5a5", secondary: el.companySecondaryColorInput?.value || "#10b8a8", mode: document.querySelector('input[name="companyTheme"]:checked')?.value || "dark" };
     try {
-      localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(branding));
-      localStorage.setItem(COMPANY_GOALS_KEY, JSON.stringify(goals));
-      localStorage.setItem(COMPANY_MESSAGE_KEY, message);
-      localStorage.setItem(COMPANY_THEME_KEY, JSON.stringify(theme));
+      localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(branding));
+      localStorage.setItem(companyStorageKey(COMPANY_GOALS_KEY), JSON.stringify(goals));
+      localStorage.setItem(companyStorageKey(COMPANY_MESSAGE_KEY), message);
+      localStorage.setItem(companyStorageKey(COMPANY_THEME_KEY), JSON.stringify(theme));
     } catch {
       if (el.companySettingsStatus) { el.companySettingsStatus.textContent = "Não foi possível salvar. Use imagens menores."; el.companySettingsStatus.classList.add("error"); }
       return null;
@@ -1329,8 +1365,23 @@
   }
 
   function loadCompanyIdentity() {
-    const stored = readLocalObject(COMPANY_BRANDING_KEY);
+    const stored = readScopedCompanyObject(COMPANY_BRANDING_KEY);
     return { name: String(stored.name || "").trim(), logo: String(stored.logo || ""), sidebarColor: String(stored.sidebarColor || "").trim(), background: String(stored.background || "none") };
+  }
+
+  function applyOrganizationIdentity(organization) {
+    if (!organization) return;
+    activeOrganizationId = String(organization.id || activeOrganizationId || "");
+    migrateMatchingLegacyCompanyData(organization);
+    const current = loadCompanyIdentity();
+    const identity = {
+      ...current, name: String(organization.name || current.name || 'Corretora').trim(),
+      logo: String(organization.logoUrl || organization.logo_url || ''),
+      sidebarColor: String(organization.sidebarColor || organization.sidebar_color || current.sidebarColor || ''),
+      background: String(organization.background || organization.background_key || current.background || 'none')
+    };
+    try { localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(identity)); } catch {}
+    renderCompanyIdentity(); renderCompanyBranding();
   }
 
   const COMPANY_BACKGROUNDS = {
@@ -1355,9 +1406,16 @@
   }
 
   function loadBrokerPersonalization() {
-    if (!state.token) return { photo: "", sidebarColor: "", background: "none", theme: "" };
+    if (!state.token) return { photo: "", sidebarColor: "", background: "", theme: "" };
     const stored = readLocalObject(brokerPreferenceKey());
-    return { photo: String(stored.photo || ""), sidebarColor: String(stored.sidebarColor || ""), background: String(stored.background || "none"), theme: stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : "" };
+    const remote = activeAccessProfile || {};
+    return {
+      photo: String(remote.profilePhotoUrl || remote.profile_photo_url || stored.photo || ""),
+      displayName: String(remote.name || stored.displayName || ""),
+      sidebarColor: String(remote.sidebarColor || remote.sidebar_color || stored.sidebarColor || ""),
+      background: String(remote.background || remote.background_key || stored.background || ""),
+      theme: ["light", "dark"].includes(remote.theme || remote.preferred_theme) ? (remote.theme || remote.preferred_theme) : stored.theme === "light" ? "light" : stored.theme === "dark" ? "dark" : ""
+    };
   }
 
   function brokerInitials() {
@@ -1365,13 +1423,15 @@
   }
 
   function applyBrokerPersonalization(preferences = loadBrokerPersonalization()) {
+    if (!$('#brokerDisplayName')) { const companyField = el.brokerFixedCompanyName?.closest('label'); companyField?.insertAdjacentHTML('afterend', '<label><span>Meu nome</span><input id="brokerDisplayName" maxlength="120"><small>Nome exibido no seu acesso.</small></label>'); }
     const company = loadCompanyIdentity();
     const color = preferences.sidebarColor || company.sidebarColor || "#0b7658";
-    const background = applyCompanyBackground(preferences.background || "none");
+    const background = applyCompanyBackground(preferences.background || company.background || "none");
     const theme = preferences.theme || localStorage.getItem(THEME_KEY) || "dark";
     applyCompanySidebarColor(color);
     el.root.dataset.theme = theme;
     if (el.brokerFixedCompanyName) el.brokerFixedCompanyName.value = company.name || "Lungo";
+    if ($('#brokerDisplayName')) $('#brokerDisplayName').value = preferences.displayName || state.clientName || '';
     if (el.brokerSidebarColor) el.brokerSidebarColor.value = color;
     if (el.brokerThemeSelect) el.brokerThemeSelect.value = theme;
     const radio = document.querySelector(`input[name="brokerBackground"][value="${background}"]`) || document.querySelector('input[name="brokerBackground"][value="none"]');
@@ -1387,10 +1447,18 @@
     if (el.brokerProfilePhotoName) el.brokerProfilePhotoName.textContent = pendingBrokerProfilePhoto ? "Foto pessoal salva" : "Nenhuma foto";
   }
 
-  function saveBrokerPersonalization(event) {
+  async function saveBrokerPersonalization(event) {
     event.preventDefault();
     if (!state.token) return;
-    const preferences = { photo: pendingBrokerProfilePhoto, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
+    const displayName = String($('#brokerDisplayName')?.value || state.clientName || '').trim();
+    if (displayName.length < 2) return toast('Informe seu nome.');
+    const preferences = { photo: pendingBrokerProfilePhoto, displayName, sidebarColor: el.brokerSidebarColor?.value || "#0b7658", background: document.querySelector('input[name="brokerBackground"]:checked')?.value || "none", theme: el.brokerThemeSelect?.value === "light" ? "light" : "dark" };
+    try {
+      const result = await window.LungoSupervisorApi.updateOwnProfile({ name: displayName, photo: preferences.photo, sidebarColor: preferences.sidebarColor, background: preferences.background, theme: preferences.theme }, state.token);
+      activeAccessProfile = { ...(activeAccessProfile || {}), ...(result.user || {}) };
+      state.clientName = result.user?.name || displayName; preferences.displayName = state.clientName; saveAccess(); renderAccess();
+    }
+    catch (error) { toast(error.message); return; }
     try { localStorage.setItem(brokerPreferenceKey(), JSON.stringify(preferences)); }
     catch { toast("Não foi possível salvar. Tente uma foto menor."); return; }
     applyBrokerPersonalization(preferences);
@@ -1473,7 +1541,7 @@
     const current = loadCompanyIdentity();
     const selectedBackground = document.querySelector('input[name="companyBackground"]:checked')?.value || current.background || "none";
     const identity = { name, logo: pendingCompanyLogo || current.logo || "", sidebarColor: applyCompanySidebarColor(el.companySidebarColor?.value || current.sidebarColor || "#0b7658"), background: applyCompanyBackground(selectedBackground) };
-    try { localStorage.setItem(COMPANY_BRANDING_KEY, JSON.stringify(identity)); }
+    try { localStorage.setItem(companyStorageKey(COMPANY_BRANDING_KEY), JSON.stringify(identity)); }
     catch {
       el.companySettingsStatus.textContent = "Não foi possível salvar. Use uma imagem menor.";
       el.companySettingsStatus.classList.add("error");
@@ -1534,33 +1602,64 @@
 
   function trainingStars(count) { return count > 0 ? `<span class="training-stars" aria-label="${count} estrelas">${'★'.repeat(count)}</span>` : ''; }
 
-  function trainingCards(trainings) {
+  function trainingCards(trainings, options = {}) {
     if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado nesta trilha.</div>';
-    const tracks = [...new Set(trainings.map((item) => item.track || 'Geral'))];
-    return tracks.map((track) => `<section class="training-track"><header><div><span>Trilha de conhecimento</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter((item) => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter((item) => (item.track || 'Geral') === track).map((item) => `<article class="training-card"><button type="button" class="training-thumb" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span></button><div><small>${escapeHtml(item.track || 'Geral')}</small><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p></div></article>`).join('')}</div></section>`).join('');
+    const tracks = options.flat ? ['__all__'] : [...new Set(trainings.map((item) => item.track || 'Geral'))];
+    return tracks.map((track) => { const group = options.flat ? trainings : trainings.filter((item) => (item.track || 'Geral') === track); return `<section class="training-track ${options.featured ? 'training-track-featured' : ''}"><header><div><span>${escapeHtml(options.eyebrow || 'Trilha de conhecimento')}</span><h3>${escapeHtml(options.flatTitle || track)}</h3></div><b>${group.length} aulas</b></header><div class="training-card-grid">${group.map((item) => { const progress = item.progress || { percent: 0, status: 'not_started' }; return `<article class="training-card ${item.ownerType === 'admin' ? 'training-card-admin' : ''} ${progress.status === 'in_progress' ? 'training-card-watching' : ''}"><button type="button" class="training-thumb" data-training-id="${escapeHtml(item.id)}" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span>${progress.status === 'in_progress' ? '<b class="training-watching-badge">Em andamento</b>' : ''}</button><div><div class="training-card-meta"><small>${item.ownerType === 'supervisor' ? 'Trilha da equipe' : 'Conteúdo Lungo'}</small>${options.metrics ? `<button class="training-eye" type="button" data-training-metrics="${escapeHtml(item.id)}" title="Visto por" aria-label="Ver quem assistiu">&#128065;</button>` : ''}</div><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p><div class="training-progress"><span><i style="width:${Number(progress.percent || 0)}%"></i></span><b>${Number(progress.percent || 0)}%${progress.status === 'completed' ? ' · Concluído' : progress.status === 'in_progress' ? ' · Em andamento' : ''}</b></div></div></article>`; }).join('')}</div></section>`; }).join('');
+  }
+
+  function orderedTrainings(trainings) {
+    return trainings.slice().sort((a, b) => (a.ownerType === 'admin' ? 0 : 1) - (b.ownerType === 'admin' ? 0 : 1) || Number(a.order || 0) - Number(b.order || 0) || String(a.track || '').localeCompare(String(b.track || '')) || String(a.title || '').localeCompare(String(b.title || '')));
+  }
+
+  function trainingLibraryContent(trainings, options = {}) {
+    if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado.</div>';
+    const inProgress = trainings.filter((item) => item.progress?.status === 'in_progress').sort((a, b) => String(b.progress?.lastViewedAt || '').localeCompare(String(a.progress?.lastViewedAt || '')));
+    const activeIds = new Set(inProgress.map((item) => item.id));
+    const admin = orderedTrainings(trainings.filter((item) => !activeIds.has(item.id) && item.ownerType === 'admin'));
+    const team = orderedTrainings(trainings.filter((item) => !activeIds.has(item.id) && item.ownerType === 'supervisor'));
+    return `${inProgress.length ? trainingCards(inProgress, { ...options, flat: true, flatTitle: 'Em andamento', featured: true, eyebrow: 'Continue assistindo' }) : ''}${admin.length ? trainingCards(admin, { ...options, featured: true, eyebrow: 'Em destaque · Lungo' }) : ''}${team.length ? trainingCards(team, { ...options, eyebrow: 'Trilha da equipe' }) : ''}`;
+  }
+
+  let trainingPlayback = null;
+  let youtubeApiPromise = null;
+  function loadYoutubeApi() {
+    if (window.YT?.Player) return Promise.resolve(window.YT);
+    if (youtubeApiPromise) return youtubeApiPromise;
+    youtubeApiPromise = new Promise((resolve) => { const previous = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { if (typeof previous === 'function') previous(); resolve(window.YT); }; const script = document.createElement('script'); script.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(script); });
+    return youtubeApiPromise;
   }
 
   function ensureTrainingPlayer() {
     let modal = $('#trainingPlayerModal');
     if (modal) return modal;
-    document.body.insertAdjacentHTML('beforeend', `<dialog id="trainingPlayerModal" class="modal training-player-modal"><div class="modal-card"><header><div><h2 id="trainingPlayerTitle">Treinamento</h2><p id="trainingPlayerTrack">Trilha de conhecimento</p></div><button class="btn icon" type="button" data-training-player-close aria-label="Fechar">×</button></header><div class="training-player-frame"><iframe id="trainingPlayerFrame" title="Player do treinamento" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><footer><span class="footer-spacer"></span><button class="btn primary" type="button" data-training-player-close>Fechar</button></footer></div></dialog>`);
+    document.body.insertAdjacentHTML('beforeend', `<dialog id="trainingPlayerModal" class="modal training-player-modal"><div class="modal-card"><header><div><h2 id="trainingPlayerTitle">Treinamento</h2><p id="trainingPlayerTrack">Trilha de conhecimento</p></div><button class="btn icon" type="button" data-training-player-close aria-label="Fechar">×</button></header><div class="training-player-frame"><div id="trainingPlayerFrame"></div></div><footer><span id="trainingPlayerProgress">O progresso é salvo durante a reprodução.</span><span class="footer-spacer"></span><button class="btn primary" type="button" data-training-player-close>Fechar</button></footer></div></dialog>`);
     modal = $('#trainingPlayerModal');
     modal.addEventListener('close', closeTrainingPlayer);
     modal.addEventListener('click', (event) => { if (event.target === modal || event.target.closest('[data-training-player-close]')) closeTrainingPlayer(); });
     return modal;
   }
 
-  function openTrainingPlayer(button) {
+  async function openTrainingPlayer(button) {
     const modal = ensureTrainingPlayer();
     $('#trainingPlayerTitle').textContent = button.dataset.trainingTitle || 'Treinamento';
     $('#trainingPlayerTrack').textContent = `Trilha: ${button.dataset.trainingTrack || 'Geral'}`;
-    $('#trainingPlayerFrame').src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(button.dataset.trainingPlay)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
     modal.showModal();
+    await loadYoutubeApi();
+    const player = new window.YT.Player('trainingPlayerFrame', { videoId: button.dataset.trainingPlay, playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 }, events: { onStateChange(event) { if (!trainingPlayback) return; clearInterval(trainingPlayback.timer); if (event.data === window.YT.PlayerState.PLAYING) trainingPlayback.timer = setInterval(() => saveTrainingPlayback(10), 10000); } } });
+    trainingPlayback = { id: button.dataset.trainingId, player, timer: null, token: calendarToken(), target: supervisorAccessToken ? 'supervisor' : 'broker' };
+  }
+
+  async function saveTrainingPlayback(delta = 0) {
+    const active = trainingPlayback; if (!active?.player?.getDuration) return;
+    const duration = active.player.getDuration(), currentTime = active.player.getCurrentTime(); if (!duration) return;
+    try { const result = await window.LungoSupervisorApi.updateTrainingProgress(active.id, { duration, currentTime, watchedSecondsDelta: delta }, active.token); const progress = result.progress; if ($('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `${progress.percent}% assistido${progress.status === 'completed' ? ' · Treinamento concluído' : ''}`; } catch {}
   }
 
   function closeTrainingPlayer() {
-    const modal = $('#trainingPlayerModal'); const frame = $('#trainingPlayerFrame');
-    if (frame) frame.src = '';
+    const modal = $('#trainingPlayerModal');
+    if (trainingPlayback) { const finished = trainingPlayback; clearInterval(finished.timer); saveTrainingPlayback(0); try { finished.player.destroy(); } catch {} trainingPlayback = null; setTimeout(() => loadTrainingLibrary(finished.token, finished.target), 250); }
+    if (!$('#trainingPlayerFrame')) $('.training-player-frame')?.insertAdjacentHTML('beforeend', '<div id="trainingPlayerFrame"></div>');
     if (modal?.open) modal.close();
   }
 
@@ -1631,12 +1730,12 @@
   function leadStoreContainer(target) { if (target === 'supervisor') return el.supervisorOperationContent; return el.views.comprar_leads?.querySelector('.lead-storefront'); }
   async function renderLeadStorefront(target = 'broker') {
     const container = leadStoreContainer(target); if (!container) return; container.innerHTML = '<div class="empty-state">Carregando leads disponíveis...</div>';
-    try { const result = await window.LungoSupervisorApi.getLeadMarketplace(calendarToken()); const leads = result.leads || []; const support = String(result.supportWhatsapp || '5555992102864').replace(/\D/g, ''); const message = encodeURIComponent(`Olá! Gostaria de solicitar créditos para comprar leads. Meu acesso é ${state.clientName || 'usuário Lungo'}.`); container.innerHTML = `<section class="lead-store-header"><div><span>Saldo disponível</span><b>${formatCurrency(result.balance || 0)}</b><small>Use seus créditos para adquirir oportunidades exclusivas.</small></div><div><button class="btn" type="button" data-lead-history>Histórico de compras</button><a class="btn primary" href="https://wa.me/${support}?text=${message}" target="_blank" rel="noopener">Solicitar créditos</a></div></section><div class="lead-store-grid">${leads.length ? leads.map((lead) => `<article class="lead-offer-card ${lead.status === 'reserved' ? 'reserved' : ''}"><header><span>${lead.status === 'reserved' ? 'Em compra' : 'Novo lead'}</span><small>Captado há ${escapeHtml(leadAge(lead.capturedAt))}</small></header><h3>${escapeHtml(lead.name)}</h3><dl><div><dt>Telefone</dt><dd>${escapeHtml(lead.phone)}</dd></div><div><dt>Perfil</dt><dd>${escapeHtml(lead.profile)}</dd></div><div><dt>Qtd. de vidas</dt><dd>${Number(lead.livesCount || 0)}</dd></div><div><dt>Interesse</dt><dd>${escapeHtml(lead.productInterest || 'Não informado')}</dd></div><div><dt>Região</dt><dd>${escapeHtml([lead.city, lead.state].filter(Boolean).join(' / ') || 'Não informada')}</dd></div></dl><footer><div><small>Valor do lead</small><b>${formatCurrency(lead.price)}</b></div><button class="btn primary" type="button" data-lead-buy="${escapeHtml(lead.id)}" ${lead.status === 'reserved' ? 'disabled' : ''}>${lead.status === 'reserved' ? 'Reservado' : 'Comprar'}</button></footer></article>`).join('') : '<div class="empty-state lead-store-empty">Nenhum lead disponível neste momento.</div>'}</div>`;
+    try { const result = await window.LungoSupervisorApi.getLeadMarketplace(calendarToken()); const leads = result.leads || []; const support = String(result.supportWhatsapp || '5555992102864').replace(/\D/g, ''); const message = encodeURIComponent(`Olá! Gostaria de solicitar créditos para comprar leads. Meu acesso é ${state.clientName || 'usuário Lungo'}.`); container.innerHTML = `<section class="lead-store-header"><div><span>Saldo disponível</span><b>${formatCurrency(result.balance || 0)}</b><small>Use seus créditos para adquirir oportunidades exclusivas.</small></div><div><button class="btn" type="button" data-lead-history>Histórico de compras</button><a class="btn primary" href="https://wa.me/${support}?text=${message}" target="_blank" rel="noopener">Solicitar créditos</a></div></section><div class="lead-store-grid">${leads.length ? leads.map((lead) => `<article class="lead-offer-card ${lead.status === 'reserved' ? 'reserved' : ''}"><header><span>${lead.status === 'reserved' ? 'Em compra' : 'Novo lead'}</span><small>Captado há ${escapeHtml(leadAge(lead.capturedAt))}</small></header><h3>${escapeHtml(lead.name)}</h3><dl><div><dt>Telefone</dt><dd>${escapeHtml(lead.phone)}</dd></div><div><dt>Perfil</dt><dd>${escapeHtml(lead.profile)}</dd></div><div><dt>Qtd. de vidas</dt><dd>${Number(lead.livesCount || 0)}</dd></div><div><dt>Idades</dt><dd>${escapeHtml(lead.beneficiaryAges || lead.productInterest || 'Não informadas')}</dd></div><div><dt>Região</dt><dd>${escapeHtml([lead.city, lead.state].filter(Boolean).join(' / ') || 'Não informada')}</dd></div></dl><footer><div><small>Valor atual</small><b>${formatCurrency(lead.price)}</b>${Number(lead.originalPrice || 0) > Number(lead.price || 0) ? `<del>${formatCurrency(lead.originalPrice)}</del>` : ''}</div><button class="btn primary" type="button" data-lead-buy="${escapeHtml(lead.id)}" ${lead.status === 'reserved' ? 'disabled' : ''}>${lead.status === 'reserved' ? 'Reservado' : 'Comprar'}</button></footer></article>`).join('') : '<div class="empty-state lead-store-empty">Nenhum lead disponível neste momento.</div>'}</div>`;
       container.querySelector('[data-lead-history]').onclick = () => openLeadPurchaseHistory(target);
       container.querySelector('.lead-store-grid').addEventListener('click', async (event) => { const button = event.target.closest('[data-lead-buy]'); if (!button) return; const lead = leads.find((item) => item.id === button.dataset.leadBuy); if (!lead || !await popupConfirm(`Comprar este lead por ${formatCurrency(lead.price)}? O valor será descontado do seu saldo.`, 'Confirmar compra')) return; button.disabled = true; button.textContent = 'Processando...'; try { await window.LungoSupervisorApi.buyMarketplaceLead(lead.id, calendarToken()); toast('Lead comprado e enviado para Meus Leads.'); await renderLeadStorefront(target); if (target === 'broker') await loadCrm(true); else await loadSupervisorRemoteData(); } catch (error) { toast(error.message); await renderLeadStorefront(target); } });
     } catch (error) { container.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
   }
-  async function openLeadPurchaseHistory(target) { try { const result = await window.LungoSupervisorApi.getLeadPurchaseHistory(calendarToken()); let modal = $('#leadPurchaseHistoryModal'); if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="leadPurchaseHistoryModal" class="modal"><div class="modal-card"><header><div><h2>Histórico de compras</h2><p>Leads adquiridos com seus créditos.</p></div><button class="btn icon" type="button" data-lead-history-close>×</button></header><div class="lead-purchase-history"></div><footer><span class="footer-spacer"></span><button class="btn primary" type="button" data-lead-history-close>Fechar</button></footer></div></dialog>'); modal = $('#leadPurchaseHistoryModal'); modal.addEventListener('click', (event) => { if (event.target.closest('[data-lead-history-close]')) modal.close(); }); } modal.querySelector('.lead-purchase-history').innerHTML = (result.purchases || []).map((item) => { const lead = item.marketplace_leads || {}; return `<article><div><b>${escapeHtml(lead.name || 'Lead')}</b><span>${escapeHtml(lead.phone || '')} · ${escapeHtml(lead.profile || '')} · ${Number(lead.lives_count || 0)} vidas · ${escapeHtml(lead.product_interest || '')}</span></div><div><b>${formatCurrency(item.price)}</b><small>${calendarDateTime(item.purchased_at)}</small></div></article>`; }).join('') || '<div class="empty-state">Nenhuma compra realizada.</div>'; modal.showModal(); } catch (error) { toast(error.message); } }
+  async function openLeadPurchaseHistory(target) { try { const result = await window.LungoSupervisorApi.getLeadPurchaseHistory(calendarToken()); let modal = $('#leadPurchaseHistoryModal'); if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="leadPurchaseHistoryModal" class="modal"><div class="modal-card"><header><div><h2>Histórico de compras</h2><p>Leads adquiridos com seus créditos.</p></div><button class="btn icon" type="button" data-lead-history-close>×</button></header><div class="lead-purchase-history"></div><footer><span class="footer-spacer"></span><button class="btn primary" type="button" data-lead-history-close>Fechar</button></footer></div></dialog>'); modal = $('#leadPurchaseHistoryModal'); modal.addEventListener('click', (event) => { if (event.target.closest('[data-lead-history-close]')) modal.close(); }); } modal.querySelector('.lead-purchase-history').innerHTML = (result.purchases || []).map((item) => { const lead = item.marketplace_leads || {}; return `<article><div><b>${escapeHtml(lead.name || 'Lead')}</b><span>${escapeHtml(lead.phone || '')} · ${escapeHtml(lead.profile || '')} · ${Number(lead.lives_count || 0)} vidas · ${escapeHtml(lead.product_interest || '')}</span>${lead.beneficiary_ages ? `<small>Idades informadas: ${escapeHtml(lead.beneficiary_ages)}</small>` : ''}</div><div><b>${formatCurrency(item.price)}</b><small>${calendarDateTime(item.purchased_at)}</small></div></article>`; }).join('') || '<div class="empty-state">Nenhuma compra realizada.</div>'; modal.showModal(); } catch (error) { toast(error.message); } }
 
   async function loadTrainingLibrary(token, target = 'broker') {
     const library = target === 'broker' ? el.brokerTrainingLibrary : el.supervisorOperationContent;
@@ -1646,17 +1745,38 @@
       const result = await window.LungoSupervisorApi.getTrainings(token);
       const trainings = result.trainings || [];
       if (target === 'supervisor') {
-        library.innerHTML = `<div class="training-library"><header class="training-library-header"><div><h2>Central de treinamentos</h2><p>Conteúdos organizados pelo Admin Master.</p></div><select id="supervisorTrainingTrackFilter" class="select"><option value="">Todas as trilhas</option></select></header><div id="supervisorTrainingLibrary" class="training-tracks">${trainingCards(trainings)}</div></div>`;
+        library.innerHTML = `<div class="training-library"><header class="training-library-header"><div><h2>Central de treinamentos</h2><p>Conteúdos Lungo em destaque e trilhas exclusivas da sua equipe.</p></div><div class="training-library-actions"><select id="supervisorTrainingSourceFilter" class="select"><option value="">Todos os treinamentos</option><option value="admin">Conteúdos Lungo</option><option value="supervisor">Treinamentos da Corretora</option></select><select id="supervisorTrainingTrackFilter" class="select"><option value="">Todas as trilhas</option></select><button class="btn primary" type="button" data-supervisor-training-manage>Gerenciar trilhas</button></div></header><div id="supervisorTrainingLibrary" class="training-tracks">${trainingLibraryContent(trainings, { metrics: true })}</div></div>`;
         const filter = $('#supervisorTrainingTrackFilter');
         [...new Set(trainings.map((item) => item.track || 'Geral'))].forEach((track) => filter.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(track)}">${escapeHtml(track)}</option>`));
-        filter.addEventListener('change', () => { $('#supervisorTrainingLibrary').innerHTML = trainingCards(filter.value ? trainings.filter((item) => (item.track || 'Geral') === filter.value) : trainings); });
+        const sourceFilter = $('#supervisorTrainingSourceFilter');
+        const applyFilters = () => { const visible = trainings.filter((item) => (!sourceFilter.value || item.ownerType === sourceFilter.value) && (!filter.value || (item.track || 'Geral') === filter.value)); $('#supervisorTrainingLibrary').innerHTML = trainingLibraryContent(visible, { metrics: true }); };
+        filter.addEventListener('change', applyFilters); sourceFilter.addEventListener('change', applyFilters);
+        library.querySelector('[data-supervisor-training-manage]').onclick = () => openSupervisorTrainingManager(token);
       } else {
-        library.innerHTML = trainingCards(trainings);
+        library.innerHTML = trainingLibraryContent(trainings);
         el.brokerTrainingTrackFilter.innerHTML = '<option value="">Todas as trilhas</option>' + [...new Set(trainings.map((item) => item.track || 'Geral'))].map((track) => `<option value="${escapeHtml(track)}">${escapeHtml(track)}</option>`).join('');
-        el.brokerTrainingTrackFilter.onchange = () => { library.innerHTML = trainingCards(el.brokerTrainingTrackFilter.value ? trainings.filter((item) => (item.track || 'Geral') === el.brokerTrainingTrackFilter.value) : trainings); };
+        const brokerSourceFilter = $('#brokerTrainingSourceFilter');
+        const applyFilters = () => { const visible = trainings.filter((item) => (!brokerSourceFilter?.value || item.ownerType === brokerSourceFilter.value) && (!el.brokerTrainingTrackFilter.value || (item.track || 'Geral') === el.brokerTrainingTrackFilter.value)); library.innerHTML = trainingLibraryContent(visible); };
+        el.brokerTrainingTrackFilter.onchange = applyFilters; if (brokerSourceFilter) brokerSourceFilter.onchange = applyFilters;
         if (status) status.textContent = `${trainings.length} treinamento(s) disponível(is).`;
       }
     } catch (error) { if (status) { status.textContent = error.message; status.classList.add('error'); } else library.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
+  }
+
+  async function openTrainingMetrics(id, mode = 'supervisor') {
+    let modal = $('#trainingMetricsModal');
+    if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="trainingMetricsModal" class="modal training-metrics-modal"><div class="modal-card"><header><div><h2>Visto por</h2><p id="trainingMetricsSubtitle">Acompanhamento do treinamento</p></div><button class="btn icon" type="button" data-training-metrics-close>×</button></header><div id="trainingMetricsBody"><div class="empty-state">Carregando métricas...</div></div><footer><span class="footer-spacer"></span><button class="btn primary" type="button" data-training-metrics-close>Fechar</button></footer></div></dialog>'); modal = $('#trainingMetricsModal'); modal.addEventListener('click', (event) => { if (event.target.closest('[data-training-metrics-close]')) modal.close(); }); }
+    $('#trainingMetricsBody').innerHTML = '<div class="empty-state">Carregando métricas...</div>'; modal.showModal();
+    try { const result = mode === 'admin' ? await window.LungoAdminApi.getTrainingMetrics(id, adminMasterKey) : await window.LungoSupervisorApi.getSupervisorTrainingMetrics(id, supervisorAccessToken); const viewers = result.viewers || []; $('#trainingMetricsSubtitle').textContent = result.training?.title || 'Acompanhamento do treinamento'; $('#trainingMetricsBody').innerHTML = viewers.length ? `<div class="training-metrics-summary"><article><span>Pessoas que iniciaram</span><b>${viewers.length}</b></article><article><span>Concluíram</span><b>${viewers.filter((item) => item.status === 'completed').length}</b></article><article><span>Progresso médio</span><b>${Math.round(viewers.reduce((sum, item) => sum + Number(item.percent || 0), 0) / viewers.length)}%</b></article></div><div class="training-viewer-list">${viewers.map((item) => `<article><div><b>${escapeHtml(item.userName || 'Usuário')}</b><span>${escapeHtml(item.userRole === 'supervisor' ? 'Supervisor' : 'Corretor')}${mode === 'admin' ? ` · ${escapeHtml(item.organizationName || 'Sem empresa')}` : ''}</span></div><div class="training-viewer-progress"><b>${Number(item.percent || 0)}%</b><span>${item.status === 'completed' ? 'Concluído' : 'Em andamento'}</span></div><time>${calendarDateTime(item.lastViewedAt)}</time></article>`).join('')}</div>` : '<div class="empty-state">Ninguém iniciou este treinamento ainda.</div>'; } catch (error) { $('#trainingMetricsBody').innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
+  }
+
+  async function openSupervisorTrainingManager(token) {
+    let modal = $('#supervisorTrainingManager');
+    if (!modal) { document.body.insertAdjacentHTML('beforeend', `<dialog id="supervisorTrainingManager" class="modal training-manager-modal"><div class="modal-card"><header><div><h2>Trilhas da minha equipe</h2><p>Publique vídeos do YouTube para seus corretores.</p></div><button class="btn icon" type="button" data-training-manager-close>×</button></header><form id="supervisorTrainingForm" class="training-manager-form"><input name="id" type="hidden"><label><span>Título</span><input name="title" required></label><label><span>Link do YouTube</span><input name="url" type="url" required></label><label><span>Trilha</span><input name="track" value="Geral" required></label><label><span>Ordem</span><input name="order" type="number" min="0" value="0"></label><label class="full"><span>Descrição</span><textarea name="description" rows="2"></textarea></label><label><span>Visibilidade</span><select name="active"><option value="true">Publicado</option><option value="false">Oculto</option></select></label><button class="btn primary" type="submit">Salvar e notificar equipe</button></form><div id="supervisorTrainingManageStatus" class="auth-status"></div><div id="supervisorTrainingManageList" class="training-admin-list"></div><footer><span class="footer-spacer"></span><button class="btn" type="button" data-training-manager-close>Fechar</button></footer></div></dialog>`); modal = $('#supervisorTrainingManager'); modal.addEventListener('click', (event) => { if (event.target.closest('[data-training-manager-close]')) modal.close(); }); }
+    const form = $('#supervisorTrainingForm'), list = $('#supervisorTrainingManageList'), status = $('#supervisorTrainingManageStatus');
+    async function refresh() { const result = await window.LungoSupervisorApi.getSupervisorTrainings(token); const items = result.trainings || []; list.innerHTML = items.map((item) => `<article class="training-admin-item"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track)} · Ordem ${Number(item.order || 0)}</span><b>${escapeHtml(item.title)}</b><small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn" data-supervisor-training-edit="${item.id}" type="button">Editar</button><button class="tiny-btn danger" data-supervisor-training-delete="${item.id}" type="button">Excluir</button></div></article>`).join('') || '<div class="empty-state">Você ainda não criou treinamentos.</div>'; list.onclick = async (event) => { const edit = event.target.closest('[data-supervisor-training-edit]'), remove = event.target.closest('[data-supervisor-training-delete]'); if (edit) { const item = items.find((entry) => entry.id === edit.dataset.supervisorTrainingEdit); Object.entries({ id: item.id, title: item.title, url: item.url, track: item.track, order: item.order, description: item.description || '', active: String(item.active !== false) }).forEach(([name, value]) => { form.elements[name].value = value; }); form.elements.title.focus(); } if (remove && await popupConfirm('Excluir este treinamento da equipe?', 'Excluir treinamento')) { await window.LungoSupervisorApi.deleteSupervisorTraining(remove.dataset.supervisorTrainingDelete, token); await refresh(); await loadTrainingLibrary(token, 'supervisor'); } }; }
+    form.onsubmit = async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(form)); const id = data.id; delete data.id; data.order = Number(data.order || 0); data.active = data.active === 'true'; status.textContent = id ? 'Salvando alterações...' : 'Publicando e preparando notificações...'; try { const result = id ? await window.LungoSupervisorApi.updateSupervisorTraining(id, data, token) : await window.LungoSupervisorApi.createSupervisorTraining(data, token); form.reset(); form.elements.id.value = ''; form.elements.track.value = 'Geral'; form.elements.order.value = '0'; status.textContent = id ? 'Treinamento atualizado.' : result.emailDelivery?.suppressed ? 'Treinamento publicado. E-mails protegidos no ambiente de testes.' : `Treinamento publicado. ${result.emailDelivery?.sent || 0} e-mail(s) enviado(s).`; status.className = 'auth-status ok'; await refresh(); await loadTrainingLibrary(token, 'supervisor'); } catch (error) { status.textContent = error.message; status.className = 'auth-status error'; } };
+    try { await refresh(); } catch (error) { list.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; } modal.showModal();
   }
 
   function restoreSupervisorSharedView() {
@@ -1749,9 +1869,11 @@
       if (auth.user?.role !== "supervisor") throw new Error("Este token não pertence a um Supervisor.");
       supervisorAccessToken = token;
       supervisorUserId = auth.user.id || "";
+      activeAccessProfile = auth.user || null;
       state.token = token;
       state.clientName = auth.user.name || "Supervisor";
       state.instanceName = auth.client?.instanceName || "";
+      applyOrganizationIdentity(auth.user.organization);
       localStorage.setItem(SUPERVISOR_SESSION_KEY, token);
       localStorage.setItem(ACTIVE_PROFILE_KEY, "supervisor");
       localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ role: "supervisor", token }));
@@ -1762,6 +1884,7 @@
       el.supervisorStatus.textContent = "Acesso liberado."; el.supervisorStatus.classList.add("ok");
       supervisorOrganizationName = auth.user.organization?.name || "Corretora";
       openSupervisorArea();
+      loadCampaignMedia(token);
     } catch (error) { supervisorAccessToken = ""; supervisorUserId = ""; el.root.classList.remove("session-restoring"); setAuthLocked(true); el.supervisorStatus.textContent = error.message || "Acesso inválido."; el.supervisorStatus.classList.add("error"); if (!silent) toast(error.message || "Acesso inválido."); }
     finally { el.supervisorLoginBtn.disabled = false; }
   }
@@ -1872,7 +1995,7 @@
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
     const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
-      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token legado — renove para visualizar" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
+      <tr><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(broker.name))}</span><b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token ativo — valor protegido" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
     el.supervisorBrokerRows?.querySelectorAll('[data-supervisor-broker-action="archive"]').forEach((button) => { button.title = 'Excluir corretor'; button.setAttribute('aria-label', 'Excluir corretor'); });
 
     const stages = [
@@ -2078,7 +2201,7 @@
       }
     }
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = titles[name] || "Supervisor";
-    if (name === "settings") renderCompanyIdentity();
+    if (name === "settings") { renderCompanyIdentity(); refreshSubscriptionCancellation(supervisorAccessToken, 'company'); }
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
     if (name === 'rh') loadRecruitment(false);
@@ -2267,6 +2390,8 @@
     try {
       const verified = await api("/api/access/auth/verify", { method: "POST", headers: { "Content-Type": "application/json", "x-access-token": value }, body: "{}" });
       if (verified.user?.role !== "broker") throw new Error("Este token não pertence a um Corretor.");
+      activeAccessProfile = verified.user || null;
+      applyOrganizationIdentity(verified.user.organization);
       data = { client: { nome: verified.user.name, instanceName: verified.client?.instanceName || "" }, instanceName: verified.client?.instanceName || "", accessUser: verified.user };
     } catch (realAccessError) {
       if (/não pertence a um Corretor/i.test(realAccessError.message || "")) throw realAccessError;
@@ -2334,6 +2459,7 @@
       setWhatsappPending(false);
       setAuthStatus(state.connected ? "Acesso liberado. WhatsApp conectado." : "Acesso liberado. A conexão com o WhatsApp é opcional.", "ok");
       setView("crm");
+      loadCampaignMedia(token);
       loadCrm(true); startCrmRealtime();
       return true;
     } catch (error) {
@@ -2401,6 +2527,7 @@
     if (name === "treinamentos") loadTrainingLibrary(state.token, 'broker');
     if (name === "agenda") { renderTeamCalendar('broker'); startCalendarReminders(); }
     if (name === "comprar_leads") renderLeadStorefront('broker');
+    if (name === "settings") refreshSubscriptionCancellation(state.token, 'broker');
   }
 
   function tokenQuery() {
@@ -2672,11 +2799,46 @@
     renderKanban();
   }
 
+  async function refreshSubscriptionCancellation(token, target) {
+    const isBroker = target === 'broker';
+    const status = $(isBroker ? '#brokerSubscriptionStatus' : '#companySubscriptionStatus');
+    const button = $(isBroker ? '#cancelBrokerSubscriptionBtn' : '#cancelCompanySubscriptionBtn');
+    if (!status || !button || !token) return;
+    try {
+      const result = await window.LungoSupervisorApi.getSubscription(token), subscription = result.subscription;
+      if (!subscription) { status.textContent = 'Nenhuma assinatura ativa encontrada.'; button.hidden = true; return; }
+      if (subscription.cancellation_status === 'scheduled') {
+        const date = subscription.cancellation_effective_at ? new Date(subscription.cancellation_effective_at).toLocaleDateString('pt-BR') : 'o fim do período';
+        status.textContent = `Cancelamento agendado para ${date}. O acesso permanece ativo até essa data.`;
+        status.className = 'auth-status ok'; button.disabled = true; button.textContent = 'Cancelamento agendado';
+      } else { status.textContent = `Plano ${subscription.plans?.name || ''} ativo. Próximo vencimento: ${subscription.next_due_date ? new Date(`${subscription.next_due_date}T12:00:00`).toLocaleDateString('pt-BR') : 'não informado'}.`; status.className = 'auth-status'; button.hidden = false; button.disabled = false; button.textContent = 'Cancelar assinatura'; }
+    } catch (error) {
+      if (error.status === 403) { button.closest('.company-settings-section').hidden = true; return; }
+      status.textContent = error.message; status.className = 'auth-status error';
+    }
+  }
+
+  function consolidateLeadCards(leads) {
+    const unique = new Map();
+    (leads || []).forEach((lead) => {
+      const phone = normalizePhone(lead.telefone || lead.phone || '');
+      const key = phone.length >= 10 ? `phone:${phone}` : `id:${lead.id}`;
+      const current = unique.get(key);
+      if (!current) { unique.set(key, lead); return; }
+      const currentScheduled = Boolean(current.mensagemProgramada?.ativo !== false && current.mensagemProgramada?.data);
+      const incomingScheduled = Boolean(lead.mensagemProgramada?.ativo !== false && lead.mensagemProgramada?.data);
+      const preferred = incomingScheduled && !currentScheduled ? lead : current;
+      const secondary = preferred === current ? lead : current;
+      unique.set(key, { ...secondary, ...preferred, mensagemProgramada: preferred.mensagemProgramada || secondary.mensagemProgramada || null, companyProvided: Boolean(preferred.companyProvided || secondary.companyProvided), assignmentHistory: preferred.assignmentHistory || secondary.assignmentHistory || [] });
+    });
+    return [...unique.values()];
+  }
+
   async function loadCrm(silent = false) {
     try {
       if (!state.token) return;
       const data = await api(`/api/crm/auto-leads?token=${tokenQuery()}&limit=500&includeArchived=true&_=${Date.now()}`);
-      state.leads = (data.leads || []).map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).filter((lead) => normalizeStatus(lead.status) !== "lixeira" && isUsableLead(lead));
+      state.leads = consolidateLeadCards((data.leads || []).map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).filter((lead) => normalizeStatus(lead.status) !== "lixeira" && isUsableLead(lead)));
       if (data.client) {
         state.clientName = data.client.nome || state.clientName;
         state.instanceName = data.client.instanceName || state.instanceName;
@@ -3046,7 +3208,7 @@
       await loadCrm(true);
       if (!silent && Array.isArray(sync.leads) && sync.leads.length) {
         const syncedIds = new Set(sync.leads.map((lead) => lead.id));
-        state.leads = sync.leads.map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).concat(state.leads.filter((lead) => !syncedIds.has(lead.id)));
+        state.leads = consolidateLeadCards(sync.leads.map((lead) => ({ ...lead, status: normalizeStatus(lead.status) })).concat(state.leads.filter((lead) => !syncedIds.has(lead.id))));
       }
       if (!silent) saveWhatsappConversationWindow();
       renderCrm();
@@ -4365,7 +4527,7 @@
   }
 
   function calculateSubscriptionTotal(planId, extraAccesses = 0) {
-    const plan=getPlanDefinition(planId);return plan.price+(plan.id==="free"?0:Math.max(0,Number(extraAccesses)||0)*ADMIN_EXTRA_ACCESS_PRICE);
+    const plan=getPlanDefinition(planId);return plan.price+(["free","individual"].includes(plan.id)?0:Math.max(0,Number(extraAccesses)||0)*ADMIN_EXTRA_ACCESS_PRICE);
   }
 
   function formatCurrency(value) {
@@ -4424,7 +4586,7 @@
   }
 
   function adminClient(id) { return adminData?.clients.find((client) => client.id === id); }
-  function adminPlanCapacity(client) { const plan = getPlanDefinition(client.planId); return plan.brokerLimit + plan.managerLimit + Number(client.extraAccesses || 0); }
+  function adminPlanCapacity(client) { const plan = getPlanDefinition(client.planId); return plan.brokerLimit + plan.managerLimit + (plan.id === "individual" ? 0 : Number(client.extraAccesses || 0)); }
   function adminFinanceLabel(status) { return { paid: "Em dia", due: "Próximo do vencimento", pending: "Pendente", late: "Atrasado", cancelled: "Cancelado" }[status] || status; }
   function adminAccountLabel(status) { return { active: "Ativo", attention: "Atenção", suspended: "Suspenso", inactive: "Inativo" }[status] || status; }
   function adminPaymentLabel(status) { return { paid: "Pago", pending: "Pendente", late: "Atrasado", cancelled: "Cancelado", reversed: "Estornado" }[status] || status; }
@@ -4472,14 +4634,16 @@
         extraAccesses: Number(subscription.extra_accesses || subscription.extraAccesses || 0), activeAccesses: organizationAccesses.filter((access) => adminRemoteStatus(access.status) === "active").length,
         legacy: Boolean(subscription.legacy), saleDate: String(organization.created_at || "").slice(0, 10), nextDue: String(subscription.next_due_date || subscription.nextDueDate || organization.latest_payment?.due_date || "").slice(0, 10),
         financialStatus: adminRemoteStatus(organization.latest_payment?.status || subscription.status, "pending"), accountStatus: adminRemoteStatus(organization.status),
-        dueMode: subscription.due_mode === "fixed_day" ? "fixed" : "30days", fixedDay: Number(subscription.fixed_due_day || 1), notes: "", history: []
+        dueMode: subscription.due_mode === "fixed_day" ? "fixed" : "30days", fixedDay: Number(subscription.fixed_due_day || 1),
+        cancellationStatus: subscription.cancellation_status || 'none', cancellationEffectiveAt: subscription.cancellation_effective_at || null,
+        cancellationReason: subscription.cancellation_reason || '', notes: "", history: []
       };
     });
     const clientByName = (name) => clients.find((client) => client.name === name);
     adminData = {
       version: ADMIN_DATA_VERSION, remote: true, clients,
       archivedClients: archivedOrganizations.map((organization) => ({ id: String(organization.id), name: organization.name || "Organização", type: organization.organization_type === "individual" ? "Individual" : "Corretora / equipe", plan: organization.subscription?.plan_name || "—", createdAt: String(organization.created_at || "").slice(0, 10), status: "Excluído" })),
-      accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token legado — redefina para visualizar" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
+      accesses: accesses.map((access) => { const userStatus = adminRemoteStatus(access.status); const status = !access.active_token ? "invalid" : userStatus === "blocked" || userStatus === "suspended" ? userStatus : "active"; return { id: String(access.user_id || access.userId || access.id), clientId: String(access.organization_id || access.organizationId || ""), user: access.name || "—", profile: ({ admin_master: "Admin Master", supervisor: "Supervisor", broker: "Corretor" })[access.role || access.profile] || access.role || "—", token: access.token || (access.active_token ? "Token ativo — valor protegido" : "Sem token ativo"), status, createdAt: String(access.created_at || "").slice(0, 10), lastAccess: formatLastAccess(access.last_login_at || access.token_last_used_at), validUntil: String(access.token_expires_at || "").slice(0, 10), raw: access }; }),
       receivables: payments.map((payment) => ({ id: String(payment.payment_id || payment.id), clientId: String(clientByName(payment.organization_name)?.id || ""), competence: payment.competence || "—", dueDate: String(payment.due_date || "").slice(0, 10), expected: Number(payment.expected_amount || 0), paid: Number(payment.paid_amount || 0), paymentDate: String(payment.paid_at || "").slice(0, 10), status: adminRemoteStatus(payment.status, "pending"), method: payment.payment_method || "—", note: payment.notes || "", raw: payment })).filter((payment) => payment.clientId),
       supervisors: supervisorsResult?.ranking || [], financialSummary: financialResult?.summary || {}, salesTimeline: dashboardResult?.salesTimeline || [], settings: {}, sequence: 0
     };
@@ -4518,7 +4682,7 @@
 
   function renderAdminClients() {
     const rows = $("#adminClientRows"); if (!rows) return;
-    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); return `<tr data-mobile-client-card="${client.id}"><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus))}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
+    rows.innerHTML = adminData.clients.map((client) => { const plan = getPlanDefinition(client.planId); const included = plan.brokerLimit + plan.managerLimit; const total = adminPlanCapacity(client); const accountBadge = client.cancellationStatus === 'scheduled' ? adminMasterStatus('attention', `Cancela em ${formatDate(String(client.cancellationEffectiveAt || '').slice(0,10))}`) : adminMasterStatus(adminStatusClass(client.accountStatus), adminAccountLabel(client.accountStatus)); return `<tr data-mobile-client-card="${client.id}"><td><b>${escapeHtml(client.name)}</b></td><td>${escapeHtml(client.responsible)}</td><td>${client.type === "individual" ? "Individual" : "Corretora / equipe"}</td><td>${plan.name}</td><td>${included}</td><td>${client.extraAccesses}</td><td>${total}</td><td>${client.activeAccesses}</td><td>${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</td><td>${formatDate(client.nextDue)}</td><td>${adminMasterStatus(adminStatusClass(client.financialStatus), adminFinanceLabel(client.financialStatus))}</td><td>${accountBadge}</td><td>${adminClientActions(client)}</td></tr>`; }).join("");
   }
 
   function renderAccessTokens() {
@@ -4526,7 +4690,7 @@
     const accessActions=access=>{const invalid=access.status==="invalid",suspended=access.status==="blocked"||access.status==="suspended",canEmail=access.token?.startsWith("LNG-")&&access.raw?.email;return `<div class="admin-master-actions"><button class="tiny-btn icon-action-btn" data-token-action="renew" data-id="${access.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button>${canEmail?`<button class="tiny-btn icon-action-btn" data-token-action="email" data-id="${access.id}" title="Reenviar acesso por e-mail" aria-label="Reenviar acesso por e-mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg></button>`:''}${!invalid?`<button class="tiny-btn icon-action-btn ${suspended?'success':'warning'}" data-token-action="${suspended?'reactivate':'block'}" data-id="${access.id}" title="${suspended?'Reativar':'Bloquear'} acesso" aria-label="${suspended?'Reativar':'Bloquear'} acesso">${actionIcon(suspended?'reactivate':'block')}</button>`:''}<button class="tiny-btn icon-action-btn" data-token-action="edit" data-id="${access.id}" title="Editar acesso" aria-label="Editar acesso">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" data-token-action="archive" data-id="${access.id}" title="Excluir acesso" aria-label="Excluir acesso">${actionIcon('archive')}</button></div>`};
     const accessRow=(access,principal=false)=>{const canCopy=access.token?.startsWith("LNG-"),suspended=access.status==="blocked"||access.status==="suspended",statusLabel=access.status==="active"?"Ativo":suspended?"Suspenso":"Inválido";return `<div class="admin-access-person ${principal?'principal':''}"><div><b>${escapeHtml(access.user)}</b><small>${escapeHtml(access.profile)} · ${escapeHtml(access.raw?.email||'Sem e-mail')}</small></div><div class="admin-access-token"><code>${escapeHtml(access.token)}</code>${canCopy?`<button class="tiny-btn icon-action-btn" data-token-action="copy" data-id="${access.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>`:""}</div><span>${adminMasterStatus(adminStatusClass(access.status),statusLabel)}</span><small>${access.lastAccess||"Sem acesso"}</small>${accessActions(access)}</div>`};
     const groups=adminData.clients.map(client=>{const accesses=adminData.accesses.filter(access=>String(access.clientId)===String(client.id)).sort((a,b)=>{const priority=item=>item.profile==="Admin Master"?0:item.profile==="Supervisor"?1:2;return priority(a)-priority(b)});return {client,principal:accesses[0],children:accesses.slice(1),accesses}}).filter(group=>group.accesses.length);
-    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="true"><span aria-hidden="true">›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.principal.profile==="Supervisor"?"Supervisor e equipe":"Acesso individual"} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}</small></div><em title="Corretores vinculados">${group.children.length}</em></button><div class="admin-access-principal"><label>${group.principal.profile==="Supervisor"?"Supervisor / acesso principal":"Acesso principal"}</label>${accessRow(group.principal,true)}</div><div class="admin-access-children">${group.children.length?`<label>Equipe / corretores vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum corretor vinculado a este supervisor.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
+    rows.innerHTML=groups.map(group=>`<article class="admin-access-group"><button class="admin-access-toggle" type="button" aria-expanded="true"><span aria-hidden="true">›</span><div><b>${escapeHtml(group.client.name)}</b><small>${getPlanDefinition(group.client.planId).name} · ${group.principal.profile==="Supervisor"?"Supervisor e equipe":"Acesso individual"} · ${group.accesses.length} ${group.accesses.length===1?'acesso':'acessos'}${group.client.cancellationStatus==='scheduled'?` · Cancelamento em ${formatDate(String(group.client.cancellationEffectiveAt||'').slice(0,10))}`:''}</small></div><em title="Corretores vinculados">${group.children.length}</em></button><div class="admin-access-principal"><label>${group.principal.profile==="Supervisor"?"Supervisor / acesso principal":"Acesso principal"} <button class="tiny-btn danger" type="button" data-admin-client-action="remove" data-id="${group.client.id}" ${group.client.cancellationStatus==='scheduled'?'disabled':''}>${group.client.cancellationStatus==='scheduled'?'Cancelamento agendado':'Cancelar plano'}</button></label>${accessRow(group.principal,true)}</div><div class="admin-access-children">${group.children.length?`<label>Equipe / corretores vinculados</label>${group.children.map(access=>accessRow(access)).join("")}`:'<p>Nenhum corretor vinculado a este supervisor.</p>'}</div></article>`).join("")||'<p class="empty-admin-row">Nenhum acesso cadastrado.</p>';
     rows.querySelectorAll('.admin-access-toggle').forEach(button=>{button.onclick=()=>{const children=button.parentElement.querySelector('.admin-access-children');const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));children.hidden=expanded;};});
     const allowed = adminData.clients.reduce((sum, client) => sum + adminPlanCapacity(client), 0); const used = adminData.accesses.filter((item) => item.status !== "invalid").length;
     $("#adminAccessCapacity").textContent = `Incluídos e extras: ${allowed} · Utilizados: ${used} · Disponíveis: ${Math.max(0, allowed - used)}`;
@@ -4575,6 +4739,7 @@
     const pending = financial.filter((item) => item.status !== "paid").reduce((sum, item) => sum + Number(item.expected || 0), 0);
     const paid = financial.filter((item) => item.status === "paid").reduce((sum, item) => sum + Number(item.paid || 0), 0);
     openAdminFormModal("Editar cliente", "Dados do cliente, contato, acessos e vencimento da assinatura.", `<form id="adminClientNameEditForm" class="admin-modal-form full" data-id="${client.id}" data-access-id="${principal?.id||""}"><label class="full">Nome do cliente ou corretora<input id="adminClientEditName" value="${escapeHtml(client.name)}" maxlength="160" required></label><label>Responsável<input id="adminClientEditResponsible" value="${escapeHtml(principal?.user||client.responsible||"")}" maxlength="160" ${principal?"required":"disabled"}></label><label>E-mail<input id="adminClientEditEmail" type="email" value="${escapeHtml(principal?.raw?.email||client.email||"")}" ${principal?"required":"disabled"}></label><label>WhatsApp / telefone<input id="adminClientEditPhone" value="${escapeHtml(principal?.raw?.phone||client.whatsapp||"")}" ${principal?"":"disabled"}></label><label>Acessos adicionais do supervisor<input id="adminClientEditExtraAccesses" type="number" min="0" step="1" value="${Math.max(0, Number(client.extraAccesses)||0)}" required><small>Quantidade além dos acessos incluídos no plano.</small></label><label>Regra de vencimento<select id="adminClientEditDueMode"><option value="thirty_days" ${client.dueMode==="30days"?"selected":""}>30 dias após pagamento</option><option value="fixed_day" ${client.dueMode==="fixed"?"selected":""}>Dia fixo do mês</option></select></label><label>Próximo vencimento<input id="adminClientEditNextDue" type="date" value="${escapeHtml(client.nextDue||"")}" required></label><label id="adminClientEditFixedDayField" ${client.dueMode==="fixed"?"":"hidden"}>Dia fixo<select id="adminClientEditFixedDay">${[1,5,10,15,20,25].map(day=>`<option value="${day}" ${Number(client.fixedDay)===day?"selected":""}>${day}</option>`).join("")}</select></label>${principal?"":'<div class="auth-status full">Este cliente ainda não possui um acesso principal; crie um acesso para editar responsável e contato.</div>'}<section class="admin-modal-history full"><h3>Resumo da assinatura</h3><p><b>Plano:</b> ${escapeHtml(plan.name)} · <b>Mensalidade atual:</b> ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><p><b>Recebido:</b> ${formatCurrency(paid)} · <b>Pendente:</b> ${formatCurrency(pending)} · <b>Acessos em uso:</b> ${client.activeAccesses} de ${adminPlanCapacity(client)}</p></section><button class="btn primary" type="submit">Salvar alterações</button></form>`);
+    if (plan.id === "individual") { const field = $("#adminClientEditExtraAccesses"); field.value = "0"; field.disabled = true; field.closest("label").querySelector("small").textContent = "O Plano Individual possui somente um acesso."; }
     $("#adminClientEditDueMode")?.addEventListener("change",event=>{$("#adminClientEditFixedDayField").hidden=event.target.value!=="fixed_day"});
     $("#adminClientEditName")?.focus();
   }
@@ -4583,7 +4748,7 @@
     event.preventDefault();
     const form = event.target.closest("form"), client = adminClient(form?.dataset.id), name = $("#adminClientEditName")?.value.trim(),dueMode=$("#adminClientEditDueMode")?.value,nextDueDate=$("#adminClientEditNextDue")?.value;
     if (!client || !name) return;
-    const extraAccesses = Number($("#adminClientEditExtraAccesses")?.value);
+    const extraAccesses = client.planId === "individual" ? 0 : Number($("#adminClientEditExtraAccesses")?.value);
     if (!Number.isInteger(extraAccesses) || extraAccesses < 0) { toast("Informe uma quantidade válida de acessos adicionais.", "error"); return; }
     const submit=form.querySelector('button[type="submit"]');if(submit)submit.disabled=true;
     try { const updates=[window.LungoAdminApi.updateOrganization(client.id, { name,nextDueDate,dueMode,fixedDueDay:dueMode==="fixed_day"?Number($("#adminClientEditFixedDay")?.value):null,extraAccesses }, adminMasterKey)];if(form.dataset.accessId)updates.push(window.LungoAdminApi.updateAccess(form.dataset.accessId,{name:$("#adminClientEditResponsible")?.value.trim(),email:$("#adminClientEditEmail")?.value.trim(),phone:$("#adminClientEditPhone")?.value.trim()||null},adminMasterKey));await Promise.all(updates); await loadAdminRemoteData(); renderAdminV2(); $("#adminMasterModal")?.close(); toast("Cliente e limite de acessos atualizados com sucesso.", "success"); }
@@ -4615,9 +4780,9 @@
     openAdminFormModal("Upgrade ou downgrade", client.name, `<form id="adminPlanChangeForm" class="admin-modal-form full" data-id="${client.id}"><p>Plano atual: <b>${getPlanDefinition(client.planId).name}</b> · ${formatCurrency(calculateSubscriptionTotal(client.planId, client.extraAccesses))}</p><label>Novo plano<select id="adminNewPlan">${ADMIN_PLAN_DEFINITIONS.map((plan) => `<option value="${plan.id}" ${plan.id === client.planId ? "selected" : ""}>${plan.name} — ${formatCurrency(plan.price)}</option>`).join("")}</select></label><label>Acessos extras<input id="adminNewPlanExtras" type="number" min="0" value="${client.extraAccesses}"></label><div id="adminPlanChangePreview" class="auth-status"></div><button class="btn primary" type="submit">Salvar mudança</button></form>`); updatePlanChangePreview(client);
   }
 
-  function updatePlanChangePreview(client) { const plan = getPlanDefinition($("#adminNewPlan")?.value || client.planId), extras = Number($("#adminNewPlanExtras")?.value || 0), limit = plan.brokerLimit + plan.managerLimit + extras, warning = client.activeAccesses > limit ? ` Atenção: existem ${client.activeAccesses - limit} acessos excedentes; bloqueie-os manualmente.` : ""; $("#adminPlanChangePreview").textContent = `Novo limite: ${limit} · Nova mensalidade: ${formatCurrency(calculateSubscriptionTotal(plan.id, extras))}.${warning}`; }
+  function updatePlanChangePreview(client) { const plan = getPlanDefinition($("#adminNewPlan")?.value || client.planId), extrasField = $("#adminNewPlanExtras"), blocksExtras = ["free","individual"].includes(plan.id); if (blocksExtras) extrasField.value = "0"; extrasField.disabled = blocksExtras; const extras = blocksExtras ? 0 : Number(extrasField.value || 0), limit = plan.brokerLimit + plan.managerLimit + extras, warning = client.activeAccesses > limit ? ` Atenção: existem ${client.activeAccesses - limit} acessos excedentes; bloqueie-os manualmente.` : ""; $("#adminPlanChangePreview").textContent = `Novo limite: ${limit} · Nova mensalidade: ${formatCurrency(calculateSubscriptionTotal(plan.id, extras))}.${warning}`; }
 
-  async function savePlanChange(event) { event.preventDefault(); const form = event.target.closest("form"), client = adminClient(form?.dataset.id), planId = $("#adminNewPlan").value, extras = planId==="free"?0:Number($("#adminNewPlanExtras").value); if (!client) { toast("Organização não encontrada. Atualize a tela e tente novamente."); return; } try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
+  async function savePlanChange(event) { event.preventDefault(); const form = event.target.closest("form"), client = adminClient(form?.dataset.id), planId = $("#adminNewPlan").value, extras = ["free","individual"].includes(planId)?0:Number($("#adminNewPlanExtras").value); if (!client) { toast("Organização não encontrada. Atualize a tela e tente novamente."); return; } try { await window.LungoAdminApi.updateOrganization(client.id, { name: client.name, organizationType: client.type === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: extras, dueMode: client.dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: client.dueMode === "fixed" ? client.fixedDay : null }, adminMasterKey); await loadAdminRemoteData(); $("#adminMasterModal").close(); renderAdminV2(); toast("Assinatura atualizada."); } catch (error) { toast(error.message); } }
 
   function adminMasterStatusLabel(status) {
     return { active: "Ativo", attention: "Atenção", inactive: "Inativo" }[status] || status;
@@ -4756,6 +4921,70 @@
     Object.entries(values).forEach(([id, value]) => { const field = document.getElementById(id); if (field) field.value = value; });
   }
 
+  function renderCampaignMedia(campaigns) {
+    document.querySelectorAll('.global-campaign-banner').forEach((item) => item.remove());
+    document.querySelectorAll('.campaign-banner-active').forEach((item) => item.classList.remove('campaign-banner-active'));
+    const banner = campaigns?.banner;
+    const host = document.body.classList.contains('supervisor-mode') ? $('.supervisor-topbar') : $('.topbar');
+    if (banner?.image && host) {
+      const image = document.createElement('img'); image.className = 'global-campaign-banner'; image.src = banner.image; image.alt = ''; host.classList.add('campaign-banner-active');
+      host.insertBefore(image, host.lastElementChild);
+    }
+    document.querySelectorAll('.global-campaign-popup').forEach((item) => item.remove());
+    const popup = campaigns?.popup;
+    if (!popup?.image || localStorage.getItem(`lungo-campaign-popup-closed:${popup.id}`) === '1') return;
+    const overlay = document.createElement('div'); overlay.className = 'global-campaign-popup'; overlay.innerHTML = `<div><img src="${popup.image}" alt=""><button type="button" aria-label="Fechar divulgação" title="Fechar">×</button></div>`;
+    overlay.querySelector('button').onclick = () => { localStorage.setItem(`lungo-campaign-popup-closed:${popup.id}`, '1'); overlay.remove(); };
+    document.body.appendChild(overlay);
+  }
+
+  async function loadCampaignMedia(token = supervisorAccessToken || state.token) {
+    if (!token) return;
+    try { const result = await window.LungoSupervisorApi.getCampaignMedia(token); renderCampaignMedia(result.campaigns || {}); } catch {}
+  }
+
+  function campaignLocalDate(value) {
+    if (!value) return '';
+    const date = new Date(value); if (Number.isNaN(date.getTime())) return '';
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000); return local.toISOString().slice(0, 16);
+  }
+
+  async function campaignImage(file, type) {
+    if (!file || !/^image\/(png|jpeg|webp)$/i.test(file.type)) throw new Error('Escolha uma imagem PNG, JPG ou WebP.');
+    const source = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('Não foi possível abrir a imagem.')); reader.readAsDataURL(file); });
+    const image = await new Promise((resolve, reject) => { const value = new Image(); value.onload = () => resolve(value); value.onerror = () => reject(new Error('Imagem inválida.')); value.src = source; });
+    const bounds = type === 'banner' ? [1600, 200] : [1500, 1080]; const scale = Math.min(1, bounds[0] / image.naturalWidth, bounds[1] / image.naturalHeight);
+    const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale)); canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+    const result = canvas.toDataURL('image/webp', .88); if (result.length > 3400000) throw new Error('A imagem ficou muito pesada. Use um arquivo menor.'); return result;
+  }
+
+  function fillAdminCampaignMedia() {
+    ['banner', 'popup'].forEach((type) => { const item = adminCampaignMedia[type]; const preview = $(`#admin${type === 'banner' ? 'Banner' : 'Popup'}CampaignPreview`); if (preview) { preview.src = item?.image || ''; preview.hidden = !item?.image; } pendingCampaignImages[type] = item?.image || ''; const active = $(`#admin${type === 'banner' ? 'Banner' : 'Popup'}CampaignActive`); if (active) active.value = String(item?.active !== false); });
+    if ($('#adminPopupCampaignStart')) $('#adminPopupCampaignStart').value = campaignLocalDate(adminCampaignMedia.popup?.startAt);
+    if ($('#adminPopupCampaignEnd')) $('#adminPopupCampaignEnd').value = campaignLocalDate(adminCampaignMedia.popup?.endAt);
+    if ($('#adminBannerCampaignStatus')) $('#adminBannerCampaignStatus').textContent = adminCampaignMedia.banner ? 'Banner carregado.' : 'Nenhum banner carregado.';
+    if ($('#adminPopupCampaignStatus')) $('#adminPopupCampaignStatus').textContent = adminCampaignMedia.popup ? 'Popup carregado.' : 'Nenhum popup carregado.';
+  }
+
+  async function loadAdminCampaignMedia() {
+    try { const result = await window.LungoAdminApi.getCampaignMedia(adminMasterKey); adminCampaignMedia = result.campaigns || { banner: null, popup: null }; fillAdminCampaignMedia(); }
+    catch (error) { toast(error.message); }
+  }
+
+  async function saveAdminCampaignMedia(event, type) {
+    event.preventDefault(); const label = type === 'banner' ? 'Banner' : 'Popup'; const status = $(`#admin${label}CampaignStatus`);
+    if (!pendingCampaignImages[type]) { status.textContent = 'Escolha uma imagem antes de salvar.'; status.className = 'auth-status error'; return; }
+    const payload = { image: pendingCampaignImages[type], active: $(`#admin${label}CampaignActive`).value === 'true' };
+    if (type === 'popup') { const start = $('#adminPopupCampaignStart').value, end = $('#adminPopupCampaignEnd').value; payload.startAt = start ? new Date(start).toISOString() : null; payload.endAt = end ? new Date(end).toISOString() : null; }
+    try { const result = await window.LungoAdminApi.saveCampaignMedia(type, payload, adminMasterKey); adminCampaignMedia[type] = result.campaign; fillAdminCampaignMedia(); status.textContent = `${label} salvo com sucesso.`; status.className = 'auth-status ok'; toast(status.textContent); }
+    catch (error) { status.textContent = error.message; status.className = 'auth-status error'; }
+  }
+
+  async function removeAdminCampaignMedia(type) {
+    if (!await popupConfirm(`Remover ${type === 'banner' ? 'o banner' : 'o popup'} atual?`, 'Remover campanha')) return;
+    try { await window.LungoAdminApi.saveCampaignMedia(type, { remove: true }, adminMasterKey); adminCampaignMedia[type] = null; fillAdminCampaignMedia(); toast('Campanha removida.'); } catch (error) { toast(error.message); }
+  }
+
   function resetAdminTrainingForm() {
     $('#adminTrainingForm')?.reset();
     if ($('#adminTrainingId')) $('#adminTrainingId').value = '';
@@ -4766,10 +4995,20 @@
 
   function renderAdminTrainings() {
     const list = $('#adminTrainingList'); if (!list) return;
+    const guidance = list.parentElement?.querySelector('header p'); if (guidance) guidance.textContent = 'Arraste os vídeos de cima para baixo. O primeiro será exibido primeiro aos usuários.';
     if (!$('#adminTrainingNew')) list.insertAdjacentHTML('beforebegin', '<div class="training-admin-toolbar"><button id="adminTrainingNew" class="btn primary" type="button">Cadastrar novo</button></div>');
     const tracks = [...new Set(adminTrainings.map((item) => item.track || 'Geral'))];
     if ($('#adminTrainingTrackList')) $('#adminTrainingTrackList').innerHTML = tracks.map((track) => `<option value="${escapeHtml(track)}"></option>`).join('');
-    list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => (a.track || '').localeCompare(b.track || '') || a.order - b.order).map((item) => `<article class="training-admin-item"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track || 'Geral')} · Ordem ${Number(item.order || 0)}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
+    list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || (a.track || '').localeCompare(b.track || '') || (a.title || '').localeCompare(b.title || '')).map((item) => `<article class="training-admin-item training-admin-sortable" draggable="true" data-admin-training-drag="${item.id}"><button class="training-drag-handle" type="button" title="Arraste para ordenar" aria-label="Arraste para ordenar">⋮⋮</button><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track || 'Geral')}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn training-eye" type="button" data-training-action="metrics" data-id="${item.id}" title="Visto por">&#128065; Visto por</button><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
+    bindAdminTrainingDrag(list);
+  }
+
+  function bindAdminTrainingDrag(list) {
+    let dragged = null;
+    list.ondragstart = (event) => { dragged = event.target.closest('[data-admin-training-drag]'); if (!dragged) return; dragged.classList.add('dragging'); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', dragged.dataset.adminTrainingDrag); };
+    list.ondragover = (event) => { if (!dragged) return; event.preventDefault(); const target = event.target.closest('[data-admin-training-drag]'); if (!target || target === dragged) return; const rectangle = target.getBoundingClientRect(); list.insertBefore(dragged, event.clientY < rectangle.top + rectangle.height / 2 ? target : target.nextSibling); };
+    list.ondragend = () => { dragged?.classList.remove('dragging'); dragged = null; };
+    list.ondrop = async (event) => { event.preventDefault(); const ids = [...list.querySelectorAll('[data-admin-training-drag]')].map((item) => item.dataset.adminTrainingDrag); const status = $('#adminTrainingStatus'); status.textContent = 'Salvando nova ordem...'; try { await Promise.all(ids.map((id, index) => window.LungoAdminApi.updateTraining(id, { order: index }, adminMasterKey))); adminTrainings = ids.map((id, index) => ({ ...adminTrainings.find((item) => item.id === id), order: index })); renderAdminTrainings(); status.textContent = 'Nova ordem salva. O primeiro item será exibido primeiro aos usuários.'; status.className = 'auth-status ok'; } catch (error) { status.textContent = error.message; status.className = 'auth-status error'; await loadAdminTrainings(); } };
   }
 
   async function loadAdminTrainings() {
@@ -4780,7 +5019,8 @@
 
   async function saveAdminTraining(event) {
     event.preventDefault(); const id = $('#adminTrainingId').value;
-    const payload = { title: $('#adminTrainingTitle').value.trim(), url: $('#adminTrainingUrl').value.trim(), track: $('#adminTrainingTrack').value.trim(), description: $('#adminTrainingDescription').value.trim(), stars: Number($('#adminTrainingStars').value), order: Number($('#adminTrainingOrder').value), active: $('#adminTrainingActive').value === 'true' };
+    const current = adminTrainings.find((item) => item.id === id);
+    const payload = { title: $('#adminTrainingTitle').value.trim(), url: $('#adminTrainingUrl').value.trim(), track: $('#adminTrainingTrack').value.trim(), description: $('#adminTrainingDescription').value.trim(), stars: Number($('#adminTrainingStars').value), order: id ? Number(current?.order || 0) : adminTrainings.length, active: $('#adminTrainingActive').value === 'true' };
     const status = $('#adminTrainingStatus');
     try { if (id) await window.LungoAdminApi.updateTraining(id, payload, adminMasterKey); else await window.LungoAdminApi.createTraining(payload, adminMasterKey); resetAdminTrainingForm(); await loadAdminTrainings(); status.textContent = id ? 'Treinamento atualizado.' : 'Treinamento publicado.'; status.classList.add('ok'); toast(status.textContent); }
     catch (error) { status.textContent = error.message; status.classList.add('error'); }
@@ -4789,6 +5029,7 @@
   async function adminTrainingAction(event) {
     const button = event.target.closest('[data-training-action]'); if (!button) return;
     const item = adminTrainings.find((training) => training.id === button.dataset.id); if (!item) return;
+    if (button.dataset.trainingAction === 'metrics') { openTrainingMetrics(item.id, 'admin'); return; }
     if (button.dataset.trainingAction === 'edit') { $('#adminTrainingId').value = item.id; $('#adminTrainingTitle').value = item.title; $('#adminTrainingUrl').value = item.url; $('#adminTrainingTrack').value = item.track; $('#adminTrainingDescription').value = item.description || ''; $('#adminTrainingStars').value = String(item.stars || 0); $('#adminTrainingOrder').value = String(item.order || 0); $('#adminTrainingActive').value = String(item.active !== false); $('#adminTrainingFormTitle').textContent = 'Editar treinamento'; $('#adminTrainingTitle').focus(); return; }
     try { if (button.dataset.trainingAction === 'toggle') await window.LungoAdminApi.updateTraining(item.id, { active: item.active === false }, adminMasterKey); if (button.dataset.trainingAction === 'delete') { if (!await popupConfirm(`Deseja excluir “${item.title}”?`, 'Excluir treinamento')) return; await window.LungoAdminApi.deleteTraining(item.id, adminMasterKey); } await loadAdminTrainings(); }
     catch (error) { toast(error.message); }
@@ -4800,14 +5041,14 @@
     if ($('#adminLeadMarketKpis')) $('#adminLeadMarketKpis').innerHTML = [['Créditos em carteira', formatCurrency(users.reduce((sum, user) => sum + Number(user.balance || 0), 0))], ['Leads disponíveis', leads.filter((lead) => lead.status === 'available').length], ['Em compra', leads.filter((lead) => lead.status === 'reserved').length], ['Compras realizadas', purchases.length]].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></article>`).join('');
     $$('[data-lead-admin-tab]').forEach((button) => button.classList.toggle('active', button.dataset.leadAdminTab === leadMarketplaceAdminTab)); const content = $('#adminLeadMarketContent'); if (!content) return;
     if (leadMarketplaceAdminTab === 'users') content.innerHTML = `<div class="lead-wallet-grid">${users.map((user) => `<article class="lead-wallet-card"><header><div><b>${escapeHtml(user.name)}</b><small>${escapeHtml(user.email || 'Sem e-mail')}</small></div><span>${user.role === 'supervisor' ? 'Supervisor' : 'Corretor'}</span></header><p>${escapeHtml(user.organizations?.name || 'Sem organização')} · ${escapeHtml(user.status)}</p><div class="lead-wallet-balance"><span>Saldo disponível</span><b>${formatCurrency(user.balance)}</b></div><footer><button class="btn primary" data-admin-lead-credit-user="${user.id}" type="button">Ajustar créditos</button><button class="btn" data-admin-lead-statement="${user.id}" type="button">Ver extrato</button></footer></article>`).join('') || '<div class="empty-state">Nenhum usuário encontrado.</div>'}</div>`;
-    if (leadMarketplaceAdminTab === 'stock') content.innerHTML = `<table class="admin-master-table wide"><thead><tr><th>Lead</th><th>Contato</th><th>Perfil</th><th>Vidas</th><th>Interesse</th><th>Campanha</th><th>Preço</th><th>Status interno</th><th>Ações</th></tr></thead><tbody>${leads.map((lead) => `<tr><td><b>${escapeHtml(lead.name)}</b><small>${calendarDateTime(lead.created_at)}</small></td><td>${escapeHtml(lead.phone)}<small>${escapeHtml(lead.email || '')}</small></td><td>${escapeHtml(lead.profile)}</td><td>${Number(lead.lives_count || 0)}</td><td>${escapeHtml(lead.product_interest || '—')}</td><td>${escapeHtml(lead.campaign_name || 'Manual')}</td><td><b>${formatCurrency(lead.price)}</b></td><td>${({available:'Disponível',reserved:'Em compra',sold:'Vendido',invalid:'Inválido',duplicate:'Duplicado'})[lead.status] || lead.status}</td><td><button class="tiny-btn" data-admin-lead-status="available" data-id="${lead.id}" type="button">Disponibilizar</button><button class="tiny-btn danger" data-admin-lead-status="invalid" data-id="${lead.id}" type="button">Invalidar</button></td></tr>`).join('')}</tbody></table>`;
+    if (leadMarketplaceAdminTab === 'stock') content.innerHTML = `<table class="admin-master-table wide"><thead><tr><th>Lead</th><th>Contato</th><th>Perfil</th><th>Idades</th><th>Origem</th><th>Tempo na plataforma</th><th>Original</th><th>Atual</th><th>Status interno</th><th>Ações</th></tr></thead><tbody>${leads.map((lead) => `<tr><td><b>${escapeHtml(lead.name)}</b><small>${calendarDateTime(lead.received_at || lead.created_at)}</small></td><td>${escapeHtml(lead.phone)}<small>${escapeHtml(lead.email || '')}</small></td><td>${escapeHtml(lead.profile)}<small>${Number(lead.lives_count || 0)} vida(s)</small></td><td>${escapeHtml(lead.beneficiary_ages || lead.product_interest || '—')}</td><td>${escapeHtml(lead.campaign_name || 'Manual')}<small>${escapeHtml(lead.ad_name || '')}</small></td><td>${escapeHtml(leadAge(lead.received_at || lead.created_at))}</td><td>${formatCurrency(lead.original_price ?? lead.price)}</td><td><b>${formatCurrency(lead.effective_price ?? lead.price)}</b></td><td>${({available:'Disponível',reserved:'Em compra',sold:'Vendido',invalid:'Inválido',duplicate:'Duplicado'})[lead.status] || lead.status}</td><td><button class="tiny-btn" data-admin-lead-status="available" data-id="${lead.id}" type="button">Disponibilizar</button><button class="tiny-btn danger" data-admin-lead-status="invalid" data-id="${lead.id}" type="button">Invalidar</button></td></tr>`).join('')}</tbody></table>`;
     if (leadMarketplaceAdminTab === 'purchases') content.innerHTML = `<table class="admin-master-table wide"><thead><tr><th>Data</th><th>Comprador</th><th>Lead</th><th>Perfil</th><th>Vidas</th><th>Valor</th></tr></thead><tbody>${purchases.map((item) => `<tr><td>${calendarDateTime(item.purchased_at)}</td><td>${escapeHtml(item.users?.name || 'Usuário')}</td><td>${escapeHtml(item.marketplace_leads?.name || 'Lead')}<small>${escapeHtml(item.marketplace_leads?.phone || '')}</small></td><td>${escapeHtml(item.marketplace_leads?.profile || '')}</td><td>${Number(item.marketplace_leads?.lives_count || 0)}</td><td><b>${formatCurrency(item.price)}</b></td></tr>`).join('') || '<tr><td colspan="6">Nenhuma compra realizada.</td></tr>'}</tbody></table>`;
   }
   function openAdminLeadCredit(userId = '') { const users = leadMarketplaceAdminData?.users || []; openAdminFormModal('Adicionar ou ajustar créditos', 'Movimentação registrada no extrato do usuário.', `<form id="adminLeadCreditForm" class="admin-modal-form full"><label>Usuário<select name="userId">${users.map((user) => `<option value="${user.id}" ${user.id === userId ? 'selected' : ''}>${escapeHtml(user.name)} · ${formatCurrency(user.balance)}</option>`).join('')}</select></label><label>Valor da movimentação<input name="amount" type="number" step="0.01" placeholder="50,00" required></label><label class="full">Descrição<input name="description" value="Crédito adquirido via atendimento" required></label><small class="full">Use valor negativo apenas para correções ou estornos.</small><button class="btn primary" type="submit">Confirmar movimentação</button></form>`); $('#adminLeadCreditForm').onsubmit = async (event) => { event.preventDefault(); const data = new FormData(event.currentTarget); try { await window.LungoAdminApi.adjustLeadCredits({ userId: data.get('userId'), amount: Number(data.get('amount')), description: data.get('description') }, adminMasterKey); $('#adminMasterModal').close(); await loadAdminLeadMarketplace(); toast('Créditos atualizados.'); } catch (error) { toast(error.message); } }; }
   function openAdminLeadStatement(userId) { const user = (leadMarketplaceAdminData?.users || []).find((item) => item.id === userId); const entries = (leadMarketplaceAdminData?.transactions || []).filter((item) => item.user_id === userId); openAdminFormModal('Extrato de créditos', `${user?.name || 'Usuário'} · Saldo ${formatCurrency(user?.balance || 0)}`, `<section class="lead-purchase-history full">${entries.map((item) => `<article><div><b>${escapeHtml(item.description || 'Movimentação')}</b><span>${calendarDateTime(item.created_at)} · ${escapeHtml(item.transaction_type)}</span></div><div><b class="${Number(item.amount) < 0 ? 'danger-text' : 'ok-text'}">${Number(item.amount) > 0 ? '+' : ''}${formatCurrency(item.amount)}</b><small>Saldo: ${formatCurrency(item.balance_after)}</small></div></article>`).join('') || '<div class="empty-state">Nenhuma movimentação.</div>'}</section>`); }
   function addLivesFieldToAdminLeadForm() { const form = $('#adminLeadNewForm'); if (!form || form.elements.livesCount) return; const label = document.createElement('label'); label.innerHTML = 'Qtd. de vidas<input name="livesCount" type="number" min="0" value="1" required>'; const profile = form.elements.profile?.closest('label'); profile?.after(label); }
   function openAdminNewLead() { openAdminFormModal('Cadastrar lead no estoque', 'O preço pode ser automático conforme a faixa configurada.', `<form id="adminLeadNewForm" class="admin-modal-form full"><label>Nome<input name="name" required></label><label>Telefone<input name="phone" required></label><label>E-mail<input name="email" type="email"></label><label>Perfil<select name="profile"><option>PF</option><option>PJ</option><option value="Adesao">Adesão</option></select></label><label>Plano de interesse<input name="productInterest"></label><label>Cidade<input name="city"></label><label>UF<input name="state" maxlength="2"></label><label>Campanha<input name="campaignName" value="Cadastro manual"></label><label>Preço personalizado<input name="price" type="number" step="0.01" placeholder="Automático"></label><button class="btn primary" type="submit">Adicionar ao estoque</button></form>`); $('#adminLeadNewForm').onsubmit = async (event) => { event.preventDefault(); const payload = Object.fromEntries(new FormData(event.currentTarget)); try { await window.LungoAdminApi.createMarketplaceLead(payload, adminMasterKey); $('#adminMasterModal').close(); leadMarketplaceAdminTab = 'stock'; await loadAdminLeadMarketplace(); toast('Lead adicionado ao marketplace.'); } catch (error) { toast(error.message); } }; }
-  function openAdminLeadSettings() { const settings = leadMarketplaceAdminData?.settings || {}; openAdminFormModal('Configurações do marketplace', 'Regras gerais para cadastro manual e solicitação de créditos.', `<form id="adminLeadSettingsForm" class="admin-modal-form full"><label>Preço mínimo<input name="minPrice" type="number" step="0.01" value="${Number(settings.min_price || 10)}" required></label><label>Preço máximo<input name="maxPrice" type="number" step="0.01" value="${Number(settings.max_price || 20)}" required></label><label>WhatsApp para créditos<input name="supportWhatsapp" value="${escapeHtml(settings.support_whatsapp || '5555992102864')}" required></label><label>Reserva em minutos<input name="reservationMinutes" type="number" min="1" max="30" value="${Number(settings.reservation_minutes || 2)}"></label><button class="btn primary" type="submit">Salvar configurações</button></form>`); $('#adminLeadSettingsForm').onsubmit = async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); try { await window.LungoAdminApi.updateLeadMarketplaceSettings(data, adminMasterKey); $('#adminMasterModal').close(); await loadAdminLeadMarketplace(); toast('Configurações salvas.'); } catch (error) { toast(error.message); } }; }
+  function openAdminLeadSettings() { const settings = leadMarketplaceAdminData?.settings || {}; openAdminFormModal('Configurações do marketplace', 'O lead perde 10% do valor original por hora completa, sem ficar abaixo do preço mínimo.', `<form id="adminLeadSettingsForm" class="admin-modal-form full"><label>Preço mínimo<input name="minPrice" type="number" step="0.01" value="${Number(settings.min_price || 10)}" required></label><label>Preço máximo inicial<input name="maxPrice" type="number" step="0.01" value="${Number(settings.max_price || 20)}" required></label><label>WhatsApp para créditos<input name="supportWhatsapp" value="${escapeHtml(settings.support_whatsapp || '5555992102864')}" required></label><label>Reserva em minutos<input name="reservationMinutes" type="number" min="1" max="30" value="${Number(settings.reservation_minutes || 2)}"></label><small class="full">Exemplo: um lead de R$ 20,00 passa para R$ 18,00 após 1 hora e R$ 16,00 após 2 horas, respeitando o preço mínimo.</small><button class="btn primary" type="submit">Salvar configurações</button></form>`); $('#adminLeadSettingsForm').onsubmit = async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); try { await window.LungoAdminApi.updateLeadMarketplaceSettings(data, adminMasterKey); $('#adminMasterModal').close(); await loadAdminLeadMarketplace(); toast('Configurações salvas.'); } catch (error) { toast(error.message); } }; }
 
   async function renderAdminMaster() {
     await loadAdminRemoteData();
@@ -4843,8 +5084,8 @@
 
   function ensureAdminMobileMoreSheet() {
     const screen = $("#adminMasterScreen"); if (!screen || $("#adminMobileMoreSheet")) return;
-    const views = ["calendar", "receivables", "archived", "trainings", "lead-marketplace", "settings"];
-    const labels = { calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
+    const views = ["calendar", "receivables", "archived", "trainings", "campaigns", "lead-marketplace", "settings"];
+    const labels = { calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", campaigns:"Campanhas visuais", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
     const items = views.map((view) => { const source = $(`[data-admin-master-view="${view}"]`); return `<button type="button" data-mobile-more-view="${view}"><span>${source?.querySelector("svg")?.outerHTML || ""}</span><b>${labels[view]}</b><svg class="admin-mobile-more-next" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`; }).join("");
     screen.insertAdjacentHTML("beforeend", `<section id="adminMobileMoreSheet" class="admin-mobile-more-sheet" hidden><header><div><span>Menu</span><h2>Mais funcionalidades</h2></div><button type="button" data-mobile-more-close aria-label="Fechar">×</button></header><nav>${items}</nav><button class="admin-mobile-more-logout" type="button" data-mobile-more-logout>Sair do Admin</button></section>`);
     const sheet = $("#adminMobileMoreSheet");
@@ -4861,7 +5102,7 @@
     ensureAdminMobileHeader();
     if (window.matchMedia("(max-width: 600px)").matches && options.remember !== false && view !== adminMasterCurrentView) adminMasterViewHistory.push(adminMasterCurrentView);
     adminMasterCurrentView = view;
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
@@ -4869,6 +5110,7 @@
     closeAdminMobileMore();
     $("#adminMobileBackBtn")?.classList.toggle("visible", view !== "dashboard");
     if (view === 'trainings') loadAdminTrainings();
+    if (view === 'campaigns') loadAdminCampaignMedia();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
   }
 
@@ -4932,7 +5174,7 @@
     if (!planSelect) return;
     planSelect.innerHTML = ADMIN_PLAN_DEFINITIONS.map((plan) => `<option value="${plan.id}">${plan.name} — ${formatCurrency(plan.price)}</option>`).join("");
     const today = adminIsoDate(new Date());
-    $("#adminSaleDate").value = today; $("#adminSalePaymentDate").value = today;
+    $("#adminSaleDate").value = today; $("#adminSalePaymentDate").value = today; if ($("#adminSalePaymentStatus")) $("#adminSalePaymentStatus").value = "pending";
     updateAdminSaleCalculation();
     prepareAdminMobileSaleFlow(1);
     const filter = $("#adminReceivablePlan");
@@ -4966,10 +5208,10 @@
 
   function updateAdminSaleCalculation() {
     const plan = getPlanDefinition($("#adminSalePlan")?.value), extras = Math.max(0, Number($("#adminSaleExtras")?.value) || 0), paymentDate = $("#adminSalePaymentDate")?.value, dueMode = $("#adminSaleDueMode")?.value || "30days", fixedDay = $("#adminSaleFixedDay")?.value;
-    const isFree=plan.id==="free",extrasField=$("#adminSaleExtras"),paymentStatus=$("#adminSalePaymentStatus");if(extrasField){extrasField.disabled=isFree;if(isFree)extrasField.value="0"}if(paymentStatus){paymentStatus.disabled=isFree;if(isFree)paymentStatus.value="paid"}
+    const isFree=plan.id==="free",blocksExtras=["free","individual"].includes(plan.id),extrasField=$("#adminSaleExtras"),paymentStatus=$("#adminSalePaymentStatus");if(extrasField){extrasField.disabled=blocksExtras;if(blocksExtras)extrasField.value="0"}if(paymentStatus){paymentStatus.disabled=isFree;paymentStatus.value=isFree?"paid":"pending"}
     if ($("#adminSaleBaseValue")) $("#adminSaleBaseValue").value = formatCurrency(plan.price);
-    if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(isFree?0:extras*ADMIN_EXTRA_ACCESS_PRICE);
-    if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id,isFree?0:extras));
+    if ($("#adminSaleExtraValue")) $("#adminSaleExtraValue").value = formatCurrency(blocksExtras?0:extras*ADMIN_EXTRA_ACCESS_PRICE);
+    if ($("#adminSaleTotalValue")) $("#adminSaleTotalValue").value = formatCurrency(calculateSubscriptionTotal(plan.id,blocksExtras?0:extras));
     if ($("#adminSaleFixedDayField")) $("#adminSaleFixedDayField").hidden = dueMode !== "fixed";
     if ($("#adminSaleNextDue")) $("#adminSaleNextDue").value = paymentDate ? calculateNextDueDate(paymentDate, dueMode, fixedDay) : "";
   }
@@ -4977,14 +5219,14 @@
   async function registerAdminSale(event) {
     event.preventDefault(); if (!event.currentTarget.reportValidity()) return;
     const form = event.currentTarget, submit = event.submitter, planId = $("#adminSalePlan").value, dueMode = $("#adminSaleDueMode").value, fixedDay = Number($("#adminSaleFixedDay").value);
-    const payload = { organizationName: $("#adminSaleClientName").value.trim(), responsibleName: $("#adminSaleResponsible").value.trim(), documentNumber: $("#adminSaleDocument").value.trim()||null, email: $("#adminSaleEmail").value.trim(), phone: $("#adminSaleWhatsapp").value.trim(), organizationType: $("#adminSaleType").value === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: planId==="free"?0:Math.max(0, Number($("#adminSaleExtras").value) || 0), legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, firstPaymentDate: $("#adminSalePaymentDate").value, firstPaymentStatus: planId==="free"?"paid":$("#adminSalePaymentStatus").value, dueMode: dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: dueMode === "fixed" ? fixedDay : null, generateAccess:true, accessRole:$("#adminSaleType").value==="individual"?"broker":"supervisor" };
+    const payload = { organizationName: $("#adminSaleClientName").value.trim(), responsibleName: $("#adminSaleResponsible").value.trim(), documentNumber: $("#adminSaleDocument").value.trim()||null, email: $("#adminSaleEmail").value.trim(), phone: $("#adminSaleWhatsapp").value.trim(), organizationType: $("#adminSaleType").value === "individual" ? "individual" : "brokerage", planCode: ({ free:"free",team: "equipe", broker10: "corretora10", broker16: "corretora16", broker20: "corretora20" })[planId] || "individual", extraAccesses: ["free","individual"].includes(planId)?0:Math.max(0, Number($("#adminSaleExtras").value) || 0), legacy: $("#adminSaleLegacy").value === "Sim", saleDate: $("#adminSaleDate").value, firstPaymentDate: $("#adminSalePaymentDate").value, firstPaymentStatus: planId==="free"?"paid":$("#adminSalePaymentStatus").value, dueMode: dueMode === "fixed" ? "fixed_day" : "thirty_days", fixedDueDay: dueMode === "fixed" ? fixedDay : null, generateAccess:true, accessRole:$("#adminSaleType").value==="individual"?"broker":"supervisor" };
     if (submit) submit.disabled = true;
     $("#adminSaleStatus").textContent = "Registrando venda no staging...";
     try {
       const result = await window.LungoAdminApi.createSubscription(payload, adminMasterKey);
       await loadAdminRemoteData(); renderAdminV2(); form.reset(); prepareAdminSaleForm();
-      const emailSent=result?.emailDelivery?.sent===true;$("#adminSaleStatus").textContent=emailSent?"Venda, acesso e e-mail registrados com sucesso.":"Venda e acesso registrados; o e-mail não pôde ser enviado.";$("#adminSaleStatus").classList.toggle("ok",emailSent);toast(emailSent?"Acesso criado e enviado por e-mail.":"Acesso criado, mas o e-mail falhou.");
-      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Token criado",emailSent?"Acesso enviado automaticamente por e-mail":"E-mail não enviado; copie o token abaixo",`<section class="admin-modal-history full"><div class="auth-status ${emailSent?'ok':'error'}">${emailSent?'E-mail enviado para o cliente.':'Não foi possível enviar o e-mail. O acesso continua válido.'}</div><code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
+      const emailSent=result?.emailDelivery?.sent===true,billing=result?.billing||{},paymentUrl=billing.invoiceUrl||'';$("#adminSaleStatus").textContent=billing.pending?`Venda registrada; integração Asaas pendente: ${billing.error||'tente novamente.'}`:emailSent?"Venda, cobrança, acesso e e-mail registrados com sucesso.":"Venda, cobrança e acesso registrados; o e-mail não pôde ser enviado.";$("#adminSaleStatus").classList.toggle("ok",!billing.pending&&emailSent);toast(billing.pending?"Venda criada, mas a cobrança Asaas ficou pendente.":emailSent?"Acesso e cobrança criados.":"Cobrança criada, mas o e-mail falhou.");
+      const token=result?.token||result?.plainToken||result?.plain_token;if(token){setAdminMasterView("tokens");openAdminFormModal("Acesso e cobrança criados",emailSent?"Acesso enviado automaticamente por e-mail":"E-mail não enviado; copie os dados abaixo",`<section class="admin-modal-history full"><div class="auth-status ${billing.pending||!emailSent?'error':'ok'}">${billing.pending?'A cobrança Asaas ficou pendente de sincronização.':emailSent?'E-mail enviado para o cliente.':'Não foi possível enviar o e-mail. O acesso continua válido.'}</div>${paymentUrl?`<a class="btn primary" href="${escapeHtml(paymentUrl)}" target="_blank" rel="noopener">Abrir link de pagamento</a><button class="btn" type="button" data-copy-new-token="${escapeHtml(paymentUrl)}">Copiar link de pagamento</button>`:''}<code>${escapeHtml(token)}</code><button class="btn primary" type="button" data-copy-new-token="${escapeHtml(token)}">Copiar token</button></section>`)}
     } catch (error) { $("#adminSaleStatus").textContent = error.message; $("#adminSaleStatus").classList.remove("ok"); }
     finally { if (submit?.isConnected) submit.disabled = false; }
   }
@@ -5004,8 +5246,11 @@
     if (action === "plan") openPlanModal(client);
     if (action === "tokens") { setAdminMasterView("tokens"); toast(`Acessos de ${client.name} disponíveis na tabela.`); }
     if (action === "remove") {
-      if (!await popupConfirm(`Excluir o cliente ${client.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, "Excluir cliente", "Excluir")) return;
-      try { await window.LungoAdminApi.changeOrganizationStatus(client.id, "cancel", adminMasterKey); await loadAdminRemoteData(); renderAdminV2(); toast("Cliente excluído das áreas ativas."); }
+      const choice = String(prompt(`Cancelamento de ${client.name}\n\nDigite FIM para manter o acesso até o vencimento.\nDigite AGORA para encerrar o acesso imediatamente.`) || '').trim().toUpperCase();
+      if (!['FIM','AGORA'].includes(choice)) return;
+      const reason = String(prompt('Motivo do cancelamento (opcional):') || '').trim();
+      if (!await popupConfirm(choice === 'AGORA' ? 'Confirmar encerramento imediato do acesso e da cobrança?' : 'Confirmar cancelamento ao fim do período contratado?', 'Cancelar assinatura', 'Confirmar')) return;
+      try { await window.LungoAdminApi.changeOrganizationStatus(client.id, "cancel", adminMasterKey, { mode: choice === 'AGORA' ? 'immediate' : 'period_end', reason }); await loadAdminRemoteData(); renderAdminV2(); toast(choice === 'AGORA' ? 'Assinatura e acesso encerrados.' : 'Cancelamento agendado para o fim do período.'); }
       catch (error) { toast(error.message); }
     }
   }
@@ -5088,8 +5333,15 @@
     $('#adminTrainingList')?.parentElement?.addEventListener('click', (event) => { if (event.target.closest('#adminTrainingNew')) { resetAdminTrainingForm(); $('#adminTrainingForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('#adminTrainingTitle')?.focus(), 250); } });
     $('#adminTrainingRefresh')?.addEventListener('click', loadAdminTrainings);
     $('#adminTrainingList')?.addEventListener('click', adminTrainingAction);
+    $('#adminBannerCampaignFile')?.addEventListener('change', async (event) => { try { pendingCampaignImages.banner = await campaignImage(event.target.files?.[0], 'banner'); $('#adminBannerCampaignPreview').src = pendingCampaignImages.banner; $('#adminBannerCampaignPreview').hidden = false; } catch (error) { toast(error.message); } });
+    $('#adminPopupCampaignFile')?.addEventListener('change', async (event) => { try { pendingCampaignImages.popup = await campaignImage(event.target.files?.[0], 'popup'); $('#adminPopupCampaignPreview').src = pendingCampaignImages.popup; $('#adminPopupCampaignPreview').hidden = false; } catch (error) { toast(error.message); } });
+    $('#adminBannerCampaignForm')?.addEventListener('submit', (event) => saveAdminCampaignMedia(event, 'banner'));
+    $('#adminPopupCampaignForm')?.addEventListener('submit', (event) => saveAdminCampaignMedia(event, 'popup'));
+    $('#adminBannerCampaignRemove')?.addEventListener('click', () => removeAdminCampaignMedia('banner'));
+    $('#adminPopupCampaignRemove')?.addEventListener('click', () => removeAdminCampaignMedia('popup'));
     $('#adminLeadCreditBtn')?.addEventListener('click', () => openAdminLeadCredit());
     $('#adminLeadNewBtn')?.addEventListener('click', () => { openAdminNewLead(); addLivesFieldToAdminLeadForm(); });
+    $('#adminLeadMetaBackfillBtn')?.addEventListener('click', async () => { const button = $('#adminLeadMetaBackfillBtn'); button.disabled = true; button.textContent = 'Atualizando...'; try { const result = await window.LungoAdminApi.backfillMetaMarketplaceLeads(adminMasterKey); await loadAdminLeadMarketplace(); toast(`${result.updated} lead(s) Meta atualizado(s).`); } catch (error) { toast(error.message); } finally { button.disabled = false; button.textContent = 'Atualizar dados Meta'; } });
     $('#adminLeadSettingsBtn')?.addEventListener('click', openAdminLeadSettings);
     $$('.lead-admin-tabs [data-lead-admin-tab]').forEach((button) => button.addEventListener('click', () => { leadMarketplaceAdminTab = button.dataset.leadAdminTab; renderAdminLeadMarketplace(); }));
     $('#adminLeadMarketContent')?.addEventListener('click', async (event) => { const credit = event.target.closest('[data-admin-lead-credit-user]'); if (credit) return openAdminLeadCredit(credit.dataset.adminLeadCreditUser); const statement = event.target.closest('[data-admin-lead-statement]'); if (statement) return openAdminLeadStatement(statement.dataset.adminLeadStatement); const status = event.target.closest('[data-admin-lead-status]'); if (!status) return; try { await window.LungoAdminApi.updateMarketplaceLead(status.dataset.id, { status: status.dataset.adminLeadStatus }, adminMasterKey); await loadAdminLeadMarketplace(); toast('Status do lead atualizado.'); } catch (error) { toast(error.message); } });
@@ -5171,7 +5423,7 @@
 
   function bindEvents() {
     if ($('#publicApplicationForm')) { $('#publicApplicationForm').noValidate = true; $('#publicApplicationForm').addEventListener('submit', submitPublicApplication); }
-    document.addEventListener('click', (event) => { const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); });
+    document.addEventListener('click', (event) => { const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); const metrics = event.target.closest('[data-training-metrics]'); if (metrics) openTrainingMetrics(metrics.dataset.trainingMetrics, 'supervisor'); });
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
     el.sidebarToggleBtn?.addEventListener("click", () => {
       const collapsed = !el.appShell.classList.contains("sidebar-collapsed");
@@ -5258,9 +5510,28 @@
       renderSupervisorGoalsAndReport();
       try {
         const logo = await compactRecruitmentLogo(identity.logo || '');
+        const branding = await window.LungoSupervisorApi.updateOrganizationBranding({ name: identity.name, logo, sidebarColor: identity.sidebarColor, background: identity.background }, supervisorAccessToken);
+        applyOrganizationIdentity(branding.organization);
         const result = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken);
         recruitmentData.vacancy = result.vacancy;
-      } catch (error) { toast(`Identidade salva, mas a landing page não foi atualizada: ${error.message}`); }
+      } catch (error) { toast(`Identidade salva apenas neste dispositivo: ${error.message}`); }
+    });
+    $('#cancelCompanySubscriptionBtn')?.addEventListener('click', async () => {
+      const confirmation = String(prompt('Para confirmar, digite CANCELAR:') || '').trim().toUpperCase();
+      if (confirmation !== 'CANCELAR') return;
+      const reason = String(prompt('Conte brevemente o motivo do cancelamento (opcional):') || '').trim();
+      if (!await popupConfirm('As próximas cobranças serão interrompidas e o acesso continuará até o vencimento atual. Confirmar?', 'Cancelar assinatura', 'Confirmar cancelamento')) return;
+      const button = $('#cancelCompanySubscriptionBtn'), status = $('#companySubscriptionStatus'); button.disabled = true; status.textContent = 'Processando cancelamento no Asaas...';
+      try { const result = await window.LungoSupervisorApi.cancelSubscription({ confirmation, reason }, supervisorAccessToken); const date = result.subscription?.cancellation_effective_at ? new Date(result.subscription.cancellation_effective_at).toLocaleDateString('pt-BR') : 'o fim do período'; status.textContent = `Cancelamento agendado. Seu acesso permanece ativo até ${date}.`; status.className = 'auth-status ok'; button.textContent = 'Cancelamento agendado'; }
+      catch (error) { status.textContent = error.message; status.className = 'auth-status error'; button.disabled = false; }
+    });
+    $('#cancelBrokerSubscriptionBtn')?.addEventListener('click', async () => {
+      const confirmation = String(prompt('Para confirmar, digite CANCELAR:') || '').trim().toUpperCase(); if (confirmation !== 'CANCELAR') return;
+      const reason = String(prompt('Conte brevemente o motivo do cancelamento (opcional):') || '').trim();
+      if (!await popupConfirm('As próximas cobranças serão interrompidas e o acesso continuará até o vencimento atual. Confirmar?', 'Cancelar assinatura', 'Confirmar cancelamento')) return;
+      const button = $('#cancelBrokerSubscriptionBtn'), status = $('#brokerSubscriptionStatus'); button.disabled = true; status.textContent = 'Processando cancelamento no Asaas...';
+      try { const result = await window.LungoSupervisorApi.cancelSubscription({ confirmation, reason }, state.token); const date = result.subscription?.cancellation_effective_at ? new Date(result.subscription.cancellation_effective_at).toLocaleDateString('pt-BR') : 'o fim do período'; status.textContent = `Cancelamento agendado. Seu acesso permanece ativo até ${date}.`; status.className = 'auth-status ok'; button.textContent = 'Cancelamento agendado'; }
+      catch (error) { status.textContent = error.message; status.className = 'auth-status error'; button.disabled = false; }
     });
     el.supervisorGenerateMessageBtn?.addEventListener("click", generateSupervisorAccessMessage);
     el.supervisorCopyMessageBtn?.addEventListener("click", copySupervisorMessage);

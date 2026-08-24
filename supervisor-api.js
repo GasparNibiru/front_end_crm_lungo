@@ -10,6 +10,7 @@
     return data;
   }
   const verify = (token) => request("/api/access/auth/verify", { method: "POST", token, body: {} });
+  const updateOwnProfile = (payload, token) => request('/api/access/profile', { method: 'PATCH', token, body: payload });
   const getDashboard = (token) => request("/api/supervisor/dashboard", { token });
   const getBrokers = (token) => request("/api/supervisor/brokers", { token });
   const createBroker = (payload, token) => request("/api/supervisor/brokers", { method: "POST", token, body: payload });
@@ -22,7 +23,14 @@
   const getLeads = (token) => request("/api/supervisor/leads", { token });
   const assignLead = (id, brokerId, token) => request(`/api/supervisor/leads/${encodeURIComponent(id)}/assign`, { method: "POST", token, body: { brokerId } });
   const getOperationalClients = (token) => request("/api/supervisor/operational-clients", { token });
-  const getTrainings = (token) => request('/api/trainings', { token });
+  const getTrainings = (token) => request('/api/training-center', { token });
+  const getCampaignMedia = (token) => request('/api/campaign-media', { token });
+  const updateTrainingProgress = (id, payload, token) => request(`/api/training-center/${encodeURIComponent(id)}/progress`, { method: 'POST', token, body: payload });
+  const getSupervisorTrainings = (token) => request('/api/training-center/supervisor/manage', { token });
+  const createSupervisorTraining = (payload, token) => request('/api/training-center/supervisor', { method: 'POST', token, body: payload });
+  const updateSupervisorTraining = (id, payload, token) => request(`/api/training-center/supervisor/${encodeURIComponent(id)}`, { method: 'PATCH', token, body: payload });
+  const deleteSupervisorTraining = (id, token) => request(`/api/training-center/supervisor/${encodeURIComponent(id)}`, { method: 'DELETE', token });
+  const getSupervisorTrainingMetrics = (id, token) => request(`/api/training-center/supervisor/${encodeURIComponent(id)}/metrics`, { token });
   const getTeamMessages = (token) => request('/api/supervisor/messages', { token });
   const sendTeamMessage = (payload, token) => request('/api/supervisor/messages', { method: 'POST', token, body: payload });
   const getBrokerMessages = (token, unread = false) => request(`/api/team/messages${unread ? '?unread=1' : ''}`, { token });
@@ -43,5 +51,8 @@
   const buyMarketplaceLead = (id, token) => request(`/api/lead-marketplace/${encodeURIComponent(id)}/buy`, { method: 'POST', token, body: {} });
   const getTeamGoal = (token) => request('/api/team/goal', { token });
   const updateTeamGoal = (teamGoal, token) => request('/api/team/goal', { method: 'PUT', token, body: { teamGoal } });
-  window.LungoSupervisorApi = Object.freeze({ verify, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal });
+  const updateOrganizationBranding = (payload, token) => request('/api/supervisor/branding', { method: 'PATCH', token, body: payload });
+  const getSubscription = (token) => request('/api/access/subscription', { token });
+  const cancelSubscription = (payload, token) => request('/api/access/subscription/cancel', { method: 'POST', token, body: payload });
+  window.LungoSupervisorApi = Object.freeze({ verify, updateOwnProfile, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getCampaignMedia, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal, updateOrganizationBranding, getSubscription, cancelSubscription });
 })();
