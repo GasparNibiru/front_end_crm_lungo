@@ -158,6 +158,9 @@
   let adminBrazilPartners = [];
   let supervisorBrazilPartners = [];
   let selectedBrazilPartnerState = '';
+  let brazilPartnerDeck = null;
+  let brazilPartnerGeojson = null;
+  let hoveredBrazilPartnerState = '';
   let adminCampaignMedia = { banner: null, popup: null };
   let pendingCampaignImages = { banner: '', popup: '' };
   let brokerMessageTimer = null;
@@ -2214,30 +2217,12 @@
   }
 
   const BRAZIL_STATES = { AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará', DF:'Distrito Federal', ES:'Espírito Santo', GO:'Goiás', MA:'Maranhão', MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará', PB:'Paraíba', PR:'Paraná', PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro', RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima', SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins' };
-  const BRAZIL_MAP_POSITIONS = { RR:[2,4], AP:[2,8], AM:[4,3], PA:[4,7], MA:[5,10], CE:[5,13], RN:[5,15], PB:[6,15], PE:[7,14], AL:[8,14], SE:[9,14], BA:[9,11], PI:[7,11], TO:[8,8], AC:[6,1], RO:[7,3], MT:[9,5], GO:[10,8], DF:[10,9], MS:[12,6], MG:[11,10], ES:[11,13], RJ:[12,12], SP:[12,9], PR:[14,8], SC:[15,8], RS:[17,7] };
-
-  function renderBrazilPartnerMap() {
-    const map = $('#brazilPartnerMap'); if (!map) return;
-    const counts = supervisorBrazilPartners.reduce((acc, item) => ({ ...acc, [item.state]: (acc[item.state] || 0) + 1 }), {});
-    map.innerHTML = Object.entries(BRAZIL_STATES).map(([uf, name]) => { const [row, col] = BRAZIL_MAP_POSITIONS[uf]; return `<button type="button" class="brazil-state ${selectedBrazilPartnerState === uf ? 'active' : ''} ${counts[uf] ? 'has-partners' : ''}" style="--row:${row};--col:${col}" data-brazil-state="${uf}" title="${escapeHtml(name)}: ${counts[uf] || 0} parceiro(s)"><b>${uf}</b><small>${counts[uf] || 0}</small></button>`; }).join('');
-    $('#brazilPartnerTotal').textContent = `${supervisorBrazilPartners.length} parceiros em 27 estados`;
-  }
-
-  function renderBrazilPartnerCards(uf) {
-    selectedBrazilPartnerState = uf;
-    renderBrazilPartnerMap();
-    const partners = supervisorBrazilPartners.filter(item => item.state === uf);
-    $('#brazilPartnerStateKicker').textContent = `${BRAZIL_STATES[uf]} · ${uf}`;
-    $('#brazilPartnerStateTitle').textContent = partners.length ? `${partners.length} ${partners.length === 1 ? 'parceiro disponível' : 'parceiros disponíveis'}` : 'Nenhum parceiro disponível';
-    $('#brazilPartnerStateDescription').textContent = 'Converse diretamente com o parceiro para confirmar comissão, materiais e cadastro da venda.';
-    $('#brazilPartnerCards').innerHTML = partners.map(item => { const products = Array.isArray(item.products) ? item.products : []; const phone = String(item.whatsapp || '').replace(/\D/g, ''); const message = encodeURIComponent(`Olá! Sou supervisor na plataforma Lungo e estou com uma venda de plano de saúde para ${BRAZIL_STATES[uf]}. Gostaria de solicitar suporte.`); return `<article class="brazil-partner-card"><div class="brazil-partner-card-head"><div><span>Parceiro em ${escapeHtml(uf)}</span><h4>${escapeHtml(item.name)}</h4>${item.contact_name ? `<p>Responsável: ${escapeHtml(item.contact_name)}</p>` : ''}</div><i aria-hidden="true">✓</i></div>${products.length ? `<div class="brazil-partner-products">${products.map(product => `<span>${escapeHtml(product)}</span>`).join('')}</div>` : '<p class="brazil-partner-generic">Consulte os produtos e operadoras disponíveis.</p>'}<a class="btn primary" href="https://wa.me/${phone}?text=${message}" target="_blank" rel="noopener noreferrer">Solicitar suporte pelo WhatsApp</a></article>`; }).join('') || '<div class="empty-state">Ainda não há parceiro ativo nesta UF.</div>';
-  }
-
-  async function loadSupervisorBrazilPartners() {
-    const cards = $('#brazilPartnerCards'); if (cards) cards.innerHTML = '<div class="empty-state">Carregando rede de parceiros...</div>';
-    try { const result = await window.LungoSupervisorApi.getBrazilPartners(supervisorAccessToken); supervisorBrazilPartners = result.partners || []; renderBrazilPartnerMap(); if (selectedBrazilPartnerState) renderBrazilPartnerCards(selectedBrazilPartnerState); }
-    catch (error) { if (cards) cards.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`; }
-  }
+  function brazilPartnerFeatureUF(feature) { const properties = feature?.properties || {}; const raw = properties.sigla || properties.SIGLA || properties.uf || properties.UF || properties.abbrev || properties.code || ''; if (String(raw).length === 2) return String(raw).toUpperCase(); const name = stripAccents(properties.nome || properties.NOME || properties.name || '').toLowerCase(); return Object.entries(BRAZIL_STATES).find(([, value]) => stripAccents(value).toLowerCase() === name)?.[0] || ''; }
+  function brazilPartnerCount(uf) { return supervisorBrazilPartners.filter(item => item.state === uf).length; }
+  function closeBrazilPartnerModal() { const modal = $('#brazilPartnerModal'); if (modal) modal.hidden = true; selectedBrazilPartnerState = ''; renderBrazilPartnerMap(); }
+  function openBrazilPartnerModal(uf) { selectedBrazilPartnerState = uf; const modal = $('#brazilPartnerModal'), list = $('#brazilPartnerModalList'); if (!modal || !list) return; $('#brazilPartnerModalState').textContent = `${BRAZIL_STATES[uf]} · ${uf}`; const partners = supervisorBrazilPartners.filter(item => item.state === uf); list.innerHTML = partners.map(item => { const phone = String(item.whatsapp || '').replace(/\D/g, ''); const message = encodeURIComponent('Olá, eu estou com um atendimento de Plano de saúde para sua região, gostaria de solicitar um suporte para passar essa venda.'); return `<article><div><h3>${escapeHtml(item.name)}</h3>${item.contact_name ? `<p>Responsável: ${escapeHtml(item.contact_name)}</p>` : ''}</div><a href="https://wa.me/${phone}?text=${message}" target="_blank" rel="noopener noreferrer">Solicitar suporte</a></article>`; }).join('') || '<div class="empty-state">Nenhum parceiro cadastrado para esta região.</div>'; modal.hidden = false; renderBrazilPartnerMap(); modal.querySelector('[data-close-brazil-partner-modal]')?.focus(); }
+  function renderBrazilPartnerMap() { if (!brazilPartnerDeck || !brazilPartnerGeojson || !window.deck) return; const layer = new deck.GeoJsonLayer({ id:'estados-brasil-parceiros', data:brazilPartnerGeojson, pickable:true, stroked:true, filled:true, extruded:true, wireframe:false, getFillColor:feature => { const uf=brazilPartnerFeatureUF(feature), count=brazilPartnerCount(uf); if (hoveredBrazilPartnerState===uf) return [39,215,147,248]; if (selectedBrazilPartnerState===uf) return [24,184,123,242]; return count>=3?[13,143,96,235]:count===2?[14,126,85,228]:[18,105,73,219]; }, getLineColor:feature => brazilPartnerFeatureUF(feature)===hoveredBrazilPartnerState?[111,229,176,255]:[7,17,13,245], getLineWidth:feature => brazilPartnerFeatureUF(feature)===hoveredBrazilPartnerState?1700:850, lineWidthUnits:'meters', getElevation:feature => { const uf=brazilPartnerFeatureUF(feature); return hoveredBrazilPartnerState===uf?105000:selectedBrazilPartnerState===uf?52000:8000+brazilPartnerCount(uf)*2300; }, material:{ambient:.42,diffuse:.68,shininess:45,specularColor:[58,135,105]}, transitions:{getElevation:180,getFillColor:140,getLineColor:140,getLineWidth:140}, updateTriggers:{getFillColor:[hoveredBrazilPartnerState,selectedBrazilPartnerState,supervisorBrazilPartners.length],getElevation:[hoveredBrazilPartnerState,selectedBrazilPartnerState,supervisorBrazilPartners.length],getLineColor:[hoveredBrazilPartnerState],getLineWidth:[hoveredBrazilPartnerState]}, onHover:info => { const next=info?.object?brazilPartnerFeatureUF(info.object):''; if (next!==hoveredBrazilPartnerState){hoveredBrazilPartnerState=next;renderBrazilPartnerMap();} }, onClick:info => { const uf=info?.object?brazilPartnerFeatureUF(info.object):''; if(uf) openBrazilPartnerModal(uf); } }); brazilPartnerDeck.setProps({layers:[layer],getTooltip:info => { if(!info?.object || !$('#brazilPartnerModal')?.hidden) return null; const uf=brazilPartnerFeatureUF(info.object), partners=supervisorBrazilPartners.filter(item=>item.state===uf); return {html:`<div class="brazil-map-tooltip"><b>${escapeHtml(BRAZIL_STATES[uf])} · ${uf}</b>${partners.map(item=>`<span>● ${escapeHtml(item.name)}</span>`).join('')}</div>`,style:{backgroundColor:'transparent',padding:'0'}}; }}); }
+  async function loadSupervisorBrazilPartners() { const loading=$('#brazilPartnerLoading'), errorBox=$('#brazilPartnerError'), container=$('#brazilPartnerMap'); if(!container)return; if(loading){loading.hidden=false;loading.textContent='Carregando mapa...';} if(errorBox)errorBox.hidden=true; try { const [result,geojson] = await Promise.all([window.LungoSupervisorApi.getBrazilPartners(supervisorAccessToken), brazilPartnerGeojson ? Promise.resolve(brazilPartnerGeojson) : fetch('https://cdn.jsdelivr.net/gh/henriquemalvar/br-geojson@main/dist/estados.geojson').then(response=>{if(!response.ok)throw new Error('Mapa indisponível.');return response.json();})]); supervisorBrazilPartners=result.partners||[]; brazilPartnerGeojson=geojson; if(!brazilPartnerDeck) brazilPartnerDeck=new deck.DeckGL({container,views:new deck.MapView({repeat:false}),initialViewState:{longitude:-52.5,latitude:-15.2,zoom:3,pitch:32,bearing:0},controller:true,parameters:{clearColor:[11,16,14,255],depthTest:true}}); renderBrazilPartnerMap(); if(loading)loading.hidden=true; setTimeout(()=>brazilPartnerDeck?.redraw(true),50); } catch(error){if(loading)loading.hidden=true;if(errorBox){errorBox.hidden=false;errorBox.textContent=error.message||'Não foi possível carregar o mapa.';}} }
 
   function setSupervisorView(name) {
     restoreSupervisorSharedView();
@@ -5754,8 +5739,7 @@
     });
     [el.supervisorModalCloseBtn, el.supervisorModalFooterCloseBtn].forEach((button) => button?.addEventListener("click", () => el.supervisorDetailModal?.close()));
     el.supervisorScreen?.addEventListener("click", async (event) => {
-      const brazilState = event.target.closest('[data-brazil-state]');
-      if (brazilState) { renderBrazilPartnerCards(brazilState.dataset.brazilState); return; }
+      if (event.target.closest('[data-close-brazil-partner-modal]') || event.target.id === 'brazilPartnerModal') { closeBrazilPartnerModal(); return; }
       const dealButton = event.target.closest("[data-supervisor-deal]");
       if (dealButton) {
         const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
@@ -5824,6 +5808,7 @@
         if (action === "archive") toast(`${customer.client} foi arquivado visualmente.`);
       }
     });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#brazilPartnerModal')?.hidden) closeBrazilPartnerModal(); });
     el.supervisorScreen?.addEventListener("change", (event) => {
       const checkbox = event.target.closest("[data-supervisor-select-client]");
       if (!checkbox) return;
