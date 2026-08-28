@@ -161,7 +161,6 @@
   let brazilPartnerDeck = null;
   let brazilPartnerGeojson = null;
   let hoveredBrazilPartnerState = '';
-  let supervisorActiveModule = 'team';
   let adminCampaignMedia = { banner: null, popup: null };
   let pendingCampaignImages = { banner: '', popup: '' };
   let brokerMessageTimer = null;
@@ -1855,15 +1854,7 @@
     supervisorMountedView = node;
   }
 
-  const SUPERVISOR_MODULE_LABELS = { operation:'Operação', sales:'Vendas', team:'Equipe', communication:'Comunicação' };
-  function showSupervisorModule(module, expand = true) { supervisorActiveModule = module; el.supervisorScreen?.classList.remove('supervisor-direct-page'); $$('.supervisor-module-item').forEach(button => button.classList.toggle('active', button.dataset.supervisorModule === module)); $$('.supervisor-context-group').forEach(group => { group.hidden = group.dataset.supervisorContext !== module; }); if ($('#supervisorContextTitle')) $('#supervisorContextTitle').textContent = SUPERVISOR_MODULE_LABELS[module] || 'Navegação'; if (expand && el.supervisorScreen?.classList.contains('sidebar-collapsed')) { el.supervisorScreen.classList.remove('sidebar-collapsed'); localStorage.setItem(SUPERVISOR_SIDEBAR_KEY,'0'); syncSupervisorContextToggle(false); } }
-  function syncSupervisorContextToggle(collapsed) { if (!el.supervisorSidebarToggle) return; el.supervisorSidebarToggle.setAttribute('aria-expanded',String(!collapsed)); el.supervisorSidebarToggle.setAttribute('aria-label',collapsed?'Abrir navegação contextual':'Recolher navegação contextual'); el.supervisorSidebarToggle.title=collapsed?'Abrir navegação contextual':'Recolher navegação contextual'; const symbol=el.supervisorSidebarToggle.querySelector('span'); if(symbol)symbol.textContent=collapsed?'»':'«'; }
-  function supervisorModuleForOperation(name) { return name === 'treinamentos' ? 'team' : ['broadcast','connect'].includes(name) ? 'communication' : 'operation'; }
-  function supervisorModuleForView(name) { return ['funnel','customers'].includes(name) ? 'sales' : ['dashboard','brokers','rh'].includes(name) ? 'team' : name === 'messages' ? 'communication' : ''; }
-  function setSupervisorDirectView(name) { setSupervisorView(name); el.supervisorScreen?.classList.add('supervisor-direct-page'); $$('.supervisor-module-item').forEach(button => button.classList.toggle('active', button.dataset.supervisorDirectView === name)); }
-
   function setSupervisorOperation(name) {
-    showSupervisorModule(supervisorModuleForOperation(name), false);
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorOperation === name));
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
     if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
@@ -2234,7 +2225,6 @@
   async function loadSupervisorBrazilPartners() { const loading=$('#brazilPartnerLoading'), errorBox=$('#brazilPartnerError'), container=$('#brazilPartnerMap'); if(!container)return; if(loading){loading.hidden=false;loading.textContent='Carregando mapa...';} if(errorBox)errorBox.hidden=true; try { const [result,geojson] = await Promise.all([window.LungoSupervisorApi.getBrazilPartners(supervisorAccessToken), brazilPartnerGeojson ? Promise.resolve(brazilPartnerGeojson) : fetch('https://cdn.jsdelivr.net/gh/henriquemalvar/br-geojson@main/dist/estados.geojson').then(response=>{if(!response.ok)throw new Error('Mapa indisponível.');return response.json();})]); supervisorBrazilPartners=result.partners||[]; brazilPartnerGeojson=geojson; if(!brazilPartnerDeck) brazilPartnerDeck=new deck.DeckGL({container,views:new deck.MapView({repeat:false}),initialViewState:{longitude:-52.5,latitude:-15.2,zoom:3,pitch:32,bearing:0},controller:true,parameters:{clearColor:[11,16,14,255],depthTest:true}}); renderBrazilPartnerMap(); if(loading)loading.hidden=true; setTimeout(()=>brazilPartnerDeck?.redraw(true),50); } catch(error){if(loading)loading.hidden=true;if(errorBox){errorBox.hidden=false;errorBox.textContent=error.message||'Não foi possível carregar o mapa.';}} }
 
   function setSupervisorView(name) {
-    const module = supervisorModuleForView(name); if (module) showSupervisorModule(module, false);
     restoreSupervisorSharedView();
     const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", "brazil-partners": "Parceiros Brasil", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
@@ -5587,7 +5577,9 @@
     el.supervisorSidebarToggle?.addEventListener("click", () => {
       const collapsed = !el.supervisorScreen.classList.contains("sidebar-collapsed");
       el.supervisorScreen.classList.toggle("sidebar-collapsed", collapsed);
-      syncSupervisorContextToggle(collapsed);
+      el.supervisorSidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+      el.supervisorSidebarToggle.setAttribute("aria-label", collapsed ? "Expandir menu" : "Recolher menu");
+      el.supervisorSidebarToggle.title = collapsed ? "Expandir menu" : "Recolher menu";
       localStorage.setItem(SUPERVISOR_SIDEBAR_KEY, collapsed ? "1" : "0");
     });
     el.supervisorThemeBtn?.addEventListener("click", () => {
@@ -5597,8 +5589,6 @@
     });
     el.supervisorNavItems.filter((button) => button.dataset.supervisorView).forEach((button) => button.addEventListener("click", () => setSupervisorView(button.dataset.supervisorView)));
     el.supervisorNavItems.filter((button) => button.dataset.supervisorOperation).forEach((button) => button.addEventListener("click", () => setSupervisorOperation(button.dataset.supervisorOperation)));
-    $$('[data-supervisor-module]').forEach(button => button.addEventListener('click', () => showSupervisorModule(button.dataset.supervisorModule)));
-    $$('[data-supervisor-direct-view]').forEach(button => button.addEventListener('click', () => setSupervisorDirectView(button.dataset.supervisorDirectView)));
     document.querySelectorAll("[data-company-upload]").forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.companyUpload)?.click()));
     el.companyLogoInput?.addEventListener("change", () => readCompanyImage(el.companyLogoInput.files?.[0], "logo"));
     el.companySidebarColor?.addEventListener("input", () => applyCompanySidebarColor(el.companySidebarColor.value));
@@ -6066,8 +6056,9 @@
     el.appShell.classList.toggle("sidebar-collapsed", localStorage.getItem(SIDEBAR_KEY) === "1");
     const supervisorSidebarCollapsed = localStorage.getItem(SUPERVISOR_SIDEBAR_KEY) === "1";
     el.supervisorScreen?.classList.toggle("sidebar-collapsed", supervisorSidebarCollapsed);
-    syncSupervisorContextToggle(supervisorSidebarCollapsed);
-    showSupervisorModule('team', false);
+    el.supervisorSidebarToggle?.setAttribute("aria-expanded", String(!supervisorSidebarCollapsed));
+    el.supervisorSidebarToggle?.setAttribute("aria-label", supervisorSidebarCollapsed ? "Expandir menu" : "Recolher menu");
+    if (el.supervisorSidebarToggle) el.supervisorSidebarToggle.title = supervisorSidebarCollapsed ? "Expandir menu" : "Recolher menu";
     const adminMasterScreen = $("#adminMasterScreen");
     adminMasterScreen?.classList.toggle("sidebar-collapsed", localStorage.getItem(ADMIN_MASTER_SIDEBAR_KEY) === "1");
     renderAdminMasterAccessFields();
