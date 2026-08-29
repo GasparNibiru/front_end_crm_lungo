@@ -2591,7 +2591,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .lead-store-header > div:first-child { display: grid; gap: 3px; }.lead-store-header span, .lead-store-header small { color: var(--muted); }.lead-store-header b { font-size: 28px; }.lead-store-header > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
 .lead-store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(245px, 100%), 1fr)); gap: 13px; min-width: 0; }
 .lead-offer-card { display: grid; gap: 12px; min-width: 0; max-width: 100%; overflow: hidden; padding: 15px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); box-shadow: var(--shadow); }
-.lead-offer-card.reserved { opacity: .65; }.lead-offer-card > header, .lead-offer-card > footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; min-width: 0; }.lead-offer-card > header > * { min-width: 0; }.lead-offer-card > header small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.lead-offer-card > header span { flex: 0 0 auto; padding: 5px 8px; border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); font-size: 9px; font-weight: 900; letter-spacing: .08em; line-height: 1; text-transform: uppercase; }.lead-offer-card h3 { min-width: 0; margin: 0; overflow: hidden; font-size: 18px; letter-spacing: .06em; text-overflow: ellipsis; white-space: nowrap; }.lead-offer-card dl { display: grid; gap: 7px; min-width: 0; margin: 0; }.lead-offer-card dl div { display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr); gap: 10px; min-width: 0; }.lead-offer-card dt { color: var(--muted); font-size: 10px; }.lead-offer-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 700; text-align: right; }.lead-offer-card footer > div { display: grid; min-width: 0; }.lead-offer-card footer .btn { flex: 0 0 auto; }.lead-offer-card footer b { font-size: 16px; }.lead-store-empty { grid-column: 1 / -1; }
+.lead-offer-card.reserved { opacity: .65; }.lead-offer-card > header, .lead-offer-card > footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; min-width: 0; }.lead-offer-card > header > * { min-width: 0; }.lead-offer-card > header > div { display: grid; justify-items: start; gap: 7px; }.lead-offer-card > header small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.lead-offer-card > header span { flex: 0 0 auto; padding: 5px 8px; border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); font-size: 9px; font-weight: 900; letter-spacing: .08em; line-height: 1; text-transform: uppercase; }.lead-offer-card h3 { min-width: 0; margin: 0; overflow: hidden; color: var(--text); font-size: 20px; font-weight: 900; letter-spacing: .015em; line-height: 1.05; text-overflow: ellipsis; white-space: nowrap; }.lead-offer-card dl { display: grid; gap: 7px; min-width: 0; margin: 0; }.lead-offer-card dl div { display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr); gap: 10px; min-width: 0; }.lead-offer-card dt { color: var(--muted); font-size: 10px; }.lead-offer-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 700; text-align: right; }.lead-offer-card footer > div { display: grid; min-width: 0; }.lead-offer-card footer .btn { flex: 0 0 auto; }.lead-offer-card footer b { font-size: 16px; }.lead-store-empty { grid-column: 1 / -1; }
 .lead-purchase-history { display: grid; gap: 8px; max-height: 60vh; overflow-y: auto; padding: 14px; }.lead-purchase-history article { display: flex; justify-content: space-between; gap: 16px; padding: 11px; border: 1px solid var(--border); border-radius: 10px; }.lead-purchase-history article > div { display: grid; gap: 3px; }.lead-purchase-history article > div:last-child { text-align: right; }.lead-purchase-history span, .lead-purchase-history small { color: var(--muted); font-size: 10px; }
 .lead-marketplace-admin { min-height: 0; }.lead-admin-tabs { display: flex; gap: 6px; margin: 12px 0; }.lead-admin-tabs .active { border-color: var(--primary); color: var(--primary); }.lead-marketplace-admin td small { display: block; margin-top: 3px; color: var(--muted); }
 .admin-list-search { display:flex; align-items:center; gap:9px; width:min(100%, 480px); margin:12px 0; padding:0 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); transition:border-color .18s ease, box-shadow .18s ease; }
@@ -4219,6 +4219,81 @@ html .supervisor-sidebar.company-sidebar-custom {
   .supervisor-top-logout { width: 32px; min-width: 32px; padding: 0 !important; }
 }
 
+/* Supervisor: dropdowns contidos na sidebar, sem sobrepor o conteudo. */
+.supervisor-sidebar { overflow: hidden; }
+.supervisor-nav {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+.supervisor-nav-cluster { min-width: 0; }
+.supervisor-nav-parent { width: 100%; }
+.supervisor-nav-parent > i {
+  margin-left: auto;
+  color: currentColor;
+  font-size: 15px;
+  font-style: normal;
+  line-height: 1;
+  opacity: .7;
+  transform: rotate(90deg);
+  transition: transform .16s ease, opacity .16s ease;
+}
+.supervisor-hover-submenu {
+  max-height: 0;
+  display: grid;
+  gap: 2px;
+  margin: 0 0 0 28px;
+  padding: 0 0 0 8px;
+  overflow: hidden;
+  border-left: 1px solid rgba(116, 217, 180, .28);
+  opacity: 0;
+  visibility: hidden;
+  transition: max-height .18s ease, margin .18s ease, padding .18s ease, opacity .14s ease, visibility .14s ease;
+}
+.supervisor-hover-submenu > span { display: none; }
+.supervisor-hover-submenu .supervisor-nav-item {
+  width: 100%;
+  min-height: 29px;
+  justify-content: flex-start;
+  padding: 0 8px;
+  border-radius: 5px;
+  color: var(--sidebar-muted);
+  font-size: 10px;
+  white-space: normal;
+}
+.supervisor-hover-submenu .supervisor-nav-item b { display: block; }
+.supervisor-nav-cluster:hover > .supervisor-hover-submenu,
+.supervisor-nav-cluster:focus-within > .supervisor-hover-submenu {
+  max-height: 78px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  opacity: 1;
+  visibility: visible;
+}
+.supervisor-nav-cluster:hover > .supervisor-nav-parent > i,
+.supervisor-nav-cluster:focus-within > .supervisor-nav-parent > i { transform: rotate(270deg); opacity: 1; }
+.supervisor-nav-cluster.has-active > .supervisor-nav-parent {
+  color: #fff;
+  border-color: rgba(235, 251, 244, .16);
+  background: rgba(235, 251, 244, .13);
+  box-shadow: inset 3px 0 0 #74d9b4;
+}
+.supervisor-screen.sidebar-collapsed .supervisor-brand img {
+  display: block;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.supervisor-screen.sidebar-collapsed .supervisor-nav-cluster { width: 42px; }
+.supervisor-screen.sidebar-collapsed .supervisor-nav-parent > i,
+.supervisor-screen.sidebar-collapsed .supervisor-hover-submenu { display: none; }
+
 /* Alternância de tema compacta: mostra somente a ação disponível. */
 .theme-toggle {
   width: 32px;
@@ -5050,4 +5125,49 @@ body.supervisor-mode .supervisor-deal > b {
   font-style: normal;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+/* Parceiros Brasil */
+.brazil-partners-page{display:grid;gap:18px}.brazil-partners-hero{padding:26px 30px;border-radius:18px;background:linear-gradient(125deg,#075d47,#0c8b65);color:#fff;box-shadow:0 16px 38px rgba(3,78,57,.2)}.brazil-partners-hero>span{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#9ff0d2}.brazil-partners-hero h2{max-width:800px;margin:7px 0;font-size:29px;line-height:1.14}.brazil-partners-hero p{margin:0;max-width:760px;color:#d9f5eb}.brazil-partners-layout{display:grid;grid-template-columns:minmax(520px,1.35fr) minmax(310px,.65fr);gap:18px}.brazil-map-card,.brazil-partner-results{min-height:560px;padding:22px;border:1px solid var(--border,#dde5e1);border-radius:18px;background:var(--card,#fff);box-shadow:0 12px 34px rgba(20,47,39,.08)}.brazil-map-heading{display:flex;justify-content:space-between;gap:16px;align-items:start}.brazil-map-heading h3,.brazil-partner-results h3{margin:0 0 4px}.brazil-map-heading p,.brazil-partner-results header p{margin:0;color:var(--muted,#69766f);font-size:13px}.brazil-map-heading>span{padding:7px 10px;border-radius:20px;background:#e9f8f2;color:#087457;font-size:11px;font-weight:800}.brazil-partner-map{display:grid;grid-template-columns:repeat(16,1fr);grid-template-rows:repeat(18,25px);gap:2px;max-width:650px;margin:28px auto 0;padding:20px;background:radial-gradient(circle at 50% 45%,#eff9f5 0,transparent 65%)}.brazil-state{grid-row:var(--row)/span 2;grid-column:var(--col)/span 2;display:grid;place-content:center;min-width:38px;border:1px solid #b7d5c9;border-radius:9px;background:#dfece7;color:#44645a;cursor:pointer;transition:.16s}.brazil-state b{font-size:12px}.brazil-state small{font-size:8px}.brazil-state:hover,.brazil-state.has-partners{background:#77c9a9;color:#083d2f;border-color:#3ca77e;transform:translateY(-1px)}.brazil-state.active{background:#08785a;color:#fff;border-color:#075a45;box-shadow:0 0 0 3px rgba(8,120,90,.18)}.brazil-partner-results>header>span{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0b8965}.brazil-partner-cards{display:grid;gap:12px;margin-top:18px;max-height:440px;overflow:auto;padding-right:3px}.brazil-partner-card{padding:16px;border:1px solid #dce7e2;border-radius:14px;background:#fff}.brazil-partner-card-head{display:flex;justify-content:space-between;gap:12px}.brazil-partner-card-head span{color:#77847e;font-size:10px;text-transform:uppercase;font-weight:800}.brazil-partner-card h4{margin:3px 0;font-size:17px;color:#16241f}.brazil-partner-card p{margin:0;color:#68756f;font-size:12px}.brazil-partner-card-head i{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#e5f7f0;color:#087a5b;font-style:normal}.brazil-partner-products{display:flex;flex-wrap:wrap;gap:5px;margin:13px 0}.brazil-partner-products span{padding:4px 7px;border-radius:12px;background:#f0f5f3;color:#4e5d57;font-size:10px}.brazil-partner-card .btn{width:100%;margin-top:13px}.brazil-partner-generic{margin:13px 0!important}.partner-admin-layout{display:grid;grid-template-columns:minmax(330px,.7fr) minmax(480px,1.3fr);gap:18px}.partner-admin-form{align-self:start;position:sticky;top:15px}.partner-admin-list{display:grid;gap:9px;margin-top:15px}.partner-admin-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 15px;border:1px solid #e1e8e5;border-radius:10px;background:#fff}.partner-admin-row h3{margin:2px 0;font-size:15px}.partner-admin-row p,.partner-admin-row>div>span{margin:0;color:#6a7771;font-size:11px}.partner-admin-row>div:last-child{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:900px){.brazil-partners-layout,.partner-admin-layout{grid-template-columns:1fr}.brazil-map-card,.brazil-partner-results{min-height:auto}.partner-admin-form{position:static}.brazil-partner-map{grid-template-rows:repeat(18,22px);padding:8px}.brazil-state{min-width:30px}.brazil-partners-hero{padding:22px}.brazil-partners-hero h2{font-size:23px}}
+@media(max-width:600px){.brazil-partner-map{grid-template-columns:repeat(16,1fr);grid-template-rows:repeat(18,18px);overflow:hidden}.brazil-state{min-width:25px;border-radius:6px}.brazil-state b{font-size:9px}.brazil-state small{display:none}.partner-admin-row{align-items:flex-start;flex-direction:column}.partner-admin-row>div:last-child{justify-content:flex-start}.brazil-map-heading{display:grid}}
+
+/* Parceiros Brasil — mapa geográfico conforme modelo homologado */
+#supervisor-view-brazil-partners.active{position:relative;height:calc(100vh - 118px);min-height:440px;overflow:hidden;margin:-20px}.brazil-partners-stage{position:absolute;inset:0;overflow:hidden;background:#0b100e}.brazil-partner-map{position:absolute;inset:0;display:block;max-width:none;margin:0;padding:0;background:#0b100e}.brazil-partner-map canvas{outline:none}.brazil-partners-overlay{position:absolute;z-index:4;top:18px;left:20px;width:min(560px,calc(100% - 40px));padding:14px 18px;border:1px solid rgba(130,215,177,.32);border-radius:5px;background:rgba(10,20,16,.88);box-shadow:0 12px 34px rgba(0,0,0,.28);color:#fff;pointer-events:none;backdrop-filter:blur(8px)}.brazil-partners-overlay>span{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#61dfa9}.brazil-partners-overlay h2{margin:4px 0 3px;font-size:20px;line-height:1.15}.brazil-partners-overlay p{margin:0;color:#b9c9c1;font-size:11px}.brazil-partner-loading,.brazil-partner-map-error{position:absolute;z-index:6;inset:0;display:grid;place-items:center;background:#0b100e;color:#dbe5df;font-size:13px}.brazil-partner-loading[hidden],.brazil-partner-map-error[hidden]{display:none}.brazil-map-tooltip{display:grid;gap:5px;min-width:180px;max-width:250px;padding:9px 11px;border:1px solid #33423b;border-radius:3px;background:#101613;color:#f2f6f4;box-shadow:0 10px 28px rgba(0,0,0,.34)}.brazil-map-tooltip b{padding-bottom:5px;border-bottom:1px solid #26312c;color:#a7b2ad;font-size:9px}.brazil-map-tooltip span{font-size:11px;font-weight:700;color:#f2f6f4}.brazil-partner-modal-backdrop{position:fixed;z-index:10020;inset:0;align-items:center;justify-content:center;padding:14px;background:rgba(0,0,0,.65)}.brazil-partner-modal-backdrop:not([hidden]){display:flex}.brazil-partner-modal{width:min(390px,100%);max-height:calc(100vh - 28px);overflow:auto;border:1px solid #ced5d1;border-radius:5px;background:#fff;box-shadow:0 18px 52px rgba(0,0,0,.42);color:#1a231f}.brazil-partner-modal>header{display:flex;justify-content:space-between;gap:12px;padding:13px 14px 11px;border-bottom:1px solid #d8dfdb}.brazil-partner-modal>header span{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#637069}.brazil-partner-modal>header h2{margin:3px 0;font-size:16px}.brazil-partner-modal>header p{margin:0;color:#637069;font-size:10px}.brazil-partner-modal>header button{width:28px;height:28px;flex:0 0 28px;border:1px solid #d2d8d5;border-radius:3px;background:#fff;color:#1b2420;font-size:17px;cursor:pointer}.brazil-partner-commission{margin:11px 14px 0;padding:8px 9px;border:1px solid #dce4df;background:#f4f7f5;color:#46524c;font-size:10px;line-height:1.35}.brazil-partner-modal-list{display:grid;gap:7px;padding:9px 14px}.brazil-partner-modal-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 10px;border:1px solid #d8dfdb;border-radius:3px}.brazil-partner-modal-list h3{margin:0;font-size:12px}.brazil-partner-modal-list p{margin:3px 0 0;color:#66726d;font-size:9px}.brazil-partner-modal-list a{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 10px;border-radius:3px;background:#0d8f60;color:#fff;text-decoration:none;font-size:10px;font-weight:800}.brazil-partner-modal>footer{padding:0 14px 11px;color:#66726d;font-size:8px}
+@media(max-width:600px){#supervisor-view-brazil-partners.active{height:calc(100dvh - 104px);min-height:360px;margin:-12px}.brazil-partners-overlay{top:10px;left:10px;width:calc(100% - 20px);padding:10px 12px}.brazil-partners-overlay h2{font-size:15px}.brazil-partners-overlay p{font-size:9px}.brazil-partner-modal-list article{grid-template-columns:1fr}.brazil-partner-modal-list a{width:100%}}
+
+/* Apresentacao discreta: o mapa ocupa toda a area e o aviso pode ser fechado. */
+.brazil-partners-overlay {
+  top: 14px;
+  right: 14px;
+  left: auto;
+  width: min(370px, calc(100% - 28px));
+  padding: 13px 42px 13px 15px;
+  pointer-events: auto;
+}
+.brazil-partners-overlay[hidden] { display: none; }
+.brazil-partners-overlay > button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(190, 229, 211, .24);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .06);
+  color: #dce9e3;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.brazil-partners-overlay > button:hover { background: rgba(255, 255, 255, .13); color: #fff; }
+.brazil-partners-overlay h2 { font-size: 15px; line-height: 1.18; }
+.brazil-partners-overlay p { font-size: 10px; line-height: 1.35; }
+
+@media(max-width:600px) {
+  .brazil-partners-overlay { top: 8px; right: 8px; left: auto; width: calc(100% - 16px); padding: 11px 38px 11px 12px; }
+  .brazil-partners-overlay h2 { font-size: 14px; }
 }

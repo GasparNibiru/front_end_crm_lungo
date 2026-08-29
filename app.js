@@ -155,6 +155,12 @@
   let adminMasterCurrentView = "dashboard";
   const adminMasterViewHistory = [];
   let adminTrainings = [];
+  let adminBrazilPartners = [];
+  let supervisorBrazilPartners = [];
+  let selectedBrazilPartnerState = '';
+  let brazilPartnerDeck = null;
+  let brazilPartnerGeojson = null;
+  let hoveredBrazilPartnerState = '';
   let adminCampaignMedia = { banner: null, popup: null };
   let pendingCampaignImages = { banner: '', popup: '' };
   let brokerMessageTimer = null;
@@ -1762,7 +1768,7 @@
   function leadStoreContainer(target) { if (target === 'supervisor') return el.supervisorOperationContent; return el.views.comprar_leads?.querySelector('.lead-storefront'); }
   async function renderLeadStorefront(target = 'broker') {
     const container = leadStoreContainer(target); if (!container) return; container.innerHTML = '<div class="empty-state">Carregando leads disponíveis...</div>';
-    try { const result = await window.LungoSupervisorApi.getLeadMarketplace(calendarToken()); const leads = result.leads || []; const support = String(result.supportWhatsapp || '5555992102864').replace(/\D/g, ''); const message = encodeURIComponent(`Olá! Gostaria de solicitar créditos para comprar leads. Meu acesso é ${state.clientName || 'usuário Lungo'}.`); container.innerHTML = `<section class="lead-store-header"><div><span>Saldo disponível</span><b>${formatCurrency(result.balance || 0)}</b><small>Use seus créditos para adquirir oportunidades exclusivas.</small></div><div><button class="btn" type="button" data-lead-history>Histórico de compras</button><a class="btn primary" href="https://wa.me/${support}?text=${message}" target="_blank" rel="noopener">Solicitar créditos</a></div></section><div class="lead-store-grid">${leads.length ? leads.map((lead) => `<article class="lead-offer-card ${lead.status === 'reserved' ? 'reserved' : ''}"><header><span>${lead.status === 'reserved' ? 'Em compra' : 'Novo lead'}</span><small>Captado há ${escapeHtml(leadAge(lead.capturedAt))}</small></header><h3>${escapeHtml(lead.name)}</h3><dl><div><dt>Telefone</dt><dd>${escapeHtml(lead.phone)}</dd></div><div><dt>Perfil</dt><dd>${escapeHtml(lead.profile)}</dd></div><div><dt>Qtd. de vidas</dt><dd>${Number(lead.livesCount || 0)}</dd></div><div><dt>Idades</dt><dd>${escapeHtml(lead.beneficiaryAges || lead.productInterest || 'Não informadas')}</dd></div><div><dt>Região</dt><dd>${escapeHtml([lead.city, lead.state].filter(Boolean).join(' / ') || 'Não informada')}</dd></div></dl><footer><div><small>Valor atual</small><b>${formatCurrency(lead.price)}</b>${Number(lead.originalPrice || 0) > Number(lead.price || 0) ? `<del>${formatCurrency(lead.originalPrice)}</del>` : ''}</div><button class="btn primary" type="button" data-lead-buy="${escapeHtml(lead.id)}" ${lead.status === 'reserved' ? 'disabled' : ''}>${lead.status === 'reserved' ? 'Reservado' : 'Comprar'}</button></footer></article>`).join('') : '<div class="empty-state lead-store-empty">Nenhum lead disponível neste momento.</div>'}</div>`;
+    try { const result = await window.LungoSupervisorApi.getLeadMarketplace(calendarToken()); const leads = result.leads || []; const support = String(result.supportWhatsapp || '5555992102864').replace(/\D/g, ''); const message = encodeURIComponent(`Olá! Gostaria de solicitar créditos para comprar leads. Meu acesso é ${state.clientName || 'usuário Lungo'}.`); container.innerHTML = `<section class="lead-store-header"><div><span>Saldo disponível</span><b>${formatCurrency(result.balance || 0)}</b><small>Use seus créditos para adquirir oportunidades exclusivas.</small></div><div><button class="btn" type="button" data-lead-history>Histórico de compras</button><a class="btn primary" href="https://wa.me/${support}?text=${message}" target="_blank" rel="noopener">Solicitar créditos</a></div></section><div class="lead-store-grid">${leads.length ? leads.map((lead) => `<article class="lead-offer-card ${lead.status === 'reserved' ? 'reserved' : ''}"><header><div><span>${lead.status === 'reserved' ? 'Em compra' : 'Novo lead'}</span><h3>${escapeHtml([lead.city, lead.state].filter(Boolean).join(' / ') || 'Região não informada')}</h3></div><small>Captado há ${escapeHtml(leadAge(lead.capturedAt))}</small></header><dl><div><dt>Telefone</dt><dd>${escapeHtml(lead.phone)}</dd></div><div><dt>Perfil</dt><dd>${escapeHtml(lead.profile)}</dd></div><div><dt>Qtd. de vidas</dt><dd>${Number(lead.livesCount || 0)}</dd></div><div><dt>Idades</dt><dd>${escapeHtml(lead.beneficiaryAges || lead.productInterest || 'Não informadas')}</dd></div><div><dt>Região</dt><dd>${escapeHtml([lead.city, lead.state].filter(Boolean).join(' / ') || 'Não informada')}</dd></div></dl><footer><div><small>Valor atual</small><b>${formatCurrency(lead.price)}</b>${Number(lead.originalPrice || 0) > Number(lead.price || 0) ? `<del>${formatCurrency(lead.originalPrice)}</del>` : ''}</div><button class="btn primary" type="button" data-lead-buy="${escapeHtml(lead.id)}" ${lead.status === 'reserved' ? 'disabled' : ''}>${lead.status === 'reserved' ? 'Reservado' : 'Comprar'}</button></footer></article>`).join('') : '<div class="empty-state lead-store-empty">Nenhum lead disponível neste momento.</div>'}</div>`;
       container.querySelector('[data-lead-history]').onclick = () => openLeadPurchaseHistory(target);
       container.querySelector('.lead-store-grid').addEventListener('click', async (event) => { const button = event.target.closest('[data-lead-buy]'); if (!button) return; const lead = leads.find((item) => item.id === button.dataset.leadBuy); if (!lead || !await popupConfirm(`Comprar este lead por ${formatCurrency(lead.price)}? O valor será descontado do seu saldo.`, 'Confirmar compra')) return; button.disabled = true; button.textContent = 'Processando...'; try { await window.LungoSupervisorApi.buyMarketplaceLead(lead.id, calendarToken()); toast('Lead comprado e enviado para Meus Leads.'); await renderLeadStorefront(target); if (target === 'broker') await loadCrm(true); else await loadSupervisorRemoteData(); } catch (error) { toast(error.message); await renderLeadStorefront(target); } });
     } catch (error) { container.innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
@@ -1850,6 +1856,7 @@
 
   function setSupervisorOperation(name) {
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorOperation === name));
+    syncSupervisorNavClusters();
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
     if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
@@ -2210,10 +2217,19 @@
     catch (error) { status.textContent = error.message || 'Não foi possível enviar sua candidatura. Tente novamente.'; status.classList.add('error'); if (button) { button.disabled = false; button.textContent = 'Enviar candidatura'; } }
   }
 
+  const BRAZIL_STATES = { AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará', DF:'Distrito Federal', ES:'Espírito Santo', GO:'Goiás', MA:'Maranhão', MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará', PB:'Paraíba', PR:'Paraná', PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro', RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima', SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins' };
+  function brazilPartnerFeatureUF(feature) { const properties = feature?.properties || {}; const raw = properties.sigla || properties.SIGLA || properties.uf || properties.UF || properties.abbrev || properties.code || ''; if (String(raw).length === 2) return String(raw).toUpperCase(); const name = stripAccents(properties.nome || properties.NOME || properties.name || '').toLowerCase(); return Object.entries(BRAZIL_STATES).find(([, value]) => stripAccents(value).toLowerCase() === name)?.[0] || ''; }
+  function brazilPartnerCount(uf) { return supervisorBrazilPartners.filter(item => item.state === uf).length; }
+  function closeBrazilPartnerModal() { const modal = $('#brazilPartnerModal'); if (modal) modal.hidden = true; selectedBrazilPartnerState = ''; renderBrazilPartnerMap(); }
+  function openBrazilPartnerModal(uf) { selectedBrazilPartnerState = uf; const modal = $('#brazilPartnerModal'), list = $('#brazilPartnerModalList'); if (!modal || !list) return; $('#brazilPartnerModalState').textContent = `${BRAZIL_STATES[uf]} · ${uf}`; const partners = supervisorBrazilPartners.filter(item => item.state === uf); list.innerHTML = partners.map(item => { const phone = String(item.whatsapp || '').replace(/\D/g, ''); const message = encodeURIComponent('Olá, eu estou com um atendimento de Plano de saúde para sua região, gostaria de solicitar um suporte para passar essa venda.'); return `<article><div><h3>${escapeHtml(item.name)}</h3>${item.contact_name ? `<p>Responsável: ${escapeHtml(item.contact_name)}</p>` : ''}</div><a href="https://wa.me/${phone}?text=${message}" target="_blank" rel="noopener noreferrer">Solicitar suporte</a></article>`; }).join('') || '<div class="empty-state">Nenhum parceiro cadastrado para esta região.</div>'; modal.hidden = false; renderBrazilPartnerMap(); modal.querySelector('[data-close-brazil-partner-modal]')?.focus(); }
+  function renderBrazilPartnerMap() { if (!brazilPartnerDeck || !brazilPartnerGeojson || !window.deck) return; const layer = new deck.GeoJsonLayer({ id:'estados-brasil-parceiros', data:brazilPartnerGeojson, pickable:true, stroked:true, filled:true, extruded:true, wireframe:false, getFillColor:feature => { const uf=brazilPartnerFeatureUF(feature), count=brazilPartnerCount(uf); if (hoveredBrazilPartnerState===uf) return [39,215,147,248]; if (selectedBrazilPartnerState===uf) return [24,184,123,242]; return count>=3?[13,143,96,235]:count===2?[14,126,85,228]:[18,105,73,219]; }, getLineColor:feature => brazilPartnerFeatureUF(feature)===hoveredBrazilPartnerState?[111,229,176,255]:[7,17,13,245], getLineWidth:feature => brazilPartnerFeatureUF(feature)===hoveredBrazilPartnerState?1700:850, lineWidthUnits:'meters', getElevation:feature => { const uf=brazilPartnerFeatureUF(feature); return hoveredBrazilPartnerState===uf?105000:selectedBrazilPartnerState===uf?52000:8000+brazilPartnerCount(uf)*2300; }, material:{ambient:.42,diffuse:.68,shininess:45,specularColor:[58,135,105]}, transitions:{getElevation:180,getFillColor:140,getLineColor:140,getLineWidth:140}, updateTriggers:{getFillColor:[hoveredBrazilPartnerState,selectedBrazilPartnerState,supervisorBrazilPartners.length],getElevation:[hoveredBrazilPartnerState,selectedBrazilPartnerState,supervisorBrazilPartners.length],getLineColor:[hoveredBrazilPartnerState],getLineWidth:[hoveredBrazilPartnerState]}, onHover:info => { const next=info?.object?brazilPartnerFeatureUF(info.object):''; if (next!==hoveredBrazilPartnerState){hoveredBrazilPartnerState=next;renderBrazilPartnerMap();} }, onClick:info => { const uf=info?.object?brazilPartnerFeatureUF(info.object):''; if(uf) openBrazilPartnerModal(uf); } }); brazilPartnerDeck.setProps({layers:[layer],getTooltip:info => { if(!info?.object || !$('#brazilPartnerModal')?.hidden) return null; const uf=brazilPartnerFeatureUF(info.object), partners=supervisorBrazilPartners.filter(item=>item.state===uf); return {html:`<div class="brazil-map-tooltip"><b>${escapeHtml(BRAZIL_STATES[uf])} · ${uf}</b>${partners.map(item=>`<span>● ${escapeHtml(item.name)}</span>`).join('')}</div>`,style:{backgroundColor:'transparent',padding:'0'}}; }}); }
+  async function loadSupervisorBrazilPartners() { const loading=$('#brazilPartnerLoading'), errorBox=$('#brazilPartnerError'), container=$('#brazilPartnerMap'); if(!container)return; if(loading){loading.hidden=false;loading.textContent='Carregando mapa...';} if(errorBox)errorBox.hidden=true; try { const [result,geojson] = await Promise.all([window.LungoSupervisorApi.getBrazilPartners(supervisorAccessToken), brazilPartnerGeojson ? Promise.resolve(brazilPartnerGeojson) : fetch('https://cdn.jsdelivr.net/gh/henriquemalvar/br-geojson@main/dist/estados.geojson').then(response=>{if(!response.ok)throw new Error('Mapa indisponível.');return response.json();})]); supervisorBrazilPartners=result.partners||[]; brazilPartnerGeojson=geojson; if(!brazilPartnerDeck) brazilPartnerDeck=new deck.DeckGL({container,views:new deck.MapView({repeat:false}),initialViewState:{longitude:-52.5,latitude:-15.2,zoom:3,pitch:32,bearing:0},controller:true,parameters:{clearColor:[11,16,14,255],depthTest:true}}); renderBrazilPartnerMap(); if(loading)loading.hidden=true; setTimeout(()=>brazilPartnerDeck?.redraw(true),50); } catch(error){if(loading)loading.hidden=true;if(errorBox){errorBox.hidden=false;errorBox.textContent=error.message||'Não foi possível carregar o mapa.';}} }
+
   function setSupervisorView(name) {
     restoreSupervisorSharedView();
-    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
+    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", "brazil-partners": "Parceiros Brasil", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
+    syncSupervisorNavClusters();
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
     if (name === "customers") {
       const node = el.views.clients;
@@ -2237,6 +2253,13 @@
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
     if (name === 'rh') loadRecruitment(false);
+    if (name === 'brazil-partners') { const intro = $('#brazilPartnerIntro'); if (intro) intro.hidden = false; loadSupervisorBrazilPartners(); }
+  }
+
+  function syncSupervisorNavClusters() {
+    $$(".supervisor-nav-cluster").forEach((cluster) => {
+      cluster.classList.toggle("has-active", Boolean(cluster.querySelector(".supervisor-hover-submenu .supervisor-nav-item.active")));
+    });
   }
 
   function openSupervisorModal(title, subtitle, fields) {
@@ -5151,11 +5174,24 @@
     if ($("#adminMobileMoreSheet")) $("#adminMobileMoreSheet").hidden = true;
   }
 
+  function resetAdminPartnerForm() {
+    const form = $('#adminPartnerForm'); if (!form) return; form.reset(); $('#adminPartnerId').value = ''; $('#adminPartnerOrder').value = '0'; $('#adminPartnerActive').value = 'true'; $('#adminPartnerFormTitle').textContent = 'Cadastrar parceiro'; $('#adminPartnerStatus').textContent = 'Preencha os dados do parceiro.';
+  }
+  function renderAdminPartners() {
+    const list = $('#adminPartnerList'); if (!list) return; const term = stripAccents($('#adminPartnerSearch')?.value || '').toLowerCase();
+    const items = adminBrazilPartners.filter(item => !term || stripAccents([item.name,item.state,item.contact_name,...(item.products || [])].join(' ')).toLowerCase().includes(term));
+    $('#adminPartnerCount').textContent = `${adminBrazilPartners.length} parceiros cadastrados · ${adminBrazilPartners.filter(item => item.active).length} ativos`;
+    list.innerHTML = items.map(item => `<article class="partner-admin-row"><div><span>${escapeHtml(item.state)} · ${escapeHtml(BRAZIL_STATES[item.state] || '')}</span><h3>${escapeHtml(item.name)}</h3><p>${item.contact_name ? `Responsável: ${escapeHtml(item.contact_name)} · ` : ''}${escapeHtml(item.whatsapp)} · ${(item.products || []).length} produto(s)</p></div><div><span class="admin-master-status ${item.active ? 'active' : 'inactive'}">${item.active ? 'Ativo' : 'Oculto'}</span><button class="tiny-btn" type="button" data-admin-partner-edit="${item.id}">Editar</button><button class="tiny-btn danger" type="button" data-admin-partner-delete="${item.id}">Excluir</button></div></article>`).join('') || '<div class="empty-state">Nenhum parceiro encontrado.</div>';
+  }
+  async function loadAdminBrazilPartners() { const status = $('#adminPartnerStatus'); try { const result = await window.LungoAdminApi.getBrazilPartners(adminMasterKey); adminBrazilPartners = result.partners || []; renderAdminPartners(); if (status) status.textContent = 'Rede atualizada.'; } catch (error) { if (status) { status.textContent = error.message; status.classList.add('error'); } } }
+  async function saveAdminPartner(event) { event.preventDefault(); const id = $('#adminPartnerId').value; const payload = { name: $('#adminPartnerName').value.trim(), state: $('#adminPartnerState').value, contactName: $('#adminPartnerContact').value.trim(), whatsapp: $('#adminPartnerWhatsapp').value, products: $('#adminPartnerProducts').value.split(/\n|,/).map(v=>v.trim()).filter(Boolean), notes: $('#adminPartnerNotes').value.trim(), active: $('#adminPartnerActive').value === 'true', sortOrder: Number($('#adminPartnerOrder').value || 0) }; const status = $('#adminPartnerStatus'); status.textContent = 'Salvando...'; try { if (id) await window.LungoAdminApi.updateBrazilPartner(id, payload, adminMasterKey); else await window.LungoAdminApi.createBrazilPartner(payload, adminMasterKey); resetAdminPartnerForm(); await loadAdminBrazilPartners(); toast(id ? 'Parceiro atualizado.' : 'Parceiro cadastrado.'); } catch (error) { status.textContent = error.message; status.classList.add('error'); } }
+  function editAdminPartner(id) { const item = adminBrazilPartners.find(p => p.id === id); if (!item) return; $('#adminPartnerId').value=item.id; $('#adminPartnerName').value=item.name; $('#adminPartnerState').value=item.state; $('#adminPartnerContact').value=item.contact_name || ''; $('#adminPartnerWhatsapp').value=item.whatsapp; $('#adminPartnerProducts').value=(item.products || []).join('\n'); $('#adminPartnerNotes').value=item.notes || ''; $('#adminPartnerActive').value=String(item.active); $('#adminPartnerOrder').value=String(item.sort_order || 0); $('#adminPartnerFormTitle').textContent='Atualizar parceiro'; $('#adminPartnerForm').scrollIntoView({behavior:'smooth',block:'start'}); }
+
   function setAdminMasterView(view, options = {}) {
     ensureAdminMobileHeader();
     if (window.matchMedia("(max-width: 600px)").matches && options.remember !== false && view !== adminMasterCurrentView) adminMasterViewHistory.push(adminMasterCurrentView);
     adminMasterCurrentView = view;
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", settings: "Configurações" };
+    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", "brazil-partners": "Parceiros Brasil", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
@@ -5165,6 +5201,7 @@
     if (view === 'trainings') loadAdminTrainings();
     if (view === 'campaigns') loadAdminCampaignMedia();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
+    if (view === 'brazil-partners') loadAdminBrazilPartners();
   }
 
   async function renderAdminMasterSession() {
@@ -5389,6 +5426,12 @@
     $('#adminTrainingList')?.parentElement?.addEventListener('click', (event) => { if (event.target.closest('#adminTrainingNew')) { resetAdminTrainingForm(); $('#adminTrainingForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('#adminTrainingTitle')?.focus(), 250); } });
     $('#adminTrainingRefresh')?.addEventListener('click', loadAdminTrainings);
     $('#adminTrainingList')?.addEventListener('click', adminTrainingAction);
+    if ($('#adminPartnerState')) $('#adminPartnerState').innerHTML = '<option value="">Selecione</option>' + Object.entries(BRAZIL_STATES).map(([uf,name]) => `<option value="${uf}">${uf} · ${name}</option>`).join('');
+    $('#adminPartnerForm')?.addEventListener('submit', saveAdminPartner);
+    $('#adminPartnerCancel')?.addEventListener('click', resetAdminPartnerForm);
+    $('#adminPartnerRefresh')?.addEventListener('click', loadAdminBrazilPartners);
+    $('#adminPartnerSearch')?.addEventListener('input', renderAdminPartners);
+    $('#adminPartnerList')?.addEventListener('click', async (event) => { const edit = event.target.closest('[data-admin-partner-edit]'); if (edit) return editAdminPartner(edit.dataset.adminPartnerEdit); const remove = event.target.closest('[data-admin-partner-delete]'); if (!remove) return; const item = adminBrazilPartners.find(p => p.id === remove.dataset.adminPartnerDelete); if (!item || !await popupConfirm(`Excluir ${item.name} da rede de parceiros?`, 'Excluir parceiro', 'Excluir')) return; try { await window.LungoAdminApi.deleteBrazilPartner(item.id, adminMasterKey); await loadAdminBrazilPartners(); toast('Parceiro excluído.'); } catch (error) { toast(error.message); } });
     $('#adminBannerCampaignFile')?.addEventListener('change', async (event) => { try { pendingCampaignImages.banner = await campaignImage(event.target.files?.[0], 'banner'); $('#adminBannerCampaignPreview').src = pendingCampaignImages.banner; $('#adminBannerCampaignPreview').hidden = false; } catch (error) { toast(error.message); } });
     $('#adminPopupCampaignFile')?.addEventListener('change', async (event) => { try { pendingCampaignImages.popup = await campaignImage(event.target.files?.[0], 'popup'); $('#adminPopupCampaignPreview').src = pendingCampaignImages.popup; $('#adminPopupCampaignPreview').hidden = false; } catch (error) { toast(error.message); } });
     $('#adminBannerCampaignForm')?.addEventListener('submit', (event) => saveAdminCampaignMedia(event, 'banner'));
@@ -5704,6 +5747,8 @@
     });
     [el.supervisorModalCloseBtn, el.supervisorModalFooterCloseBtn].forEach((button) => button?.addEventListener("click", () => el.supervisorDetailModal?.close()));
     el.supervisorScreen?.addEventListener("click", async (event) => {
+      if (event.target.closest('[data-close-brazil-partner-intro]')) { const intro = $('#brazilPartnerIntro'); if (intro) intro.hidden = true; return; }
+      if (event.target.closest('[data-close-brazil-partner-modal]') || event.target.id === 'brazilPartnerModal') { closeBrazilPartnerModal(); return; }
       const dealButton = event.target.closest("[data-supervisor-deal]");
       if (dealButton) {
         const deal = SUPERVISOR_DEALS.find((item) => item.id === dealButton.dataset.supervisorDeal);
@@ -5772,6 +5817,7 @@
         if (action === "archive") toast(`${customer.client} foi arquivado visualmente.`);
       }
     });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#brazilPartnerModal')?.hidden) closeBrazilPartnerModal(); });
     el.supervisorScreen?.addEventListener("change", (event) => {
       const checkbox = event.target.closest("[data-supervisor-select-client]");
       if (!checkbox) return;
