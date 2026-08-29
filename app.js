@@ -1856,6 +1856,7 @@
 
   function setSupervisorOperation(name) {
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorOperation === name));
+    syncSupervisorNavClusters();
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
     if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
@@ -2228,6 +2229,7 @@
     restoreSupervisorSharedView();
     const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", "brazil-partners": "Parceiros Brasil", reports: "Relatórios", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
+    syncSupervisorNavClusters();
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
     if (name === "customers") {
       const node = el.views.clients;
@@ -2252,6 +2254,12 @@
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
     if (name === 'rh') loadRecruitment(false);
     if (name === 'brazil-partners') loadSupervisorBrazilPartners();
+  }
+
+  function syncSupervisorNavClusters() {
+    $$(".supervisor-nav-cluster").forEach((cluster) => {
+      cluster.classList.toggle("has-active", Boolean(cluster.querySelector(".supervisor-hover-submenu .supervisor-nav-item.active")));
+    });
   }
 
   function openSupervisorModal(title, subtitle, fields) {
