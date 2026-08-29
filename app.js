@@ -2253,7 +2253,7 @@
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
     if (name === 'rh') loadRecruitment(false);
-    if (name === 'brazil-partners') loadSupervisorBrazilPartners();
+    if (name === 'brazil-partners') { const intro = $('#brazilPartnerIntro'); if (intro) intro.hidden = false; loadSupervisorBrazilPartners(); }
   }
 
   function syncSupervisorNavClusters() {
@@ -5747,6 +5747,7 @@
     });
     [el.supervisorModalCloseBtn, el.supervisorModalFooterCloseBtn].forEach((button) => button?.addEventListener("click", () => el.supervisorDetailModal?.close()));
     el.supervisorScreen?.addEventListener("click", async (event) => {
+      if (event.target.closest('[data-close-brazil-partner-intro]')) { const intro = $('#brazilPartnerIntro'); if (intro) intro.hidden = true; return; }
       if (event.target.closest('[data-close-brazil-partner-modal]') || event.target.id === 'brazilPartnerModal') { closeBrazilPartnerModal(); return; }
       const dealButton = event.target.closest("[data-supervisor-deal]");
       if (dealButton) {

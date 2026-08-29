@@ -5135,3 +5135,39 @@ body.supervisor-mode .supervisor-deal > b {
 /* Parceiros Brasil — mapa geográfico conforme modelo homologado */
 #supervisor-view-brazil-partners.active{position:relative;height:calc(100vh - 118px);min-height:440px;overflow:hidden;margin:-20px}.brazil-partners-stage{position:absolute;inset:0;overflow:hidden;background:#0b100e}.brazil-partner-map{position:absolute;inset:0;display:block;max-width:none;margin:0;padding:0;background:#0b100e}.brazil-partner-map canvas{outline:none}.brazil-partners-overlay{position:absolute;z-index:4;top:18px;left:20px;width:min(560px,calc(100% - 40px));padding:14px 18px;border:1px solid rgba(130,215,177,.32);border-radius:5px;background:rgba(10,20,16,.88);box-shadow:0 12px 34px rgba(0,0,0,.28);color:#fff;pointer-events:none;backdrop-filter:blur(8px)}.brazil-partners-overlay>span{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#61dfa9}.brazil-partners-overlay h2{margin:4px 0 3px;font-size:20px;line-height:1.15}.brazil-partners-overlay p{margin:0;color:#b9c9c1;font-size:11px}.brazil-partner-loading,.brazil-partner-map-error{position:absolute;z-index:6;inset:0;display:grid;place-items:center;background:#0b100e;color:#dbe5df;font-size:13px}.brazil-partner-loading[hidden],.brazil-partner-map-error[hidden]{display:none}.brazil-map-tooltip{display:grid;gap:5px;min-width:180px;max-width:250px;padding:9px 11px;border:1px solid #33423b;border-radius:3px;background:#101613;color:#f2f6f4;box-shadow:0 10px 28px rgba(0,0,0,.34)}.brazil-map-tooltip b{padding-bottom:5px;border-bottom:1px solid #26312c;color:#a7b2ad;font-size:9px}.brazil-map-tooltip span{font-size:11px;font-weight:700;color:#f2f6f4}.brazil-partner-modal-backdrop{position:fixed;z-index:10020;inset:0;align-items:center;justify-content:center;padding:14px;background:rgba(0,0,0,.65)}.brazil-partner-modal-backdrop:not([hidden]){display:flex}.brazil-partner-modal{width:min(390px,100%);max-height:calc(100vh - 28px);overflow:auto;border:1px solid #ced5d1;border-radius:5px;background:#fff;box-shadow:0 18px 52px rgba(0,0,0,.42);color:#1a231f}.brazil-partner-modal>header{display:flex;justify-content:space-between;gap:12px;padding:13px 14px 11px;border-bottom:1px solid #d8dfdb}.brazil-partner-modal>header span{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#637069}.brazil-partner-modal>header h2{margin:3px 0;font-size:16px}.brazil-partner-modal>header p{margin:0;color:#637069;font-size:10px}.brazil-partner-modal>header button{width:28px;height:28px;flex:0 0 28px;border:1px solid #d2d8d5;border-radius:3px;background:#fff;color:#1b2420;font-size:17px;cursor:pointer}.brazil-partner-commission{margin:11px 14px 0;padding:8px 9px;border:1px solid #dce4df;background:#f4f7f5;color:#46524c;font-size:10px;line-height:1.35}.brazil-partner-modal-list{display:grid;gap:7px;padding:9px 14px}.brazil-partner-modal-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 10px;border:1px solid #d8dfdb;border-radius:3px}.brazil-partner-modal-list h3{margin:0;font-size:12px}.brazil-partner-modal-list p{margin:3px 0 0;color:#66726d;font-size:9px}.brazil-partner-modal-list a{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 10px;border-radius:3px;background:#0d8f60;color:#fff;text-decoration:none;font-size:10px;font-weight:800}.brazil-partner-modal>footer{padding:0 14px 11px;color:#66726d;font-size:8px}
 @media(max-width:600px){#supervisor-view-brazil-partners.active{height:calc(100dvh - 104px);min-height:360px;margin:-12px}.brazil-partners-overlay{top:10px;left:10px;width:calc(100% - 20px);padding:10px 12px}.brazil-partners-overlay h2{font-size:15px}.brazil-partners-overlay p{font-size:9px}.brazil-partner-modal-list article{grid-template-columns:1fr}.brazil-partner-modal-list a{width:100%}}
+
+/* Apresentacao discreta: o mapa ocupa toda a area e o aviso pode ser fechado. */
+.brazil-partners-overlay {
+  top: 14px;
+  right: 14px;
+  left: auto;
+  width: min(370px, calc(100% - 28px));
+  padding: 13px 42px 13px 15px;
+  pointer-events: auto;
+}
+.brazil-partners-overlay[hidden] { display: none; }
+.brazil-partners-overlay > button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(190, 229, 211, .24);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .06);
+  color: #dce9e3;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.brazil-partners-overlay > button:hover { background: rgba(255, 255, 255, .13); color: #fff; }
+.brazil-partners-overlay h2 { font-size: 15px; line-height: 1.18; }
+.brazil-partners-overlay p { font-size: 10px; line-height: 1.35; }
+
+@media(max-width:600px) {
+  .brazil-partners-overlay { top: 8px; right: 8px; left: auto; width: calc(100% - 16px); padding: 11px 38px 11px 12px; }
+  .brazil-partners-overlay h2 { font-size: 14px; }
+}
