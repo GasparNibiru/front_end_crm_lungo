@@ -4284,6 +4284,10 @@ html .supervisor-sidebar.company-sidebar-custom {
   display: block;
   width: 42px;
   height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
   object-fit: cover;
 }
 .supervisor-screen.sidebar-collapsed .supervisor-nav-cluster { width: 42px; }
