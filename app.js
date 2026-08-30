@@ -340,6 +340,7 @@
       broadcast: $("#view-broadcast"),
       instance: $("#view-instance"),
       clients: $("#view-clients"),
+      business_intelligence: $("#view-business-intelligence"),
       treinamentos: $("#view-trainings"),
       relatorios: $("#view-reports"),
       vendedores: $("#view-vendedores"),
@@ -2550,6 +2551,7 @@
     const titles = {
       crm: ["Meus Leads", "Pipeline comercial com lista, kanban, importação e exportação."],
       clients: ["Clientes", "Carteira ativa, clientes em fechamento, pós-venda e faturamento."],
+      business_intelligence: ["Prospecção de Empresas", "Encontre empresas para prospectar e gerar novas oportunidades."],
       connect: ["Conectar WhatsApp", "Conecte a instância por QR Code."],
       broadcast: ["Disparos", "Envie mensagens para bases autorizadas."],
       instance: ["Meus dados", "Consulte o status da conexão."],
@@ -2578,6 +2580,7 @@
     }
     else stopCrmRealtime();
     if (name === "clients") loadClients();
+    if (name === "business_intelligence") window.LungoBusinessIntelligence?.open(state.token);
     if (name === "relatorios") refreshBrokerReport();
     if (name === "treinamentos") loadTrainingLibrary(state.token, 'broker');
     if (name === "agenda") { renderTeamCalendar('broker'); startCalendarReminders(); }
