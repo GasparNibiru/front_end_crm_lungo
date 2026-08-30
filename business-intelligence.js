@@ -8,6 +8,19 @@
 
   const $ = (selector) => document.querySelector(selector);
   const elements = {};
+  const SEGMENTS = [
+    { label: 'Restaurantes e alimentação', prefixes: ['561'] },
+    { label: 'Comércio', prefixes: ['45', '46', '47'] },
+    { label: 'Tecnologia', prefixes: ['62', '63'] },
+    { label: 'Clínicas e saúde', prefixes: ['86'] },
+    { label: 'Advocacia', prefixes: ['6911'] },
+    { label: 'Construção', prefixes: ['41', '42', '43'] },
+    { label: 'Transporte e logística', prefixes: ['49', '50', '51', '52', '53'] },
+    { label: 'Educação', prefixes: ['85'] },
+    { label: 'Serviços financeiros', prefixes: ['64', '65', '66'] },
+    { label: 'Imobiliário', prefixes: ['68'] },
+    { label: 'Indústria', prefixes: Array.from({ length: 24 }, (_, index) => String(index + 10)) }
+  ];
 
   function sessionToken() {
     if (state.accessToken) return state.accessToken;
@@ -42,6 +55,25 @@
     return Number.isFinite(number) ? number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
   }
 
+  function digits(value) {
+    return String(value || '').replace(/\D/g, '');
+  }
+
+  function maskedCnpj(value) {
+    const number = digits(value);
+    return number.length === 14 ? `${number.slice(0, 2)}.***.***/****-${number.slice(-2)}` : 'CNPJ protegido';
+  }
+
+  function formatCnae(value) {
+    const number = digits(value);
+    return number.length === 7 ? `${number.slice(0, 4)}-${number.slice(4, 5)}/${number.slice(5)}` : number || '—';
+  }
+
+  function segmentLabel(value) {
+    const number = digits(value);
+    return SEGMENTS.find((segment) => segment.prefixes.some((prefix) => number.startsWith(prefix)))?.label || 'Outros serviços';
+  }
+
   function yesNo(value) {
     return value === true ? 'Sim' : 'Não';
   }
@@ -56,6 +88,7 @@
       q: filterValue('#biSearch'),
       state: filterValue('#biState'),
       city_name: filterValue('#biCity'),
+      segment: filterValue('#biSegment'),
       primary_cnae_code: filterValue('#biCnae'),
       opened_at_start: filterValue('#biOpenedStart'),
       opened_at_end: filterValue('#biOpenedEnd'),
@@ -116,10 +149,10 @@
       const row = document.createElement('tr');
 
       const companyCell = element('td', 'bi-company-cell');
-      companyCell.append(element('b', '', company.legal_name), element('span', '', company.trade_name || 'Sem nome fantasia'), element('small', '', company.cnpj));
+      companyCell.append(element('b', '', company.legal_name), element('span', '', company.trade_name || 'Sem nome fantasia'), element('small', '', maskedCnpj(company.cnpj)));
 
-      const segmentCell = element('td');
-      segmentCell.append(element('span', 'bi-code', company.primary_cnae_code || '—'));
+      const segmentCell = element('td', 'bi-segment-cell');
+      segmentCell.append(element('b', '', segmentLabel(company.primary_cnae_code)), element('small', '', `CNAE ${formatCnae(company.primary_cnae_code)}`));
 
       const locationCell = element('td');
       locationCell.append(element('b', '', company.city_name || '—'), element('span', '', company.state || '—'));
@@ -136,7 +169,7 @@
       details.dataset.companyCnpj = company.cnpj;
       actionCell.append(details);
 
-      row.append(companyCell, segmentCell, locationCell, element('td', '', formatDate(company.opened_at)), element('td', 'bi-money', formatMoney(company.share_capital)), statusCell, contactCell, actionCell);
+      row.append(companyCell, contactCell, segmentCell, locationCell, element('td', '', formatDate(company.opened_at)), element('td', 'bi-money', formatMoney(company.share_capital)), statusCell, actionCell);
       elements.rows.append(row);
     });
   }
@@ -242,9 +275,10 @@
     elements.drawerContent.replaceChildren(
       detail('Razão social', company.legal_name || '—'),
       detail('Nome fantasia', company.trade_name || 'Não informado'),
-      detail('CNPJ', company.cnpj || '—'),
+      detail('CNPJ', maskedCnpj(company.cnpj)),
       detail('Cidade / UF', [company.city_name, company.state].filter(Boolean).join(' / ') || '—'),
-      detail('CNAE principal', company.primary_cnae_code || '—'),
+      detail('Segmento', segmentLabel(company.primary_cnae_code)),
+      detail('CNAE principal', formatCnae(company.primary_cnae_code)),
       detail('Data de abertura', formatDate(company.opened_at)),
       detail('Porte', company.company_size || '—'),
       detail('Capital social', formatMoney(company.share_capital)),

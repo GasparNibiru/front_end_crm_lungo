@@ -40,16 +40,26 @@ test('never requests or renders protected contact values', () => {
   assert.doesNotMatch(moduleSource, /company\.email\b/);
   assert.match(moduleSource, /company\.has_phone/);
   assert.match(moduleSource, /company\.has_email/);
+  assert.match(moduleSource, /maskedCnpj\(company\.cnpj\)/);
+  assert.doesNotMatch(moduleSource, /detail\('CNPJ', company\.cnpj/);
 });
 
 test('provides all filters and safe page sizes', () => {
   [
-    'q', 'state', 'city_name', 'primary_cnae_code', 'opened_at_start', 'opened_at_end',
+    'q', 'state', 'city_name', 'segment', 'primary_cnae_code', 'opened_at_start', 'opened_at_end',
     'share_capital_min', 'share_capital_max', 'simples_opt_in', 'mei_opt_in', 'has_phone', 'has_email'
   ].forEach((filter) => assert.match(moduleSource, new RegExp(`${filter}:`), filter));
   assert.match(html, /id="biPageSize"><option>25<\/option><option>50<\/option><option>100<\/option>/);
   assert.match(moduleSource, /params\.set\('page', String\(page\)\)/);
   assert.match(moduleSource, /params\.set\('limit', String\(state\.limit\)\)/);
+});
+
+test('shows readable segments and prioritizes protected contacts in the table', () => {
+  assert.match(html, /<th>Empresa<\/th><th>Telefone \/ E-mail<\/th><th>Segmento<\/th>/);
+  assert.match(html, /id="biSegment"/);
+  assert.match(moduleSource, /Restaurantes e alimentação/);
+  assert.match(moduleSource, /Clínicas e saúde/);
+  assert.match(moduleSource, /Advocacia/);
 });
 
 test('contains no duplicate HTML ids', () => {

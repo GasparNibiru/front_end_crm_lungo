@@ -84,6 +84,9 @@ body {
 .bi-company-cell b { max-width: 330px; overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
 .bi-company-cell span { margin-top: 2px; }
 .bi-company-cell small { margin-top: 3px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+.bi-segment-cell { min-width: 175px; }
+.bi-segment-cell b { display: block; color: var(--text); font-size: 11px; }
+.bi-segment-cell small { display: block; margin-top: 4px; color: var(--muted-2); font-size: 9px; letter-spacing: .03em; }
 .bi-code { display: inline-flex !important; width: fit-content; padding: 3px 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text) !important; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .bi-money { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bi-badges { min-width: 125px; }
