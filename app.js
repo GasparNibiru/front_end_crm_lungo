@@ -1859,11 +1859,12 @@
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorOperation === name));
     syncSupervisorNavClusters();
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
-    if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
+    if (["instance", "connect", "crm", "broadcast", "business_intelligence", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
     if (name === "crm") { loadCrm(true); startCrmRealtime(); }
     else stopCrmRealtime();
-    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    if (name === "business_intelligence") window.LungoBusinessIntelligence?.open(supervisorAccessToken);
+    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", business_intelligence: "Prospecção de Empresas", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
   }
 

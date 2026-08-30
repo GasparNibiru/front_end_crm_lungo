@@ -91,6 +91,15 @@
     }
   }
 
+  function openFilters() {
+    if (!elements.filtersModal?.open) elements.filtersModal?.showModal();
+    window.setTimeout(() => elements.search?.focus(), 0);
+  }
+
+  function closeFilters() {
+    if (elements.filtersModal?.open) elements.filtersModal.close();
+  }
+
   function contactIndicator(label, available) {
     const item = element('span', `bi-contact-indicator ${available ? 'available' : ''}`);
     item.append(element('i', '', available ? '✓' : '–'), document.createTextNode(`${label} ${available ? 'disponível' : 'indisponível'}`));
@@ -261,20 +270,23 @@
     elements.filters.reset();
     state.limit = Number(elements.pageSize.value || 25);
     closeDrawer();
-    load(1);
   }
 
   function initialize() {
     if (state.initialized) return;
     Object.assign(elements, {
       filters: $('#biFilters'), search: $('#biSearch'), searchButton: $('#biSearchButton'), clearButton: $('#biClearFilters'),
+      filtersModal: $('#biFiltersModal'), openFilters: $('#biOpenFilters'), closeFilters: $('#biCloseFilters'),
       moreButton: $('#biMoreFilters'), advanced: $('#biAdvancedFilters'), total: $('#biResultsTotal'), status: $('#biStatus'),
       pageSize: $('#biPageSize'), tableWrap: $('#biTableWrap'), rows: $('#biRows'), pagination: $('#biPagination'),
       drawer: $('#biDrawer'), drawerTitle: $('#biDrawerTitle'), drawerContent: $('#biDrawerContent'), closeDrawer: $('#biDrawerClose'), backdrop: $('#biDrawerBackdrop')
     });
     if (!elements.filters) return;
     state.initialized = true;
-    elements.filters.addEventListener('submit', (event) => { event.preventDefault(); load(1); });
+    elements.filters.addEventListener('submit', (event) => { event.preventDefault(); closeFilters(); load(1); });
+    elements.openFilters.addEventListener('click', openFilters);
+    elements.closeFilters.addEventListener('click', closeFilters);
+    elements.filtersModal.addEventListener('click', (event) => { if (event.target === elements.filtersModal) closeFilters(); });
     elements.moreButton.addEventListener('click', () => {
       const expanded = elements.moreButton.getAttribute('aria-expanded') === 'true';
       elements.moreButton.setAttribute('aria-expanded', String(!expanded));

@@ -46,21 +46,28 @@ body {
 /* Prospecção de Empresas */
 .business-intelligence-view { position: relative; }
 .business-intelligence-view.active { display: block; }
-.bi-layout { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+.bi-layout { height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); }
 .bi-filters, .bi-results { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.bi-filters { padding: 12px; display: grid; gap: 10px; }
-.bi-filter-primary { display: grid; grid-template-columns: minmax(240px, 2fr) 90px minmax(150px, 1fr) 145px auto; gap: 8px; align-items: end; }
+.bi-filters-modal { width: min(920px, calc(100vw - 28px)); max-height: calc(100vh - 28px); padding: 0; overflow: visible; border: 1px solid var(--border-strong); border-radius: var(--radius); background: transparent; color: var(--text); box-shadow: var(--shadow); }
+.bi-filters-modal::backdrop { background: rgba(3, 10, 16, .68); backdrop-filter: blur(3px); }
+.bi-filters { max-height: calc(100vh - 30px); padding: 16px; display: grid; gap: 14px; overflow: auto; }
+.bi-filters-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.bi-filters-header span { color: var(--primary-2); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.bi-filters-header h2 { margin: 3px 0 2px; font-size: 18px; }
+.bi-filters-header p { margin: 0; color: var(--muted); font-size: 11px; }
+.bi-filter-primary { display: grid; grid-template-columns: minmax(240px, 2fr) 90px minmax(150px, 1fr) 145px; gap: 8px; align-items: end; }
 .bi-filter-advanced { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .bi-filter-primary label, .bi-filter-advanced label, .bi-results-header label { display: grid; gap: 5px; min-width: 0; }
 .bi-filter-primary label > span, .bi-filter-advanced label > span, .bi-results-header label > span { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .bi-filter-primary input, .bi-filter-primary select, .bi-filter-advanced input, .bi-filter-advanced select { width: 100%; }
-.bi-filter-actions { display: flex; align-items: center; gap: 7px; }
+.bi-filter-actions { display: flex; align-items: center; gap: 7px; padding-top: 12px; border-top: 1px solid var(--border); }
 .bi-results { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
 .bi-results-header { min-height: 52px; padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .bi-results-header > div { display: grid; gap: 2px; }
 .bi-results-header b { font-size: 14px; }
 .bi-results-header div span { color: var(--muted); font-size: 11px; }
 .bi-results-header label { grid-template-columns: auto 70px; align-items: center; }
+.bi-results-actions { display: flex; align-items: center; gap: 10px; }
 .bi-status { min-height: 180px; display: grid; place-items: center; padding: 28px; color: var(--muted); text-align: center; }
 .bi-status.loading::before { content: ''; width: 24px; height: 24px; margin-bottom: -55px; border: 2px solid var(--border-strong); border-top-color: var(--primary); border-radius: 50%; animation: bi-spin .8s linear infinite; }
 .bi-status.error { color: #ffb7bd; }
@@ -107,15 +114,16 @@ body {
 @media (max-width: 1100px) {
   .bi-filter-primary { grid-template-columns: 2fr 90px 1fr 135px; }
   .bi-filter-primary .bi-search-field { grid-column: span 2; }
-  .bi-filter-primary > .btn { grid-column: -2 / -1; }
 }
 
 @media (max-width: 700px) {
   .bi-filter-primary, .bi-filter-advanced { grid-template-columns: 1fr 1fr; }
   .bi-filter-primary .bi-search-field { grid-column: 1 / -1; }
-  .bi-filter-primary > .btn { grid-column: 1 / -1; }
   .bi-filter-actions { flex-wrap: wrap; }
+  .bi-filter-actions .footer-spacer { display: none; }
+  .bi-filter-actions .btn.primary { width: 100%; }
   .bi-results-header { align-items: flex-start; }
+  .bi-results-actions { align-items: stretch; flex-direction: column; }
   .bi-drawer-content { grid-template-columns: 1fr; }
   .bi-detail-item:first-child, .bi-detail-item:nth-child(2) { grid-column: auto; }
 }

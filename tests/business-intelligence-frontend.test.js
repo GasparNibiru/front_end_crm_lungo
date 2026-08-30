@@ -12,10 +12,19 @@ const moduleSource = fs.readFileSync(path.join(root, 'business-intelligence.js')
 
 test('registers the prospecting navigation, view and module', () => {
   assert.match(html, /data-view="business_intelligence"/);
+  assert.match(html, /data-supervisor-operation="business_intelligence"/);
   assert.match(html, /id="view-business-intelligence"/);
   assert.match(html, /src="business-intelligence\.js/);
   assert.match(app, /business_intelligence: \$\("#view-business-intelligence"\)/);
   assert.match(app, /LungoBusinessIntelligence\?\.open\(state\.token\)/);
+  assert.match(app, /LungoBusinessIntelligence\?\.open\(supervisorAccessToken\)/);
+});
+
+test('keeps filters in a modal and reserves the main area for results', () => {
+  assert.match(html, /<dialog id="biFiltersModal"/);
+  assert.match(html, /id="biOpenFilters"/);
+  assert.match(moduleSource, /elements\.filtersModal\?\.showModal\(\)/);
+  assert.match(moduleSource, /elements\.filtersModal\.close\(\)/);
 });
 
 test('uses the existing token header without cookies or credentials', () => {
