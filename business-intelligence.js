@@ -105,9 +105,7 @@
   function currentFilters() {
     const params = new URLSearchParams();
     const filters = {
-      q: filterValue('#biSearch'),
       state: filterValue('#biState'),
-      city_name: filterValue('#biCity'),
       company_type: filterValue('#biCompanyType'),
       segment: filterValue('#biSegment'),
       opened_year: filterValue('#biOpenedYear'),
@@ -143,16 +141,16 @@
 
   function openFilters() {
     if (!elements.filtersModal?.open) elements.filtersModal?.showModal();
-    window.setTimeout(() => elements.search?.focus(), 0);
+    window.setTimeout(() => $('#biState')?.focus(), 0);
   }
 
   function closeFilters() {
     if (elements.filtersModal?.open) elements.filtersModal.close();
   }
 
-  function contactIndicator(label, available) {
-    const item = element('span', `bi-contact-indicator ${available ? 'available' : ''}`);
-    item.append(element('i', '', available ? '✓' : '–'), document.createTextNode(`${label} ${available ? 'disponível' : 'indisponível'}`));
+  function contactValue(label, value) {
+    const item = element('span', 'bi-contact-value');
+    item.append(element('small', '', label), element('b', '', String(value || '').trim() || 'Não informado'));
     return item;
   }
 
@@ -178,7 +176,8 @@
       statusCell.append(badge('Simples', company.simples_opt_in), badge('MEI', company.mei_opt_in));
 
       const contactCell = element('td', 'bi-contact-list');
-      contactCell.append(contactIndicator('Telefone', company.has_phone), contactIndicator('E-mail', company.has_email));
+      const phones = [company.phone_1, company.phone_2].filter(Boolean).join(' / ');
+      contactCell.append(contactValue('Telefone', phones), contactValue('E-mail', company.email));
 
       const actionCell = document.createElement('td');
       const details = element('button', 'btn tiny bi-details-button', 'Ver detalhes');
@@ -293,6 +292,8 @@
       detail('Razão social', repairText(company.legal_name) || '—'),
       detail('Nome fantasia', repairText(company.trade_name) || 'Não informado'),
       detail('CNPJ', formatCnpj(company.cnpj)),
+      detail('Telefone', [company.phone_1, company.phone_2].filter(Boolean).join(' / ') || 'Não informado'),
+      detail('E-mail', company.email || 'Não informado'),
       detail('Cidade / UF', [displayCity(company.city_name), company.state].filter(Boolean).join(' / ') || '—'),
       detail('Segmento', segmentLabel(company.primary_cnae_code)),
       detail('CNAE principal', formatCnae(company.primary_cnae_code)),
@@ -326,7 +327,7 @@
   function initialize() {
     if (state.initialized) return;
     Object.assign(elements, {
-      filters: $('#biFilters'), search: $('#biSearch'), searchButton: $('#biSearchButton'), clearButton: $('#biClearFilters'),
+      filters: $('#biFilters'), searchButton: $('#biSearchButton'), clearButton: $('#biClearFilters'),
       filtersModal: $('#biFiltersModal'), openFilters: $('#biOpenFilters'), closeFilters: $('#biCloseFilters'),
       openedYear: $('#biOpenedYear'), total: $('#biResultsTotal'), status: $('#biStatus'),
       pageSize: $('#biPageSize'), tableWrap: $('#biTableWrap'), rows: $('#biRows'), pagination: $('#biPagination'),

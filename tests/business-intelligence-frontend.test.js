@@ -36,19 +36,21 @@ test('uses the existing token header without cookies or credentials', () => {
   assert.doesNotMatch(moduleSource, /SUPABASE|sb_secret_|service_role/i);
 });
 
-test('never requests or renders protected contact values', () => {
-  assert.doesNotMatch(moduleSource, /phone_1|phone_2/);
-  assert.doesNotMatch(moduleSource, /company\.email\b/);
-  assert.match(moduleSource, /company\.has_phone/);
-  assert.match(moduleSource, /company\.has_email/);
+test('renders the temporary unmasked contact values returned by the API', () => {
+  assert.match(moduleSource, /company\.phone_1/);
+  assert.match(moduleSource, /company\.phone_2/);
+  assert.match(moduleSource, /company\.email/);
+  assert.match(moduleSource, /contactValue\('Telefone'/);
+  assert.match(moduleSource, /contactValue\('E-mail'/);
   assert.match(moduleSource, /formatCnpj\(company\.cnpj\)/);
   assert.doesNotMatch(moduleSource, /maskedCnpj/);
 });
 
 test('provides all filters and safe page sizes', () => {
   [
-    'q', 'state', 'city_name', 'company_type', 'segment', 'opened_year', 'simples_opt_in', 'mei_opt_in'
+    'state', 'company_type', 'segment', 'opened_year', 'simples_opt_in', 'mei_opt_in'
   ].forEach((filter) => assert.match(moduleSource, new RegExp(`${filter}:`), filter));
+  assert.doesNotMatch(html, /id="biSearch"|id="biCity"/);
   assert.doesNotMatch(html, /id="biHasPhone"|id="biHasEmail"|id="biCapitalMin"|id="biOpenedStart"/);
   assert.match(html, /id="biOpenedYear"/);
   assert.match(html, /id="biCompanyType"/);

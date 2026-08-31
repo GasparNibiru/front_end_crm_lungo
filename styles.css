@@ -95,6 +95,9 @@ body {
 .bi-badge { display: inline-flex !important; width: fit-content; margin: 2px 4px 2px 0; padding: 2px 6px; border: 1px solid var(--border); color: var(--muted) !important; font-size: 9px !important; }
 .bi-badge.active { border-color: color-mix(in srgb, var(--ok) 55%, var(--border)); background: color-mix(in srgb, var(--ok) 13%, transparent); color: color-mix(in srgb, var(--ok) 78%, var(--text)) !important; }
 .bi-contact-list { min-width: 165px; }
+.bi-contact-value { display: grid !important; gap: 1px; margin: 4px 0; }
+.bi-contact-value small { color: var(--muted-2); font-size: 8px; letter-spacing: .05em; text-transform: uppercase; }
+.bi-contact-value b { max-width: 230px; overflow: hidden; color: var(--text); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .bi-contact-indicator { display: flex !important; align-items: center; gap: 5px; margin: 3px 0; color: var(--muted) !important; }
 .bi-contact-indicator i { width: 15px; height: 15px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-size: 9px; font-style: normal; }
 .bi-contact-indicator.available { color: color-mix(in srgb, var(--ok) 76%, var(--text)) !important; }
