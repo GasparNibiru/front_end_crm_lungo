@@ -108,16 +108,11 @@
       q: filterValue('#biSearch'),
       state: filterValue('#biState'),
       city_name: filterValue('#biCity'),
+      company_type: filterValue('#biCompanyType'),
       segment: filterValue('#biSegment'),
-      primary_cnae_code: filterValue('#biCnae'),
-      opened_at_start: filterValue('#biOpenedStart'),
-      opened_at_end: filterValue('#biOpenedEnd'),
-      share_capital_min: filterValue('#biCapitalMin'),
-      share_capital_max: filterValue('#biCapitalMax'),
+      opened_year: filterValue('#biOpenedYear'),
       simples_opt_in: filterValue('#biSimples'),
-      mei_opt_in: filterValue('#biMei'),
-      has_phone: filterValue('#biHasPhone'),
-      has_email: filterValue('#biHasEmail')
+      mei_opt_in: filterValue('#biMei')
     };
     Object.entries(filters).forEach(([key, value]) => value && params.set(key, value));
     return params;
@@ -138,6 +133,8 @@
     elements.pageSize.disabled = loading;
     elements.searchButton.textContent = loading ? 'Buscando…' : 'Buscar empresas';
     if (loading) {
+      elements.tableWrap.hidden = true;
+      elements.pagination.hidden = true;
       elements.status.hidden = false;
       elements.status.className = 'bi-status loading';
       text(elements.status, 'Consultando empresas…');
@@ -331,22 +328,18 @@
     Object.assign(elements, {
       filters: $('#biFilters'), search: $('#biSearch'), searchButton: $('#biSearchButton'), clearButton: $('#biClearFilters'),
       filtersModal: $('#biFiltersModal'), openFilters: $('#biOpenFilters'), closeFilters: $('#biCloseFilters'),
-      moreButton: $('#biMoreFilters'), advanced: $('#biAdvancedFilters'), total: $('#biResultsTotal'), status: $('#biStatus'),
+      openedYear: $('#biOpenedYear'), total: $('#biResultsTotal'), status: $('#biStatus'),
       pageSize: $('#biPageSize'), tableWrap: $('#biTableWrap'), rows: $('#biRows'), pagination: $('#biPagination'),
       drawer: $('#biDrawer'), drawerTitle: $('#biDrawerTitle'), drawerContent: $('#biDrawerContent'), closeDrawer: $('#biDrawerClose'), backdrop: $('#biDrawerBackdrop')
     });
     if (!elements.filters) return;
     state.initialized = true;
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear; year >= 1900; year -= 1) elements.openedYear.append(new Option(String(year), String(year)));
     elements.filters.addEventListener('submit', (event) => { event.preventDefault(); closeFilters(); load(1); });
     elements.openFilters.addEventListener('click', openFilters);
     elements.closeFilters.addEventListener('click', closeFilters);
     elements.filtersModal.addEventListener('click', (event) => { if (event.target === elements.filtersModal) closeFilters(); });
-    elements.moreButton.addEventListener('click', () => {
-      const expanded = elements.moreButton.getAttribute('aria-expanded') === 'true';
-      elements.moreButton.setAttribute('aria-expanded', String(!expanded));
-      elements.moreButton.textContent = expanded ? 'Mais filtros' : 'Menos filtros';
-      elements.advanced.hidden = expanded;
-    });
     elements.clearButton.addEventListener('click', clearFilters);
     elements.pageSize.addEventListener('change', () => { state.limit = Number(elements.pageSize.value); load(1, false); });
     elements.pagination.addEventListener('click', (event) => {

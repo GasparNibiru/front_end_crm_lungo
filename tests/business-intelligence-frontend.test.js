@@ -46,12 +46,19 @@ test('never requests or renders protected contact values', () => {
 
 test('provides all filters and safe page sizes', () => {
   [
-    'q', 'state', 'city_name', 'segment', 'primary_cnae_code', 'opened_at_start', 'opened_at_end',
-    'share_capital_min', 'share_capital_max', 'simples_opt_in', 'mei_opt_in', 'has_phone', 'has_email'
+    'q', 'state', 'city_name', 'company_type', 'segment', 'opened_year', 'simples_opt_in', 'mei_opt_in'
   ].forEach((filter) => assert.match(moduleSource, new RegExp(`${filter}:`), filter));
+  assert.doesNotMatch(html, /id="biHasPhone"|id="biHasEmail"|id="biCapitalMin"|id="biOpenedStart"/);
+  assert.match(html, /id="biOpenedYear"/);
+  assert.match(html, /id="biCompanyType"/);
   assert.match(html, /id="biPageSize"><option>25<\/option><option>50<\/option><option>100<\/option>/);
   assert.match(moduleSource, /params\.set\('page', String\(page\)\)/);
   assert.match(moduleSource, /params\.set\('limit', String\(state\.limit\)\)/);
+});
+
+test('shows loading only while results are being requested', () => {
+  assert.match(moduleSource, /if \(loading\) \{\s*elements\.tableWrap\.hidden = true;\s*elements\.pagination\.hidden = true;/);
+  assert.match(moduleSource, /elements\.status\.hidden = true;\s*elements\.tableWrap\.hidden = false;/);
 });
 
 test('shows readable segments and prioritizes protected contacts in the table', () => {
