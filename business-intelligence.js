@@ -59,9 +59,29 @@
     return String(value || '').replace(/\D/g, '');
   }
 
-  function rawCnpj(value) {
+  function formatCnpj(value) {
     const original = String(value ?? '').trim();
-    return original || 'CNPJ não informado';
+    const number = digits(original);
+    if (number.length !== 14) return original || 'CNPJ não informado';
+    return `${number.slice(0, 2)}.${number.slice(2, 5)}.${number.slice(5, 8)}/${number.slice(8, 12)}-${number.slice(12)}`;
+  }
+
+  function repairText(value) {
+    const original = String(value ?? '').trim();
+    if (!/[ÃÂ]/.test(original)) return original;
+    try {
+      const bytes = Uint8Array.from([...original].map((character) => character.charCodeAt(0)));
+      const repaired = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      return repaired || original;
+    } catch {
+      return original;
+    }
+  }
+
+  function displayCity(value) {
+    const original = String(value ?? '').trim();
+    const city = repairText(original);
+    return /^s.{0,3}o paulo$/i.test(original) || /^s.{0,3}o paulo$/i.test(city) ? 'São Paulo' : city;
   }
 
   function formatCnae(value) {
@@ -149,13 +169,13 @@
       const row = document.createElement('tr');
 
       const companyCell = element('td', 'bi-company-cell');
-      companyCell.append(element('b', '', company.legal_name), element('span', '', company.trade_name || 'Sem nome fantasia'), element('small', '', rawCnpj(company.cnpj)));
+      companyCell.append(element('b', '', repairText(company.legal_name)), element('span', '', repairText(company.trade_name) || 'Sem nome fantasia'), element('small', '', formatCnpj(company.cnpj)));
 
       const segmentCell = element('td', 'bi-segment-cell');
       segmentCell.append(element('b', '', segmentLabel(company.primary_cnae_code)), element('small', '', `CNAE ${formatCnae(company.primary_cnae_code)}`));
 
       const locationCell = element('td');
-      locationCell.append(element('b', '', company.city_name || '—'), element('span', '', company.state || '—'));
+      locationCell.append(element('b', '', displayCity(company.city_name) || '—'), element('span', '', company.state || '—'));
 
       const statusCell = element('td', 'bi-badges');
       statusCell.append(badge('Simples', company.simples_opt_in), badge('MEI', company.mei_opt_in));
@@ -271,12 +291,12 @@
   function openDrawer(cnpj) {
     const company = state.companies.find((item) => item.cnpj === cnpj);
     if (!company) return;
-    text(elements.drawerTitle, company.legal_name);
+    text(elements.drawerTitle, repairText(company.legal_name));
     elements.drawerContent.replaceChildren(
-      detail('Razão social', company.legal_name || '—'),
-      detail('Nome fantasia', company.trade_name || 'Não informado'),
-      detail('CNPJ', rawCnpj(company.cnpj)),
-      detail('Cidade / UF', [company.city_name, company.state].filter(Boolean).join(' / ') || '—'),
+      detail('Razão social', repairText(company.legal_name) || '—'),
+      detail('Nome fantasia', repairText(company.trade_name) || 'Não informado'),
+      detail('CNPJ', formatCnpj(company.cnpj)),
+      detail('Cidade / UF', [displayCity(company.city_name), company.state].filter(Boolean).join(' / ') || '—'),
       detail('Segmento', segmentLabel(company.primary_cnae_code)),
       detail('CNAE principal', formatCnae(company.primary_cnae_code)),
       detail('Data de abertura', formatDate(company.opened_at)),

@@ -40,7 +40,7 @@ test('never requests or renders protected contact values', () => {
   assert.doesNotMatch(moduleSource, /company\.email\b/);
   assert.match(moduleSource, /company\.has_phone/);
   assert.match(moduleSource, /company\.has_email/);
-  assert.match(moduleSource, /rawCnpj\(company\.cnpj\)/);
+  assert.match(moduleSource, /formatCnpj\(company\.cnpj\)/);
   assert.doesNotMatch(moduleSource, /maskedCnpj/);
 });
 
@@ -60,6 +60,13 @@ test('shows readable segments and prioritizes protected contacts in the table', 
   assert.match(moduleSource, /Restaurantes e alimentação/);
   assert.match(moduleSource, /Clínicas e saúde/);
   assert.match(moduleSource, /Advocacia/);
+});
+
+test('formats valid CNPJs and repairs mojibake in company locations', () => {
+  assert.match(moduleSource, /number\.length !== 14/);
+  assert.match(moduleSource, /number\.slice\(0, 2\).*number\.slice\(12\)/s);
+  assert.match(moduleSource, /new TextDecoder\('utf-8'/);
+  assert.match(moduleSource, /'São Paulo'/);
 });
 
 test('contains no duplicate HTML ids', () => {
