@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const moduleSource = fs.readFileSync(path.join(root, 'business-intelligence.js'), 'utf8');
+const styles = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 
 test('registers the prospecting navigation, view and module', () => {
   assert.match(html, /data-view="business_intelligence"/);
@@ -59,6 +60,7 @@ test('provides all filters and safe page sizes', () => {
 test('shows loading only while results are being requested', () => {
   assert.match(moduleSource, /if \(loading\) \{\s*elements\.tableWrap\.hidden = true;\s*elements\.pagination\.hidden = true;/);
   assert.match(moduleSource, /elements\.status\.hidden = true;\s*elements\.tableWrap\.hidden = false;/);
+  assert.match(styles, /\.bi-status\[hidden\].*display:\s*none/s);
 });
 
 test('shows readable segments and prioritizes protected contacts in the table', () => {

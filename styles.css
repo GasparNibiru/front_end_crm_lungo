@@ -70,6 +70,7 @@ body {
 .bi-results-header label { grid-template-columns: auto 70px; align-items: center; }
 .bi-results-actions { display: flex; align-items: center; gap: 10px; }
 .bi-status { min-height: 180px; display: grid; place-items: center; padding: 28px; color: var(--muted); text-align: center; }
+.bi-status[hidden], .bi-table-wrap[hidden], .bi-pagination[hidden] { display: none; }
 .bi-status.loading::before { content: ''; width: 24px; height: 24px; margin-bottom: -55px; border: 2px solid var(--border-strong); border-top-color: var(--primary); border-radius: 50%; animation: bi-spin .8s linear infinite; }
 .bi-status.error { color: #ffb7bd; }
 [data-theme="light"] .bi-status.error { color: #8d1f28; }
