@@ -40,8 +40,8 @@ test('never requests or renders protected contact values', () => {
   assert.doesNotMatch(moduleSource, /company\.email\b/);
   assert.match(moduleSource, /company\.has_phone/);
   assert.match(moduleSource, /company\.has_email/);
-  assert.match(moduleSource, /maskedCnpj\(company\.cnpj\)/);
-  assert.doesNotMatch(moduleSource, /detail\('CNPJ', company\.cnpj/);
+  assert.match(moduleSource, /rawCnpj\(company\.cnpj\)/);
+  assert.doesNotMatch(moduleSource, /maskedCnpj/);
 });
 
 test('provides all filters and safe page sizes', () => {

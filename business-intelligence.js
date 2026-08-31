@@ -59,9 +59,9 @@
     return String(value || '').replace(/\D/g, '');
   }
 
-  function maskedCnpj(value) {
-    const number = digits(value);
-    return number.length === 14 ? `${number.slice(0, 2)}.***.***/****-${number.slice(-2)}` : 'CNPJ protegido';
+  function rawCnpj(value) {
+    const original = String(value ?? '').trim();
+    return original || 'CNPJ não informado';
   }
 
   function formatCnae(value) {
@@ -149,7 +149,7 @@
       const row = document.createElement('tr');
 
       const companyCell = element('td', 'bi-company-cell');
-      companyCell.append(element('b', '', company.legal_name), element('span', '', company.trade_name || 'Sem nome fantasia'), element('small', '', maskedCnpj(company.cnpj)));
+      companyCell.append(element('b', '', company.legal_name), element('span', '', company.trade_name || 'Sem nome fantasia'), element('small', '', rawCnpj(company.cnpj)));
 
       const segmentCell = element('td', 'bi-segment-cell');
       segmentCell.append(element('b', '', segmentLabel(company.primary_cnae_code)), element('small', '', `CNAE ${formatCnae(company.primary_cnae_code)}`));
@@ -275,7 +275,7 @@
     elements.drawerContent.replaceChildren(
       detail('Razão social', company.legal_name || '—'),
       detail('Nome fantasia', company.trade_name || 'Não informado'),
-      detail('CNPJ', maskedCnpj(company.cnpj)),
+      detail('CNPJ', rawCnpj(company.cnpj)),
       detail('Cidade / UF', [company.city_name, company.state].filter(Boolean).join(' / ') || '—'),
       detail('Segmento', segmentLabel(company.primary_cnae_code)),
       detail('CNAE principal', formatCnae(company.primary_cnae_code)),
