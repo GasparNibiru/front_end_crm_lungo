@@ -14,7 +14,8 @@
   <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js" defer></script>
   <script src="admin-api.js?v=20260824-meta-ages-1" defer></script>
   <script src="supervisor-api.js?v=20260823-scoped-appearance-1" defer></script>
-  <script src="business-intelligence.js?v=20260910-companies-v2-1" defer></script>
+  <link rel="stylesheet" href="prospecting.css?v=20260910-core-1">
+  <script src="business-intelligence.js?v=20260910-core-1" defer></script>
   <script src="app.js?v=20260830-prospeccao-8" defer></script>
 </head>
 <body class="auth-locked">
@@ -384,41 +385,29 @@
 
 
       <section id="view-business-intelligence" class="view business-intelligence-view">
-        <div class="bi-layout">
-          <section class="bi-results" aria-live="polite">
-            <header class="bi-results-header"><div><b id="biResultsTotal">Busque empresas para começar</b><span id="biResultsHint">Empresas recentes com contato móvel.</span></div><div class="bi-results-actions"><button id="biOpenFilters" class="btn primary" type="button">Filtrar empresas</button><label><span>Por página</span><select id="biPageSize"><option>25</option><option>50</option><option>100</option></select></label></div></header>
-            <div id="biStatus" class="bi-status">Use os filtros para encontrar novas oportunidades.</div>
-            <div id="biTableWrap" class="bi-table-wrap" hidden>
-              <table class="bi-table"><thead><tr><th>Empresa</th><th>Contato</th><th>Categoria</th><th>CNAE</th><th>Abertura</th><th>Porte</th><th>Cidade / UF</th><th>Ação</th></tr></thead><tbody id="biRows"></tbody></table>
-            </div>
-            <footer id="biPagination" class="bi-pagination" hidden></footer>
-          </section>
-        </div>
-
-        <dialog id="biFiltersModal" class="bi-filters-modal" aria-labelledby="biFiltersTitle">
-          <form id="biFilters" class="bi-filters" method="dialog">
-            <header class="bi-filters-header"><div><span>Prospecção de Empresas</span><h2 id="biFiltersTitle">Filtros de pesquisa</h2><p>Combine os critérios para encontrar as empresas mais relevantes.</p></div><button id="biCloseFilters" class="btn icon" type="button" aria-label="Fechar filtros">×</button></header>
-            <div class="bi-filter-primary">
-                <label><span>UF</span><select id="biState"><option value="">Todas as UFs</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>MG</option><option>PA</option><option>PB</option><option>PE</option><option>RJ</option><option>RN</option><option>RS</option><option>SC</option><option>SP</option></select></label>
-                <label><span>Cidade</span><input id="biCity" maxlength="64" placeholder="Ex.: São Paulo"></label>
-                <label><span>Categoria</span><select id="biCategory"><option value="">Todas as categorias</option><option>Alimentício e Bebidas</option><option>Saúde e Serviços Médicos</option><option>Estética, Beleza e Bem-Estar</option><option>Construção Civil e Imobiliário</option><option>Jurídico e Contábil</option><option>Tecnologia, Software e Comunicação</option><option>Comércio Varejista</option><option>Indústria e Manufatura</option><option>Transporte e Logística</option><option>Educação e Treinamentos</option><option>Serviços Financeiros e Seguros</option><option>Serviços Operacionais e Manutenção</option><option>Serviços Empresariais e Administrativos</option><option>Turismo, Hotelaria e Eventos</option><option>Automotivo</option><option>Comércio Atacadista e Distribuição</option><option>Serviços para Animais e Pet Care</option><option>Agropecuária e Agronegócio</option><option>Outros</option></select></label>
-                <label><span>CNAE</span><input id="biCnae" inputmode="numeric" maxlength="7" placeholder="7 dígitos"></label>
-                <label><span>Ano de abertura</span><select id="biOpenedYear"><option value="">Todos os anos</option></select></label>
-                <label><span>Porte</span><select id="biCompanySize"><option value="">Todos os portes</option><option>MICROEMPRESA</option><option>EMPRESA DE PEQUENO PORTE</option><option>DEMAIS</option></select></label>
-            </div>
-            <div class="bi-filter-actions">
-              <button id="biClearFilters" class="btn" type="button">Limpar filtros</button>
-              <span class="footer-spacer"></span>
-              <button id="biSearchButton" class="btn primary" type="submit">Buscar empresas</button>
-            </div>
+        <div class="pr-page">
+          <header class="pr-header">
+            <div><span class="pr-eyebrow">NOVAS OPORTUNIDADES</span><h1>Prospecção de Empresas</h1><p>Encontre empresas e use seus tokens para desbloquear os contatos que fazem sentido para você.</p></div>
+            <div class="pr-wallet"><details><summary id="prBalance">Consultando saldo…</summary><div id="prBalanceDetails"></div></details><a class="pr-button" id="prRequestTokens" target="_blank" rel="noopener noreferrer">Solicitar tokens ↗</a></div>
+          </header>
+          <nav class="pr-tabs" aria-label="Prospecção"><button type="button" data-pr-tab="search" aria-pressed="true">Buscar empresas</button><button type="button" data-pr-tab="mine" aria-pressed="false">Minhas empresas</button></nav>
+          <form id="prFilters" class="pr-filters">
+            <label>UF<select name="state" id="prState"><option value="">Todas as UFs</option></select></label>
+            <details class="pr-multiselect"><summary id="prCategoriesSummary">Categoria · Todas</summary><div id="prCategories" class="pr-options"></div></details>
+            <div class="pr-cnaes"><label for="prCnaeInput">CNAE</label><div class="pr-inline"><input id="prCnaeInput" inputmode="numeric" maxlength="7" placeholder="7 dígitos" aria-describedby="prCnaeHint"><button type="button" id="prAddCnae" aria-label="Adicionar CNAE">+</button></div><small id="prCnaeHint">Adicione um ou mais códigos.</small><div id="prCnaeChips" class="pr-chips"></div></div>
+            <label>Ano de abertura<select name="opened_year" id="prYear"><option value="">Todos os anos</option></select></label>
+            <label>Porte<select name="company_size"><option value="">Todos os portes</option><option>MICROEMPRESA</option><option>EMPRESA DE PEQUENO PORTE</option><option>DEMAIS</option></select></label>
+            <div class="pr-filter-actions"><button type="button" id="prClear">Limpar filtros</button><button type="submit" class="pr-primary">Buscar empresas</button></div>
           </form>
-        </dialog>
-
-        <div id="biDrawerBackdrop" class="bi-drawer-backdrop" hidden></div>
-        <aside id="biDrawer" class="bi-drawer" aria-hidden="true" aria-labelledby="biDrawerTitle">
-          <header><div><span>Detalhes da empresa</span><h2 id="biDrawerTitle">Empresa</h2></div><button id="biDrawerClose" class="btn icon" type="button" aria-label="Fechar detalhes">×</button></header>
-          <div id="biDrawerContent" class="bi-drawer-content"></div>
-        </aside>
+          <div class="pr-list-header"><div><h2 id="prListTitle">Encontre sua próxima oportunidade</h2><span id="prCount"></span></div><label>Por página <select id="prLimit"><option>25</option><option>50</option><option>100</option></select></label></div>
+          <div id="prNotice" class="pr-notice" role="status" hidden></div>
+          <div id="prStatus" class="pr-status" role="status">Busque empresas para começar.</div>
+          <div id="prCards" class="pr-cards" aria-live="polite"></div>
+          <nav id="prPagination" class="pr-pagination" aria-label="Páginas das empresas" hidden></nav>
+          <aside id="prSelection" class="pr-selection" aria-label="Empresas selecionadas" hidden><div><strong id="prSelectedCount"></strong><span id="prCost"></span></div><button type="button" id="prClearSelection">Limpar seleção</button><button type="button" id="prChoose" class="pr-primary">Escolher empresas</button></aside>
+        </div>
+        <dialog id="prConfirm" class="pr-dialog" aria-labelledby="prConfirmTitle"><h2 id="prConfirmTitle">Desbloquear contatos</h2><p id="prConfirmText"></p><p>As empresas adquiridas continuarão disponíveis em Minhas empresas.</p><div class="pr-dialog-actions"><button id="prCancel" type="button">Voltar</button><button id="prConfirmBuy" class="pr-primary" type="button">Confirmar aquisição</button></div><p id="prConfirmError" role="alert"></p></dialog>
+        <dialog id="prApproach" class="pr-dialog" aria-labelledby="prApproachTitle"><h2 id="prApproachTitle">Sugestão de abordagem</h2><label for="prApproachText">Adapte a mensagem antes de copiar</label><textarea id="prApproachText" rows="10"></textarea><div class="pr-dialog-actions"><button id="prCloseApproach" type="button">Fechar</button><button id="prCopy" class="pr-primary" type="button">Copiar mensagem</button></div><p id="prCopyStatus" role="status"></p></dialog>
       </section>
 
 

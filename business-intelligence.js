@@ -1,394 +1,116 @@
 (() => {
   'use strict';
-
   const API = String(window.LUNGO_CONFIG?.API_BASE_URL || '').replace(/\/+$/, '');
-  const V1_PATH = '/api/business-intelligence/companies';
-  const V2_PATH = '/api/business-intelligence/companies-v2';
-  const configuredPath = String(window.LUNGO_CONFIG?.BUSINESS_INTELLIGENCE_API_PATH || V2_PATH);
-  const COMPANIES_PATH = configuredPath === V1_PATH ? V1_PATH : V2_PATH;
-  const USING_V2 = COMPANIES_PATH === V2_PATH;
-  const AUTH_SESSION_KEY = 'lungo-auth-session-v1';
-  const BROKER_SESSION_KEY = 'lungo-suite-access-v5';
-  const state = { companies: [], page: 1, limit: 25, total: 0, totalPages: 0, loading: false, initialized: false, loaded: false, accessToken: '', appliedFilters: null };
-
-  const $ = (selector) => document.querySelector(selector);
-  const elements = {};
-  const SEGMENTS = [
-    { label: 'Restaurantes e alimentação', prefixes: ['561'] },
-    { label: 'Comércio', prefixes: ['45', '46', '47'] },
-    { label: 'Tecnologia', prefixes: ['62', '63'] },
-    { label: 'Clínicas e saúde', prefixes: ['86'] },
-    { label: 'Advocacia', prefixes: ['6911'] },
-    { label: 'Construção', prefixes: ['41', '42', '43'] },
-    { label: 'Transporte e logística', prefixes: ['49', '50', '51', '52', '53'] },
-    { label: 'Educação', prefixes: ['85'] },
-    { label: 'Serviços financeiros', prefixes: ['64', '65', '66'] },
-    { label: 'Imobiliário', prefixes: ['68'] },
-    { label: 'Indústria', prefixes: Array.from({ length: 24 }, (_, index) => String(index + 10)) }
-  ];
-
-  function sessionToken() {
-    if (state.accessToken) return state.accessToken;
-    for (const key of [AUTH_SESSION_KEY, BROKER_SESSION_KEY]) {
-      try {
-        const token = String(JSON.parse(localStorage.getItem(key) || '{}').token || '').trim();
-        if (token) return token;
-      } catch {}
-    }
-    return '';
+  const $ = id => document.getElementById(id);
+  const categories = ['Alimentício e Bebidas','Saúde e Serviços Médicos','Estética, Beleza e Bem-Estar','Construção Civil e Imobiliário','Jurídico e Contábil','Tecnologia, Software e Comunicação','Comércio Varejista','Indústria e Manufatura','Transporte e Logística','Educação e Treinamentos','Serviços Financeiros e Seguros','Serviços Operacionais e Manutenção','Serviços Empresariais e Administrativos','Turismo, Hotelaria e Eventos','Automotivo','Comércio Atacadista e Distribuição','Serviços para Animais e Pet Care','Agropecuária e Agronegócio','Outros'];
+  const approach = 'Olá! Tudo bem?\n\nMeu nome é ___ e sou consultor(a) de benefícios da ___.\n\nEstamos entrando em contato com algumas empresas da sua região para apresentar soluções e benefícios disponíveis para CNPJ, que também podem atender o proprietário e os colaboradores da empresa.\n\nPosso te enviar algumas informações para você conhecer?';
+  const state = { token: '', tab: 'search', page: 1, pages: 0, limit: 25, rows: [], selected: new Map(), cnaes: new Set(), filters: new URLSearchParams(), wallet: null, role: '', loading: false, buying: false, generation: 0, request: 0, controller: null, pending: null };
+  let initialized = false;
+  function node(tag, className = '', value) { const n = document.createElement(tag); n.className = className; if (value !== undefined) n.textContent = String(value ?? '—'); return n; }
+  function date(value) { return value ? String(value).slice(0, 10).split('-').reverse().join('/') : '—'; }
+  function cnpj(value) { const s = String(value || ''); return /^\d{14}$/.test(s) ? s.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : s; }
+  function clean(value) { const s = String(value ?? ''); if (!/[ÃÂ]/.test(s)) return s; try { return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(s, c => c.charCodeAt(0))); } catch { return s; } }
+  function notice(message = '') { $('prNotice').textContent = message; $('prNotice').hidden = !message; }
+  async function api(path, body, signal) {
+    if (!state.token) throw new Error('Entre novamente no CRM para acessar a Prospecção.');
+    const response = await fetch(`${API}/api/prospecting/${path}`, { method: body ? 'POST' : 'GET', headers: { 'x-access-token': state.token, ...(body ? { 'Content-Type': 'application/json' } : {}) }, cache: 'no-store', ...(body ? { body: JSON.stringify(body) } : {}), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok !== true) throw Object.assign(new Error(payload.error || (response.status === 404 ? 'A Prospecção ainda não está disponível neste ambiente. Tente novamente após a atualização.' : 'Não foi possível concluir. Tente novamente.')), { code: payload.code, status: response.status });
+    return payload;
   }
-
-  function text(node, value) {
-    if (node) node.textContent = value == null || value === '' ? '—' : String(value);
+  async function loadWallet() {
+    const g = state.generation;
+    try { const r = await api('wallet'); if (g !== state.generation) return; state.wallet = r.wallet; }
+    catch { if (g !== state.generation) return; state.wallet = null; }
+    $('prBalance').textContent = state.wallet ? `${state.wallet.total_balance} tokens disponíveis` : 'Saldo indisponível';
+    $('prBalanceDetails').replaceChildren();
+    if (state.wallet) { const w = state.wallet; for (const label of [`Gratuitos: ${w.free_balance}`, `Extras: ${w.extra_balance}`, `Renovação: ${date(w.next_renewal)}`, `Franquia: ${w.cycle_allowance} tokens · dia 5`]) $('prBalanceDetails').append(node('p', '', label)); }
+    else { const b = node('button', '', 'Consultar saldo novamente'); b.onclick = loadWallet; $('prBalanceDetails').append(b); }
+    renderSelection();
   }
-
-  function element(tag, className, value) {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (value !== undefined) text(node, value);
-    return node;
+  function renderSelection() {
+    const n = state.selected.size, balance = state.wallet?.total_balance;
+    $('prSelection').hidden = !n || state.tab !== 'search';
+    $('prSelectedCount').textContent = `${n} ${n === 1 ? 'empresa selecionada' : 'empresas selecionadas'}`;
+    $('prCost').textContent = `Custo: ${n} tokens · Saldo atual: ${balance ?? 'indisponível'} · Saldo após aquisição: ${balance === undefined ? '—' : balance - n}`;
+    $('prChoose').disabled = state.buying || state.loading || balance === undefined || n > balance;
+    $('prChoose').textContent = balance !== undefined && n > balance ? 'Saldo insuficiente' : 'Escolher empresas';
   }
-
-  function formatDate(value) {
-    if (!value) return '—';
-    const [year, month, day] = String(value).slice(0, 10).split('-');
-    return year && month && day ? `${day}/${month}/${year}` : '—';
-  }
-
-  function formatMoney(value) {
-    const number = Number(value);
-    return Number.isFinite(number) ? number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
-  }
-
-  function digits(value) {
-    return String(value || '').replace(/\D/g, '');
-  }
-
-  function formatCnpj(value) {
-    const original = String(value ?? '').trim();
-    const number = digits(original);
-    if (number.length !== 14) return original || 'CNPJ não informado';
-    return `${number.slice(0, 2)}.${number.slice(2, 5)}.${number.slice(5, 8)}/${number.slice(8, 12)}-${number.slice(12)}`;
-  }
-
-  function repairText(value) {
-    const original = String(value ?? '').trim();
-    if (!/[ÃÂ]/.test(original)) return original;
-    try {
-      const bytes = Uint8Array.from([...original].map((character) => character.charCodeAt(0)));
-      const repaired = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-      return repaired || original;
-    } catch {
-      return original;
+  function detail(label, value, css = '') { const n = node('div', `pr-detail ${css}`); n.append(node('small', '', label), node('span', '', clean(value) || 'Não informado')); return n; }
+  function renderCards() {
+    $('prCards').replaceChildren();
+    for (const c of state.rows) {
+      const card = node('article', 'pr-card'), heading = node('div', 'pr-company');
+      if (state.tab === 'search') {
+        const box = node('input'); box.type = 'checkbox'; box.setAttribute('aria-label', `Selecionar ${clean(c.trade_name || c.legal_name)}`); box.disabled = c.is_acquired || !c.selectable || state.buying; box.checked = state.selected.has(c.company_id);
+        box.onchange = () => { if (box.checked && state.selected.size >= 100) { box.checked = false; notice('Selecione no máximo 100 empresas por aquisição.'); return; } if (box.checked) state.selected.set(c.company_id, c); else state.selected.delete(c.company_id); state.pending = null; renderSelection(); }; heading.append(box);
+      }
+      const names = node('div'); names.append(node('h3', '', clean(c.trade_name) || 'Sem nome fantasia'), node('p', '', clean(c.legal_name)));
+      if (c.is_acquired) { const badge = node('span', 'pr-acquired', 'Já adquirida'); badge.title = 'Esta empresa já está disponível em Minhas empresas.'; badge.tabIndex = 0; badge.setAttribute('aria-label', 'Já adquirida. Esta empresa já está disponível em Minhas empresas.'); names.append(badge); }
+      else names.append(node('small', 'pr-lock', 'Contatos protegidos · 1 token'));
+      heading.append(names);
+      const contacts = node('div', 'pr-contacts'); contacts.append(detail('Celular', c.mobile_1, 'pr-phone'), detail('CNPJ', cnpj(c.cnpj))); if (c.mobile_2) contacts.append(detail('Segundo celular', c.mobile_2)); contacts.append(detail('E-mail', c.email));
+      const meta = node('div', 'pr-meta'); meta.append(detail('Categoria', c.category), detail('CNAE', c.cnae), detail('Abertura / Porte', `${c.opened_year || '—'} · ${c.company_size || '—'}`), detail('Cidade / UF', `${c.city || '—'} / ${c.state || '—'}`)); card.append(heading, contacts, meta);
+      if (state.tab === 'mine') {
+        const footer = node('div', 'pr-card-footer'); footer.append(node('span', '', `Adquirida em ${date(c.acquired_at)}`)); const actions = node('div', 'pr-future-actions');
+        const phone = String(c.mobile_1 || '').replace(/\D/g, '');
+        if (/^\d{10,13}$/.test(phone)) { const a = node('a', 'pr-button', 'WhatsApp ↗'); a.href = `https://wa.me/${phone.length <= 11 ? '55' : ''}${phone}`; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', 'Abrir conversa no WhatsApp com o número adquirido'); actions.append(a); }
+        for (const label of ['◷ Agendamento','✉ E-mail','☎ VOIP','✎ Atendimento','➤ Meus Leads', ...(state.role === 'supervisor' ? ['♙ Equipe'] : [])]) { const b = node('button', '', label); b.disabled = true; b.title = 'Em breve'; b.setAttribute('aria-label', `${label} — Em breve`); actions.append(b); }
+        const suggestion = node('button', '', 'Sugestão de abordagem'); suggestion.onclick = () => { $('prApproachText').value = approach; $('prCopyStatus').textContent = ''; $('prApproach').showModal(); }; actions.append(suggestion); footer.append(actions); card.append(footer);
+      }
+      $('prCards').append(card);
     }
   }
-
-  function displayCity(value) {
-    const original = String(value ?? '').trim();
-    const city = repairText(original);
-    return /^s.{0,3}o paulo$/i.test(original) || /^s.{0,3}o paulo$/i.test(city) ? 'São Paulo' : city;
-  }
-
-  function formatCnae(value) {
-    const number = digits(value);
-    return number.length === 7 ? `${number.slice(0, 4)}-${number.slice(4, 5)}/${number.slice(5)}` : number || '—';
-  }
-
-  function segmentLabel(value) {
-    const number = digits(value);
-    return SEGMENTS.find((segment) => segment.prefixes.some((prefix) => number.startsWith(prefix)))?.label || 'Outros serviços';
-  }
-
-  function normalizeCompany(company) {
-    if (USING_V2) return company;
-    return {
-      cnpj: company.cnpj,
-      trade_name: company.trade_name,
-      legal_name: company.legal_name,
-      mobile_1: company.phone_1,
-      mobile_2: company.phone_2,
-      email: company.email,
-      category: segmentLabel(company.primary_cnae_code),
-      cnae: company.primary_cnae_code,
-      opened_year: String(company.opened_at || '').slice(0, 4),
-      company_size: company.company_size,
-      city: company.city_name,
-      state: company.state
-    };
-  }
-
-  function yesNo(value) {
-    return value === true ? 'Sim' : 'Não';
-  }
-
-  function filterValue(id) {
-    return String($(id)?.value || '').trim();
-  }
-
-  function currentFilters() {
-    const params = new URLSearchParams();
-    const filters = {
-      state: filterValue('#biState'),
-      city: filterValue('#biCity'),
-      category: filterValue('#biCategory'),
-      cnae: filterValue('#biCnae'),
-      opened_year: filterValue('#biOpenedYear'),
-      company_size: filterValue('#biCompanySize')
-    };
-    if (!USING_V2) {
-      filters.city_name = filters.city;
-      filters.primary_cnae_code = filters.cnae;
-      delete filters.city;
-      delete filters.category;
-      delete filters.cnae;
-      delete filters.company_size;
-    }
-    Object.entries(filters).forEach(([key, value]) => value && params.set(key, value));
-    return params;
-  }
-
-  function queryParameters(page = state.page, applyCurrentFilters = true) {
-    if (applyCurrentFilters || !state.appliedFilters) state.appliedFilters = currentFilters();
-    const params = new URLSearchParams(state.appliedFilters);
-    params.set('page', String(page));
-    params.set('limit', String(state.limit));
-    return params;
-  }
-
-  function setLoading(loading) {
-    state.loading = loading;
-    elements.searchButton.disabled = loading;
-    elements.clearButton.disabled = loading;
-    elements.pageSize.disabled = loading;
-    elements.searchButton.textContent = loading ? 'Buscando…' : 'Buscar empresas';
-    if (loading) {
-      elements.tableWrap.hidden = true;
-      elements.pagination.hidden = true;
-      elements.status.hidden = false;
-      elements.status.className = 'bi-status loading';
-      text(elements.status, 'Consultando empresas…');
-    }
-  }
-
-  function openFilters() {
-    if (!elements.filtersModal?.open) elements.filtersModal?.showModal();
-    window.setTimeout(() => $('#biState')?.focus(), 0);
-  }
-
-  function closeFilters() {
-    if (elements.filtersModal?.open) elements.filtersModal.close();
-  }
-
-  function contactValue(label, value) {
-    const item = element('span', 'bi-contact-value');
-    item.append(element('small', '', label), element('b', '', String(value || '').trim() || 'Não informado'));
-    return item;
-  }
-
-  function badge(label, active) {
-    return element('span', `bi-badge ${active ? 'active' : ''}`, `${label}: ${yesNo(active)}`);
-  }
-
-  function renderRows() {
-    elements.rows.replaceChildren();
-    state.companies.forEach((company) => {
-      const row = document.createElement('tr');
-
-      const companyCell = element('td', 'bi-company-cell');
-      companyCell.append(element('b', '', repairText(company.trade_name) || 'Sem nome fantasia'), element('span', '', repairText(company.legal_name)), element('small', '', formatCnpj(company.cnpj)));
-
-      const segmentCell = element('td', 'bi-segment-cell');
-      segmentCell.append(element('b', '', repairText(company.category) || 'Outros'));
-
-      const locationCell = element('td');
-      locationCell.append(element('b', '', displayCity(company.city) || '—'), element('span', '', company.state || '—'));
-
-      const contactCell = element('td', 'bi-contact-list');
-      contactCell.append(contactValue('Celular principal', company.mobile_1));
-      if (company.mobile_2) contactCell.append(contactValue('Segundo celular', company.mobile_2));
-      contactCell.append(contactValue('E-mail', company.email));
-
-      const actionCell = document.createElement('td');
-      const details = element('button', 'btn tiny bi-details-button', 'Ver detalhes');
-      details.type = 'button';
-      details.dataset.companyCnpj = company.cnpj;
-      actionCell.append(details);
-
-      row.append(companyCell, contactCell, segmentCell, element('td', '', formatCnae(company.cnae)), element('td', '', company.opened_year || '—'), element('td', '', repairText(company.company_size) || '—'), locationCell, actionCell);
-      elements.rows.append(row);
-    });
-  }
-
-  function paginationItems() {
-    const current = state.page;
-    const last = state.totalPages;
-    if (last <= 7) return Array.from({ length: last }, (_, index) => index + 1);
-    const pages = new Set([1, last, current - 1, current, current + 1].filter((page) => page > 0 && page <= last));
-    const sorted = [...pages].sort((a, b) => a - b);
-    const result = [];
-    sorted.forEach((page, index) => {
-      if (index && page - sorted[index - 1] > 1) result.push('…');
-      result.push(page);
-    });
-    return result;
-  }
-
-  function pageButton(label, page, options = {}) {
-    const button = element('button', `btn tiny ${options.active ? 'active' : ''}`, label);
-    button.type = 'button';
-    button.disabled = options.disabled;
-    button.dataset.biPage = String(page);
-    if (options.active) button.setAttribute('aria-current', 'page');
-    return button;
-  }
-
   function renderPagination() {
-    elements.pagination.replaceChildren();
-    if (state.totalPages <= 1) {
-      elements.pagination.hidden = true;
-      return;
-    }
-    elements.pagination.hidden = false;
-    elements.pagination.append(pageButton('Anterior', state.page - 1, { disabled: state.page === 1 }));
-    paginationItems().forEach((item) => {
-      if (item === '…') elements.pagination.append(element('span', 'bi-page-ellipsis', item));
-      else elements.pagination.append(pageButton(String(item), item, { active: item === state.page }));
-    });
-    elements.pagination.append(pageButton('Próxima', state.page + 1, { disabled: state.page === state.totalPages }));
+    const n = $('prPagination'); n.replaceChildren(); n.hidden = state.pages <= 1;
+    for (const [label, page, disabled] of [['Anterior', state.page - 1, state.page <= 1], ['Próxima', state.page + 1, state.page >= state.pages]]) { const b = node('button', '', label); b.disabled = disabled || state.buying; b.onclick = () => loadList(page); n.append(b); if (label === 'Anterior') n.append(node('span', '', `Página ${state.page} de ${state.pages}`)); }
   }
-
-  function renderResults() {
-    text(elements.total, `${state.total.toLocaleString('pt-BR')} ${state.total === 1 ? 'empresa encontrada' : 'empresas encontradas'}`);
-    if (!state.companies.length) {
-      elements.tableWrap.hidden = true;
-      elements.pagination.hidden = true;
-      elements.status.hidden = false;
-      elements.status.className = 'bi-status empty';
-      text(elements.status, 'Nenhuma empresa foi encontrada com esses filtros.');
-      return;
-    }
-    elements.status.hidden = true;
-    elements.tableWrap.hidden = false;
-    renderRows();
-    renderPagination();
-  }
-
-  async function load(page = 1, applyCurrentFilters = true) {
-    if (state.loading) return;
-    const token = sessionToken();
-    if (!token) {
-      elements.status.hidden = false;
-      elements.status.className = 'bi-status error';
-      text(elements.status, 'Sua sessão não foi encontrada. Entre novamente no CRM.');
-      return;
-    }
-    state.page = page;
-    setLoading(true);
+  async function loadList(page = 1) {
+    state.controller?.abort(); state.controller = new AbortController(); const request = ++state.request, g = state.generation;
+    state.loading = true; state.page = page; state.rows = []; $('prCards').replaceChildren(); $('prPagination').hidden = true; $('prStatus').hidden = false; $('prStatus').textContent = 'Consultando empresas…'; $('prStatus').className = 'pr-status loading'; $('prCards').setAttribute('aria-busy', 'true'); renderSelection();
+    const q = state.tab === 'search' ? new URLSearchParams(state.filters) : new URLSearchParams(); q.set('page', page); q.set('limit', state.limit);
     try {
-      const response = await fetch(`${API}${COMPANIES_PATH}?${queryParameters(page, applyCurrentFilters)}`, { headers: { 'x-access-token': token } });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.ok === false) throw new Error(payload.error || `Erro HTTP ${response.status}`);
-      state.companies = Array.isArray(payload.companies) ? payload.companies.map(normalizeCompany) : [];
-      state.total = Number(payload.pagination?.total || 0);
-      state.page = Number(payload.pagination?.page || page);
-      state.limit = Number(payload.pagination?.limit || state.limit);
-      state.totalPages = Number(payload.pagination?.totalPages || 0);
-      state.loaded = true;
-      renderResults();
-    } catch (error) {
-      state.companies = [];
-      elements.tableWrap.hidden = true;
-      elements.pagination.hidden = true;
-      elements.status.hidden = false;
-      elements.status.className = 'bi-status error';
-      text(elements.status, /token|acesso|sessão|401/i.test(error.message) ? 'Sua sessão expirou ou não possui acesso. Entre novamente no CRM.' : 'Não foi possível consultar as empresas. Tente novamente.');
-    } finally {
-      setLoading(false);
-    }
+      const r = await api(`${state.tab === 'search' ? 'companies' : 'my-companies'}?${q}`, null, state.controller.signal); if (request !== state.request || g !== state.generation) return;
+      state.rows = r.companies; state.pages = r.pagination.totalPages; state.role = r.role || state.role;
+      $('prCount').textContent = `${r.pagination.total.toLocaleString('pt-BR')} empresas`; $('prStatus').hidden = state.rows.length > 0; $('prStatus').className = 'pr-status';
+      $('prStatus').textContent = state.tab === 'mine' ? 'Você ainda não adquiriu empresas. Encontre oportunidades em Buscar empresas.' : 'Nenhuma empresa encontrada. Experimente outros filtros.';
+      if (r.ownershipUnavailable) { state.selected.clear(); notice('Não foi possível verificar suas aquisições. Os contatos estão protegidos. Tente novamente.'); }
+      renderCards(); renderPagination();
+    } catch (e) {
+      if (request !== state.request || g !== state.generation) return;
+      $('prCount').textContent = ''; $('prStatus').hidden = false; $('prStatus').className = 'pr-status error'; $('prStatus').replaceChildren(node('p', '', e.name === 'TimeoutError' ? 'A consulta demorou mais que o esperado.' : e.message)); const b = node('button', '', 'Tentar novamente'); b.onclick = () => { loadWallet(); loadList(page); }; $('prStatus').append(b);
+    } finally { if (request === state.request && g === state.generation) { state.loading = false; $('prCards').setAttribute('aria-busy', 'false'); renderSelection(); } }
   }
-
-  function detail(label, value) {
-    const item = element('div', 'bi-detail-item');
-    item.append(element('span', '', label), element('b', '', value));
-    return item;
+  function setTab(tab) { if (state.buying) return; state.tab = tab; $('prFilters').hidden = tab !== 'search'; notice(); for (const b of $('view-business-intelligence').querySelectorAll('[data-pr-tab]')) b.setAttribute('aria-pressed', String(b.dataset.prTab === tab)); $('prListTitle').textContent = tab === 'mine' ? 'Suas empresas, seus próximos contatos' : 'Encontre sua próxima oportunidade'; renderSelection(); loadList(); }
+  function renderChips() { $('prCnaeChips').replaceChildren(); for (const c of state.cnaes) { const b = node('button', '', `${c} ×`); b.type = 'button'; b.setAttribute('aria-label', `Remover CNAE ${c}`); b.onclick = () => { state.cnaes.delete(c); renderChips(); }; $('prCnaeChips').append(b); } }
+  function addCnae() { const input = $('prCnaeInput'), v = input.value.trim(); if (!v) return true; if (!/^\d{7}$/.test(v) || state.cnaes.size >= 100) { input.setCustomValidity('Informe um CNAE com 7 dígitos (máximo 100 códigos).'); input.reportValidity(); return false; } input.setCustomValidity(''); state.cnaes.add(v); input.value = ''; renderChips(); return true; }
+  function readFilters() { const q = new URLSearchParams(new FormData($('prFilters'))); for (const [k, v] of [...q]) if (!v) q.delete(k); for (const c of state.cnaes) q.append('cnae', c); state.filters = q; state.selected.clear(); state.pending = null; notice(); }
+  async function acquire() {
+    if (state.buying || !state.selected.size) return; const g = state.generation;
+    state.pending ||= { company_ids: [...state.selected.keys()], idempotency_key: crypto.randomUUID() }; state.buying = true; $('prConfirmBuy').disabled = true; $('prCancel').disabled = true; $('prConfirmBuy').textContent = 'Adquirindo…'; $('prConfirmError').textContent = '';
+    try { const r = await api('acquisitions', state.pending); if (g !== state.generation) return; state.pending = null; state.selected.clear(); $('prConfirm').close(); notice(`${r.charged} ${r.charged === 1 ? 'empresa adquirida' : 'empresas adquiridas'}. Seus contatos estão disponíveis em Minhas empresas.`); await Promise.all([loadWallet(), loadList(state.page)]); }
+    catch (e) { if (g !== state.generation) return; $('prConfirmError').textContent = e.status ? e.message : 'Não foi possível confirmar o resultado. Tente novamente: a mesma solicitação será reutilizada para evitar cobrança duplicada.'; if (e.code === 'insufficient_tokens') loadWallet(); }
+    finally { if (g === state.generation) { state.buying = false; $('prConfirmBuy').disabled = false; $('prCancel').disabled = false; $('prConfirmBuy').textContent = 'Confirmar aquisição'; renderCards(); renderPagination(); renderSelection(); } }
   }
-
-  function openDrawer(cnpj) {
-    const company = state.companies.find((item) => item.cnpj === cnpj);
-    if (!company) return;
-    text(elements.drawerTitle, repairText(company.trade_name) || repairText(company.legal_name));
-    elements.drawerContent.replaceChildren(
-      detail('Nome fantasia', repairText(company.trade_name) || 'Não informado'),
-      detail('Razão social', repairText(company.legal_name) || '—'),
-      detail('CNPJ', formatCnpj(company.cnpj)),
-      detail('Celular principal', company.mobile_1 || 'Não informado'),
-      detail('Segundo celular', company.mobile_2 || 'Não informado'),
-      detail('E-mail', company.email || 'Não informado'),
-      detail('Categoria', repairText(company.category) || 'Outros'),
-      detail('CNAE', formatCnae(company.cnae)),
-      detail('Ano de abertura', company.opened_year || '—'),
-      detail('Porte', company.company_size || '—'),
-      detail('Cidade', displayCity(company.city) || '—'),
-      detail('UF', company.state || '—')
-    );
-    elements.backdrop.hidden = false;
-    elements.drawer.classList.add('open');
-    elements.drawer.setAttribute('aria-hidden', 'false');
-    elements.closeDrawer.focus();
-  }
-
-  function closeDrawer() {
-    elements.drawer.classList.remove('open');
-    elements.drawer.setAttribute('aria-hidden', 'true');
-    elements.backdrop.hidden = true;
-  }
-
-  function clearFilters() {
-    elements.filters.reset();
-    state.limit = Number(elements.pageSize.value || 25);
-    closeFilters();
-    state.appliedFilters = null;
-    load(1);
-  }
-
+  function reset() { state.generation++; state.request++; state.controller?.abort(); state.token = ''; state.wallet = null; state.rows = []; state.selected.clear(); state.pending = null; state.buying = false; state.loading = false; state.role = ''; if (!initialized) return; $('prCards').replaceChildren(); $('prCount').textContent = ''; $('prPagination').hidden = true; $('prSelection').hidden = true; $('prBalance').textContent = 'Consultando saldo…'; $('prBalanceDetails').replaceChildren(); notice(); for (const id of ['prConfirm','prApproach']) if ($(id).open) $(id).close(); $('prApproachText').value = ''; $('prConfirmBuy').disabled = false; $('prCancel').disabled = false; $('prConfirmBuy').textContent = 'Confirmar aquisição'; }
   function initialize() {
-    if (state.initialized) return;
-    Object.assign(elements, {
-      filters: $('#biFilters'), searchButton: $('#biSearchButton'), clearButton: $('#biClearFilters'),
-      filtersModal: $('#biFiltersModal'), openFilters: $('#biOpenFilters'), closeFilters: $('#biCloseFilters'),
-      openedYear: $('#biOpenedYear'), total: $('#biResultsTotal'), status: $('#biStatus'),
-      pageSize: $('#biPageSize'), tableWrap: $('#biTableWrap'), rows: $('#biRows'), pagination: $('#biPagination'),
-      drawer: $('#biDrawer'), drawerTitle: $('#biDrawerTitle'), drawerContent: $('#biDrawerContent'), closeDrawer: $('#biDrawerClose'), backdrop: $('#biDrawerBackdrop')
-    });
-    if (!elements.filters) return;
-    state.initialized = true;
-    const currentYear = new Date().getFullYear();
-    for (let year = currentYear; year >= 2023; year -= 1) elements.openedYear.append(new Option(String(year), String(year)));
-    elements.filters.addEventListener('submit', (event) => { event.preventDefault(); closeFilters(); load(1); });
-    elements.openFilters.addEventListener('click', openFilters);
-    elements.closeFilters.addEventListener('click', closeFilters);
-    elements.filtersModal.addEventListener('click', (event) => { if (event.target === elements.filtersModal) closeFilters(); });
-    elements.clearButton.addEventListener('click', clearFilters);
-    elements.pageSize.addEventListener('change', () => { state.limit = Number(elements.pageSize.value); load(1, false); });
-    elements.pagination.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-bi-page]');
-      if (button && !button.disabled) load(Number(button.dataset.biPage), false);
-    });
-    elements.rows.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-company-cnpj]');
-      if (button) openDrawer(button.dataset.companyCnpj);
-    });
-    elements.closeDrawer.addEventListener('click', closeDrawer);
-    elements.backdrop.addEventListener('click', closeDrawer);
-    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && elements.drawer.classList.contains('open')) closeDrawer(); });
+    if (initialized || !$('view-business-intelligence')) return; initialized = true;
+    $('prRequestTokens').href = 'https://wa.me/5555992102864?text=' + encodeURIComponent('Olá! Gostaria de solicitar mais tokens para Prospecção de Empresas no Lungo CRM.');
+    for (const uf of 'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')) $('prState').append(new Option(uf, uf)); for (let y = new Date().getFullYear(); y >= 1900; y--) $('prYear').append(new Option(y, y));
+    for (const c of categories) { const label = node('label'), input = node('input'); input.type = 'checkbox'; input.name = 'category'; input.value = c; label.append(input, node('span', '', c)); $('prCategories').append(label); }
+    $('prCategories').onchange = () => { const n = $('prCategories').querySelectorAll(':checked').length; $('prCategoriesSummary').textContent = n ? `Categoria · ${n} selecionadas` : 'Categoria · Todas'; };
+    $('prAddCnae').onclick = addCnae; $('prCnaeInput').oninput = () => $('prCnaeInput').setCustomValidity(''); $('prCnaeInput').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addCnae(); } };
+    $('prFilters').onsubmit = e => { e.preventDefault(); if (state.buying || !addCnae()) return; readFilters(); loadList(); };
+    $('prClear').onclick = () => { if (state.buying) return; $('prFilters').reset(); state.cnaes.clear(); $('prCnaeInput').setCustomValidity(''); $('prCategoriesSummary').textContent = 'Categoria · Todas'; renderChips(); readFilters(); loadList(); };
+    $('prLimit').onchange = () => { if (!state.buying) { state.limit = +$('prLimit').value; loadList(); } };
+    for (const b of $('view-business-intelligence').querySelectorAll('[data-pr-tab]')) b.onclick = () => setTab(b.dataset.prTab);
+    $('prClearSelection').onclick = () => { if (state.buying) return; state.selected.clear(); state.pending = null; renderCards(); renderSelection(); };
+    $('prChoose').onclick = () => { if ($('prChoose').disabled || !state.selected.size) return; $('prConfirmText').textContent = `Você selecionou ${state.selected.size} empresas. Custo máximo: ${state.selected.size} tokens. Saldo após aquisição: ${state.wallet.total_balance - state.selected.size}. Empresas já adquiridas não serão cobradas novamente.`; $('prConfirmError').textContent = ''; $('prConfirm').showModal(); };
+    $('prCancel').onclick = () => $('prConfirm').close(); $('prConfirmBuy').onclick = acquire; $('prConfirm').oncancel = e => { if (state.buying) e.preventDefault(); };
+    $('prCloseApproach').onclick = () => { $('prApproach').close(); $('prApproachText').value = ''; };
+    $('prCopy').onclick = async () => { try { await navigator.clipboard.writeText($('prApproachText').value); $('prCopyStatus').textContent = 'Mensagem copiada.'; } catch { $('prApproachText').select(); $('prCopyStatus').textContent = 'Selecione e copie o texto manualmente.'; } };
   }
-
-  function open(accessToken) {
-    state.accessToken = String(accessToken || '').trim();
-    initialize();
-    if (!state.loaded) load(1);
-  }
-
-  window.LungoBusinessIntelligence = { open };
+  function open(token) { initialize(); if (!initialized) return; const changed = state.token !== String(token || '').trim(); if (changed) { reset(); state.token = String(token || '').trim(); $('prFilters').reset(); state.cnaes.clear(); state.filters = new URLSearchParams(); renderChips(); $('prCategoriesSummary').textContent = 'Categoria · Todas'; setTab('search'); } else loadList(state.page); loadWallet(); }
+  window.LungoBusinessIntelligence = { open, reset };
   document.addEventListener('DOMContentLoaded', initialize, { once: true });
 })();

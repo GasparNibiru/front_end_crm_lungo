@@ -2086,6 +2086,7 @@
   }
 
   function closeSupervisorArea() {
+    window.LungoBusinessIntelligence?.reset();
     stopCalendarReminders();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     clearInterval(recruitmentTimer); recruitmentTimer = null;
@@ -4541,6 +4542,7 @@
   }
 
   function logout() {
+    window.LungoBusinessIntelligence?.reset();
     stopCalendarReminders();
     stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
