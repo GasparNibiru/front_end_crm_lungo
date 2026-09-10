@@ -76,7 +76,7 @@ body {
 [data-theme="light"] .bi-status.error { color: #8d1f28; }
 @keyframes bi-spin { to { transform: rotate(360deg); } }
 .bi-table-wrap { min-height: 0; overflow: auto; }
-.bi-table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+.bi-table { width: 100%; min-width: 1080px; border-collapse: collapse; }
 .bi-table th { position: sticky; top: 0; z-index: 2; height: 34px; padding: 0 10px; background: var(--surface-3); border-bottom: 1px solid var(--border); color: var(--muted); font-size: 9.5px; letter-spacing: .05em; text-align: left; text-transform: uppercase; }
 .bi-table td { min-height: 52px; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .bi-table tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 72%, transparent); }
@@ -98,6 +98,7 @@ body {
 .bi-contact-value { display: grid !important; gap: 1px; margin: 4px 0; }
 .bi-contact-value small { color: var(--muted-2); font-size: 8px; letter-spacing: .05em; text-transform: uppercase; }
 .bi-contact-value b { max-width: 230px; overflow: hidden; color: var(--text); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.bi-contact-value:first-child b { color: var(--primary-2); font-size: 12px; font-weight: 800; }
 .bi-contact-indicator { display: flex !important; align-items: center; gap: 5px; margin: 3px 0; color: var(--muted) !important; }
 .bi-contact-indicator i { width: 15px; height: 15px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-size: 9px; font-style: normal; }
 .bi-contact-indicator.available { color: color-mix(in srgb, var(--ok) 76%, var(--text)) !important; }

@@ -2,6 +2,11 @@
   'use strict';
 
   const API = String(window.LUNGO_CONFIG?.API_BASE_URL || '').replace(/\/+$/, '');
+  const V1_PATH = '/api/business-intelligence/companies';
+  const V2_PATH = '/api/business-intelligence/companies-v2';
+  const configuredPath = String(window.LUNGO_CONFIG?.BUSINESS_INTELLIGENCE_API_PATH || V2_PATH);
+  const COMPANIES_PATH = configuredPath === V1_PATH ? V1_PATH : V2_PATH;
+  const USING_V2 = COMPANIES_PATH === V2_PATH;
   const AUTH_SESSION_KEY = 'lungo-auth-session-v1';
   const BROKER_SESSION_KEY = 'lungo-suite-access-v5';
   const state = { companies: [], page: 1, limit: 25, total: 0, totalPages: 0, loading: false, initialized: false, loaded: false, accessToken: '', appliedFilters: null };
@@ -94,6 +99,24 @@
     return SEGMENTS.find((segment) => segment.prefixes.some((prefix) => number.startsWith(prefix)))?.label || 'Outros serviços';
   }
 
+  function normalizeCompany(company) {
+    if (USING_V2) return company;
+    return {
+      cnpj: company.cnpj,
+      trade_name: company.trade_name,
+      legal_name: company.legal_name,
+      mobile_1: company.phone_1,
+      mobile_2: company.phone_2,
+      email: company.email,
+      category: segmentLabel(company.primary_cnae_code),
+      cnae: company.primary_cnae_code,
+      opened_year: String(company.opened_at || '').slice(0, 4),
+      company_size: company.company_size,
+      city: company.city_name,
+      state: company.state
+    };
+  }
+
   function yesNo(value) {
     return value === true ? 'Sim' : 'Não';
   }
@@ -106,12 +129,20 @@
     const params = new URLSearchParams();
     const filters = {
       state: filterValue('#biState'),
-      company_type: filterValue('#biCompanyType'),
-      segment: filterValue('#biSegment'),
+      city: filterValue('#biCity'),
+      category: filterValue('#biCategory'),
+      cnae: filterValue('#biCnae'),
       opened_year: filterValue('#biOpenedYear'),
-      simples_opt_in: filterValue('#biSimples'),
-      mei_opt_in: filterValue('#biMei')
+      company_size: filterValue('#biCompanySize')
     };
+    if (!USING_V2) {
+      filters.city_name = filters.city;
+      filters.primary_cnae_code = filters.cnae;
+      delete filters.city;
+      delete filters.category;
+      delete filters.cnae;
+      delete filters.company_size;
+    }
     Object.entries(filters).forEach(([key, value]) => value && params.set(key, value));
     return params;
   }
@@ -164,20 +195,18 @@
       const row = document.createElement('tr');
 
       const companyCell = element('td', 'bi-company-cell');
-      companyCell.append(element('b', '', repairText(company.legal_name)), element('span', '', repairText(company.trade_name) || 'Sem nome fantasia'), element('small', '', formatCnpj(company.cnpj)));
+      companyCell.append(element('b', '', repairText(company.trade_name) || 'Sem nome fantasia'), element('span', '', repairText(company.legal_name)), element('small', '', formatCnpj(company.cnpj)));
 
       const segmentCell = element('td', 'bi-segment-cell');
-      segmentCell.append(element('b', '', segmentLabel(company.primary_cnae_code)), element('small', '', `CNAE ${formatCnae(company.primary_cnae_code)}`));
+      segmentCell.append(element('b', '', repairText(company.category) || 'Outros'));
 
       const locationCell = element('td');
-      locationCell.append(element('b', '', displayCity(company.city_name) || '—'), element('span', '', company.state || '—'));
-
-      const statusCell = element('td', 'bi-badges');
-      statusCell.append(badge('Simples', company.simples_opt_in), badge('MEI', company.mei_opt_in));
+      locationCell.append(element('b', '', displayCity(company.city) || '—'), element('span', '', company.state || '—'));
 
       const contactCell = element('td', 'bi-contact-list');
-      const phones = [company.phone_1, company.phone_2].filter(Boolean).join(' / ');
-      contactCell.append(contactValue('Telefone', phones), contactValue('E-mail', company.email));
+      contactCell.append(contactValue('Celular principal', company.mobile_1));
+      if (company.mobile_2) contactCell.append(contactValue('Segundo celular', company.mobile_2));
+      contactCell.append(contactValue('E-mail', company.email));
 
       const actionCell = document.createElement('td');
       const details = element('button', 'btn tiny bi-details-button', 'Ver detalhes');
@@ -185,7 +214,7 @@
       details.dataset.companyCnpj = company.cnpj;
       actionCell.append(details);
 
-      row.append(companyCell, contactCell, segmentCell, locationCell, element('td', '', formatDate(company.opened_at)), element('td', 'bi-money', formatMoney(company.share_capital)), statusCell, actionCell);
+      row.append(companyCell, contactCell, segmentCell, element('td', '', formatCnae(company.cnae)), element('td', '', company.opened_year || '—'), element('td', '', repairText(company.company_size) || '—'), locationCell, actionCell);
       elements.rows.append(row);
     });
   }
@@ -207,7 +236,7 @@
   function pageButton(label, page, options = {}) {
     const button = element('button', `btn tiny ${options.active ? 'active' : ''}`, label);
     button.type = 'button';
-    button.disabled = options.disabled || state.loading;
+    button.disabled = options.disabled;
     button.dataset.biPage = String(page);
     if (options.active) button.setAttribute('aria-current', 'page');
     return button;
@@ -256,10 +285,10 @@
     state.page = page;
     setLoading(true);
     try {
-      const response = await fetch(`${API}/api/business-intelligence/companies?${queryParameters(page, applyCurrentFilters)}`, { headers: { 'x-access-token': token } });
+      const response = await fetch(`${API}${COMPANIES_PATH}?${queryParameters(page, applyCurrentFilters)}`, { headers: { 'x-access-token': token } });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.ok === false) throw new Error(payload.error || `Erro HTTP ${response.status}`);
-      state.companies = Array.isArray(payload.companies) ? payload.companies : [];
+      state.companies = Array.isArray(payload.companies) ? payload.companies.map(normalizeCompany) : [];
       state.total = Number(payload.pagination?.total || 0);
       state.page = Number(payload.pagination?.page || page);
       state.limit = Number(payload.pagination?.limit || state.limit);
@@ -287,24 +316,20 @@
   function openDrawer(cnpj) {
     const company = state.companies.find((item) => item.cnpj === cnpj);
     if (!company) return;
-    text(elements.drawerTitle, repairText(company.legal_name));
+    text(elements.drawerTitle, repairText(company.trade_name) || repairText(company.legal_name));
     elements.drawerContent.replaceChildren(
-      detail('Razão social', repairText(company.legal_name) || '—'),
       detail('Nome fantasia', repairText(company.trade_name) || 'Não informado'),
+      detail('Razão social', repairText(company.legal_name) || '—'),
       detail('CNPJ', formatCnpj(company.cnpj)),
-      detail('Telefone', [company.phone_1, company.phone_2].filter(Boolean).join(' / ') || 'Não informado'),
+      detail('Celular principal', company.mobile_1 || 'Não informado'),
+      detail('Segundo celular', company.mobile_2 || 'Não informado'),
       detail('E-mail', company.email || 'Não informado'),
-      detail('Cidade / UF', [displayCity(company.city_name), company.state].filter(Boolean).join(' / ') || '—'),
-      detail('Segmento', segmentLabel(company.primary_cnae_code)),
-      detail('CNAE principal', formatCnae(company.primary_cnae_code)),
-      detail('Data de abertura', formatDate(company.opened_at)),
+      detail('Categoria', repairText(company.category) || 'Outros'),
+      detail('CNAE', formatCnae(company.cnae)),
+      detail('Ano de abertura', company.opened_year || '—'),
       detail('Porte', company.company_size || '—'),
-      detail('Capital social', formatMoney(company.share_capital)),
-      detail('Estabelecimento', company.headquarters_or_branch || '—'),
-      detail('Simples Nacional', yesNo(company.simples_opt_in)),
-      detail('MEI', yesNo(company.mei_opt_in)),
-      detail('Telefone disponível', yesNo(company.has_phone)),
-      detail('E-mail disponível', yesNo(company.has_email))
+      detail('Cidade', displayCity(company.city) || '—'),
+      detail('UF', company.state || '—')
     );
     elements.backdrop.hidden = false;
     elements.drawer.classList.add('open');
@@ -321,7 +346,9 @@
   function clearFilters() {
     elements.filters.reset();
     state.limit = Number(elements.pageSize.value || 25);
-    closeDrawer();
+    closeFilters();
+    state.appliedFilters = null;
+    load(1);
   }
 
   function initialize() {
@@ -336,7 +363,7 @@
     if (!elements.filters) return;
     state.initialized = true;
     const currentYear = new Date().getFullYear();
-    for (let year = currentYear; year >= 1900; year -= 1) elements.openedYear.append(new Option(String(year), String(year)));
+    for (let year = currentYear; year >= 2023; year -= 1) elements.openedYear.append(new Option(String(year), String(year)));
     elements.filters.addEventListener('submit', (event) => { event.preventDefault(); closeFilters(); load(1); });
     elements.openFilters.addEventListener('click', openFilters);
     elements.closeFilters.addEventListener('click', closeFilters);

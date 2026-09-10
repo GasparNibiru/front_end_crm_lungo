@@ -14,7 +14,7 @@
   <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js" defer></script>
   <script src="admin-api.js?v=20260824-meta-ages-1" defer></script>
   <script src="supervisor-api.js?v=20260823-scoped-appearance-1" defer></script>
-  <script src="business-intelligence.js?v=20260830-prospeccao-8" defer></script>
+  <script src="business-intelligence.js?v=20260910-companies-v2-1" defer></script>
   <script src="app.js?v=20260830-prospeccao-8" defer></script>
 </head>
 <body class="auth-locked">
@@ -386,10 +386,10 @@
       <section id="view-business-intelligence" class="view business-intelligence-view">
         <div class="bi-layout">
           <section class="bi-results" aria-live="polite">
-            <header class="bi-results-header"><div><b id="biResultsTotal">Busque empresas para começar</b><span id="biResultsHint">Os contatos permanecem protegidos.</span></div><div class="bi-results-actions"><button id="biOpenFilters" class="btn primary" type="button">Filtrar empresas</button><label><span>Por página</span><select id="biPageSize"><option>25</option><option>50</option><option>100</option></select></label></div></header>
+            <header class="bi-results-header"><div><b id="biResultsTotal">Busque empresas para começar</b><span id="biResultsHint">Empresas recentes com contato móvel.</span></div><div class="bi-results-actions"><button id="biOpenFilters" class="btn primary" type="button">Filtrar empresas</button><label><span>Por página</span><select id="biPageSize"><option>25</option><option>50</option><option>100</option></select></label></div></header>
             <div id="biStatus" class="bi-status">Use os filtros para encontrar novas oportunidades.</div>
             <div id="biTableWrap" class="bi-table-wrap" hidden>
-              <table class="bi-table"><thead><tr><th>Empresa</th><th>Telefone / E-mail</th><th>Segmento</th><th>Cidade / UF</th><th>Abertura</th><th>Capital social</th><th>Simples / MEI</th><th>Ação</th></tr></thead><tbody id="biRows"></tbody></table>
+              <table class="bi-table"><thead><tr><th>Empresa</th><th>Contato</th><th>Categoria</th><th>CNAE</th><th>Abertura</th><th>Porte</th><th>Cidade / UF</th><th>Ação</th></tr></thead><tbody id="biRows"></tbody></table>
             </div>
             <footer id="biPagination" class="bi-pagination" hidden></footer>
           </section>
@@ -399,12 +399,12 @@
           <form id="biFilters" class="bi-filters" method="dialog">
             <header class="bi-filters-header"><div><span>Prospecção de Empresas</span><h2 id="biFiltersTitle">Filtros de pesquisa</h2><p>Combine os critérios para encontrar as empresas mais relevantes.</p></div><button id="biCloseFilters" class="btn icon" type="button" aria-label="Fechar filtros">×</button></header>
             <div class="bi-filter-primary">
-              <label><span>Região / UF</span><select id="biState"><option value="">Todo o Brasil</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></label>
-              <label><span>Tipo de empresa</span><select id="biCompanyType"><option value="">Matriz ou filial</option><option value="headquarters">Matriz</option><option value="branch">Filial</option></select></label>
-              <label><span>Segmento</span><select id="biSegment"><option value="">Todos os segmentos</option><option value="restaurants">Restaurantes e alimentação</option><option value="commerce">Comércio</option><option value="technology">Tecnologia</option><option value="health">Clínicas e saúde</option><option value="legal">Advocacia</option><option value="construction">Construção</option><option value="transport">Transporte e logística</option><option value="education">Educação</option><option value="finance">Serviços financeiros</option><option value="real_estate">Imobiliário</option><option value="industry">Indústria</option></select></label>
-              <label><span>Ano de abertura</span><select id="biOpenedYear"><option value="">Todos os anos</option></select></label>
-              <label><span>Simples Nacional</span><select id="biSimples"><option value="">Todos</option><option value="true">Sim</option><option value="false">Não</option></select></label>
-              <label><span>MEI</span><select id="biMei"><option value="">Todos</option><option value="true">Sim</option><option value="false">Não</option></select></label>
+                <label><span>UF</span><select id="biState"><option value="">Todas as UFs</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>MG</option><option>PA</option><option>PB</option><option>PE</option><option>RJ</option><option>RN</option><option>RS</option><option>SC</option><option>SP</option></select></label>
+                <label><span>Cidade</span><input id="biCity" maxlength="64" placeholder="Ex.: São Paulo"></label>
+                <label><span>Categoria</span><select id="biCategory"><option value="">Todas as categorias</option><option>Alimentício e Bebidas</option><option>Saúde e Serviços Médicos</option><option>Estética, Beleza e Bem-Estar</option><option>Construção Civil e Imobiliário</option><option>Jurídico e Contábil</option><option>Tecnologia, Software e Comunicação</option><option>Comércio Varejista</option><option>Indústria e Manufatura</option><option>Transporte e Logística</option><option>Educação e Treinamentos</option><option>Serviços Financeiros e Seguros</option><option>Serviços Operacionais e Manutenção</option><option>Serviços Empresariais e Administrativos</option><option>Turismo, Hotelaria e Eventos</option><option>Automotivo</option><option>Comércio Atacadista e Distribuição</option><option>Serviços para Animais e Pet Care</option><option>Agropecuária e Agronegócio</option><option>Outros</option></select></label>
+                <label><span>CNAE</span><input id="biCnae" inputmode="numeric" maxlength="7" placeholder="7 dígitos"></label>
+                <label><span>Ano de abertura</span><select id="biOpenedYear"><option value="">Todos os anos</option></select></label>
+                <label><span>Porte</span><select id="biCompanySize"><option value="">Todos os portes</option><option>MICROEMPRESA</option><option>EMPRESA DE PEQUENO PORTE</option><option>DEMAIS</option></select></label>
             </div>
             <div class="bi-filter-actions">
               <button id="biClearFilters" class="btn" type="button">Limpar filtros</button>
