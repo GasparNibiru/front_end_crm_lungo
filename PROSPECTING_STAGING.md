@@ -18,6 +18,13 @@ link explícito ao número adquirido. Agendamento, e-mail, VOIP, atendimento, Me
 Leads e equipe (supervisor) estão desabilitados. Sugestão de abordagem pode ser
 editada/copiada localmente, sem persistência ou envio automático.
 
+Atualização de 15/09/2026, ainda não publicada: `Enviar para Meus Leads` é a
+primeira ação integrada em `Minhas empresas`. Envia apenas o ID do direito
+adquirido para `/api/prospecting/exports`, consulta o estado e oferece `Abrir
+Meus Leads` depois de confirmação. Falha ambígua pede revisão sem repetir a
+criação do lead. As demais ações continuam bloqueadas. Essa interface exige o
+deploy manual separado do backend staging com o processador de exportação.
+
 Solicitar tokens abre WhatsApp 5555992102864 com a mensagem solicitada.
 Estilos em prospecting.css afetam somente #view-business-intelligence; Dockerfile
 inclui o novo arquivo. Temas claro/escuro preservados fora da Prospecção.

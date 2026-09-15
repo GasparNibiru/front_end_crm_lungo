@@ -9,11 +9,11 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const section = html.slice(html.indexOf('      <section id="view-business-intelligence"'), html.indexOf('      <section id="view-clients"'));
 const fixture = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/prospecting.css"><style>body{overflow:auto}#view-business-intelligence{display:block;position:relative;inset:auto;height:100dvh;width:100%;padding:0}</style><script>window.LUNGO_CONFIG={API_BASE_URL:location.origin}</script><script src="/business-intelligence.js" defer></script></head><body>${section}</body></html>`;
 const shell = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '').replace('</head>', '<script>window.LUNGO_CONFIG={API_BASE_URL:location.origin}</script><script src="/business-intelligence.js" defer></script></head>');
-const report = [], acquisitions = [];
+const report = [], acquisitions = [], exportRequests = [];
 let acquired = new Set(['owned']), balance = 20, mode = 'normal', failNext = false;
 const raw = [{ company_id: 'owned', cnpj: '12345678000199', trade_name: 'Aurora Benefícios', legal_name: 'Aurora Serviços Empresariais Ltda', mobile_1: '11999999999', mobile_2: '11988888888', email: 'aurora@example.invalid', category: 'Serviços Empresariais e Administrativos', cnae: '8211300', opened_year: 2026, company_size: 'MICROEMPRESA', city: 'São Paulo', state: 'SP' }, ...Array.from({ length: 2 }, (_, i) => ({ company_id: `opaque-${i}`, cnpj: `1234567800029${i}`, trade_name: i ? 'Horizonte Tecnologia' : 'Clínica Viver Bem', legal_name: 'Empresa de demonstração com nome longo para validar a quebra de linha e os limites dos cartões Ltda', mobile_1: '21999999999', mobile_2: '21988888888', email: 'contato-muito-longo@example.invalid', category: i ? 'Tecnologia, Software e Comunicação' : 'Saúde e Serviços Médicos', cnae: i ? '6201501' : '8630503', opened_year: 2025, company_size: 'EMPRESA DE PEQUENO PORTE', city: 'Rio de Janeiro', state: 'RJ' }))];
 const queries = [];
-function project(r, token) { const yes = token !== 'other' && acquired.has(r.company_id); return { ...r, ...(yes ? {} : { cnpj: '**.***.***/****-**', mobile_1: '(**) *****-****', mobile_2: '(**) *****-****', email: '***@***' }), is_acquired: yes, selectable: !yes, acquired_at: '2026-09-10T12:00:00Z' }; }
+function project(r, token) { const yes = token !== 'other' && acquired.has(r.company_id); return { ...r, ...(yes ? { id: r.company_id } : { cnpj: '**.***.***/****-**', mobile_1: '(**) *****-****', mobile_2: '(**) *****-****', email: '***@***' }), is_acquired: yes, selectable: !yes, acquired_at: '2026-09-10T12:00:00Z' }; }
 async function main() {
   const server = http.createServer((req, res) => { const file = req.url.split('?')[0]; if (file === '/' || file === '/shell') { res.setHeader('content-type','text/html'); return res.end(file === '/shell' ? shell : fixture); } if (!['/styles.css','/prospecting.css','/business-intelligence.js'].includes(file)) { res.statusCode = 404; return res.end(); } res.setHeader('content-type', file.endsWith('.css') ? 'text/css' : 'text/javascript'); res.end(fs.readFileSync(path.join(root, file))); });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
@@ -28,6 +28,8 @@ async function main() {
       const req = route.request(), url = new URL(req.url()), token = req.headers()['x-access-token'];
       const send = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
       if (url.pathname.endsWith('/wallet')) return send({ ok: true, wallet: { total_balance: balance, free_balance: balance, extra_balance: 0, cycle_allowance: 20, next_renewal: '2026-10-05' } });
+      if (url.pathname.endsWith('/exports')) { exportRequests.push(req.postDataJSON()); return send({ ok: true, export_id: 'export-test', status: 'exported', lead_id: 'lead-test' }); }
+      if (url.pathname.endsWith('/exports/export-test')) return send({ ok: true, status: 'exported', lead_id: 'lead-test' });
       if (url.pathname.endsWith('/acquisitions')) { const body = req.postDataJSON(); acquisitions.push(body); if (failNext) { failNext = false; return route.abort('failed'); } const fresh = body.company_ids.filter(id => !acquired.has(id)); fresh.forEach(id => acquired.add(id)); balance -= fresh.length; return send({ ok: true, charged: fresh.length }); }
       queries.push(url);
       if (mode === 'error') return send({ ok: false, error: 'Falha controlada na consulta.' }, 503);
@@ -56,6 +58,10 @@ async function main() {
     assert.deepEqual(acquisitions[0], acquisitions[1]); assert.equal(await page.locator('#prSelection').isVisible(), false); assert.ok((await page.locator('#prCards').innerText()).includes(raw[1].email)); report.push('batch selection, confirmation, retry idempotency, balance and unlock without reload');
     await page.locator('[data-pr-tab="mine"]').click(); await page.waitForSelector('.pr-card-footer'); assert.equal(await page.locator('.pr-card').count(), 3); assert.equal(await page.locator('#prFilters').isVisible(), false);
     assert.ok(await page.locator('button[aria-label*="Equipe"]').first().isDisabled()); assert.ok((await page.locator('.pr-future-actions a').first().getAttribute('href')).startsWith('https://wa.me/55'));
+    await page.getByRole('button', { name: 'Enviar para Meus Leads' }).first().click();
+    await page.getByRole('button', { name: 'Abrir Meus Leads' }).first().waitFor();
+    assert.equal(exportRequests.length, 1); assert.equal(exportRequests[0].company_id, 'owned');
+    report.push('owned company export request and confirmed lead action');
     await page.getByRole('button', { name: 'Sugestão de abordagem' }).first().click(); await page.locator('#prApproachText').fill('Mensagem editada localmente'); await page.locator('#prCopy').click(); assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'Mensagem editada localmente'); await page.locator('#prCloseApproach').click(); report.push('my companies, future disabled actions, explicit WhatsApp and local editable copy');
     const output = path.join(root, 'test-results'); fs.mkdirSync(output, { recursive: true });
     for (const [width, height] of [[1440,900],[1280,720],[768,1024],[390,844],[320,720]]) for (const theme of ['light','dark']) {

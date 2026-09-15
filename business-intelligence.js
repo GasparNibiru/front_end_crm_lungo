@@ -37,6 +37,24 @@
     $('prChoose').textContent = balance !== undefined && n > balance ? 'Saldo insuficiente' : 'Escolher empresas';
   }
   function detail(label, value, css = '') { const n = node('div', `pr-detail ${css}`); n.append(node('small', '', label), node('span', '', clean(value) || 'Não informado')); return n; }
+  function openLeads() { document.querySelector(state.role === 'supervisor' ? '[data-supervisor-operation="crm"]' : '[data-view="crm"]')?.click(); }
+  async function exportToLeads(company, button) {
+    const generation = state.generation;
+    button.disabled = true; button.textContent = 'Enviando para Meus Leads…'; notice();
+    try {
+      let result = await api('exports', { company_id: company.id });
+      const exportId = result.export_id;
+      for (let attempt = 0; attempt < 12 && ['pending','processing'].includes(result.status); attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (generation !== state.generation) return;
+        result = await api(`exports/${encodeURIComponent(exportId)}`);
+      }
+      if (generation !== state.generation) return;
+      if (result.status === 'exported') { button.textContent = 'Abrir Meus Leads'; button.onclick = openLeads; button.disabled = false; notice('Empresa enviada para Meus Leads.'); }
+      else if (result.status === 'failed' || result.status === 'unknown') { button.textContent = 'Exportação requer revisão'; notice('A exportação não foi confirmada. Solicite revisão antes de tentar novamente.'); }
+      else { button.textContent = 'Exportação em andamento'; button.disabled = false; button.onclick = () => exportToLeads(company, button); notice('A exportação foi solicitada. Consulte novamente em instantes.'); }
+    } catch (error) { if (generation === state.generation) { button.disabled = false; button.textContent = 'Enviar para Meus Leads'; notice(error.message || 'Não foi possível solicitar a exportação.'); } }
+  }
   function renderCards() {
     $('prCards').replaceChildren();
     for (const c of state.rows) {
@@ -55,7 +73,8 @@
         const footer = node('div', 'pr-card-footer'); footer.append(node('span', '', `Adquirida em ${date(c.acquired_at)}`)); const actions = node('div', 'pr-future-actions');
         const phone = String(c.mobile_1 || '').replace(/\D/g, '');
         if (/^\d{10,13}$/.test(phone)) { const a = node('a', 'pr-button', 'WhatsApp ↗'); a.href = `https://wa.me/${phone.length <= 11 ? '55' : ''}${phone}`; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', 'Abrir conversa no WhatsApp com o número adquirido'); actions.append(a); }
-        for (const label of ['◷ Agendamento','✉ E-mail','☎ VOIP','✎ Atendimento','➤ Meus Leads', ...(state.role === 'supervisor' ? ['♙ Equipe'] : [])]) { const b = node('button', '', label); b.disabled = true; b.title = 'Em breve'; b.setAttribute('aria-label', `${label} — Em breve`); actions.append(b); }
+        const exportButton = node('button', '', 'Enviar para Meus Leads'); exportButton.onclick = () => exportToLeads(c, exportButton); actions.append(exportButton);
+        for (const label of ['◷ Agendamento','✉ E-mail','☎ VOIP','✎ Atendimento', ...(state.role === 'supervisor' ? ['♙ Equipe'] : [])]) { const b = node('button', '', label); b.disabled = true; b.title = 'Em breve'; b.setAttribute('aria-label', `${label} — Em breve`); actions.append(b); }
         const suggestion = node('button', '', 'Sugestão de abordagem'); suggestion.onclick = () => { $('prApproachText').value = approach; $('prCopyStatus').textContent = ''; $('prApproach').showModal(); }; actions.append(suggestion); footer.append(actions); card.append(footer);
       }
       $('prCards').append(card);
