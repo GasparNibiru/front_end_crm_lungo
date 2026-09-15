@@ -340,6 +340,7 @@
       broadcast: $("#view-broadcast"),
       instance: $("#view-instance"),
       clients: $("#view-clients"),
+      business_intelligence: $("#view-business-intelligence"),
       treinamentos: $("#view-trainings"),
       relatorios: $("#view-reports"),
       vendedores: $("#view-vendedores"),
@@ -1858,11 +1859,12 @@
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorOperation === name));
     syncSupervisorNavClusters();
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === "supervisor-view-operation"));
-    if (["instance", "connect", "crm", "broadcast", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
+    if (["instance", "connect", "crm", "broadcast", "business_intelligence", "cotador", "comprar_leads", "treinamentos", "agenda"].includes(name)) mountSupervisorSharedView(name);
     else renderSupervisorOperation(name);
     if (name === "crm") { loadCrm(true); startCrmRealtime(); }
     else stopCrmRealtime();
-    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
+    if (name === "business_intelligence") window.LungoBusinessIntelligence?.open(supervisorAccessToken);
+    const labels = { instance: "Meus dados", connect: "Conectar WhatsApp", crm: "Meus Leads", clients: "Clientes", broadcast: "Disparos", business_intelligence: "Prospecção de Empresas", cotador: "Cotador", comprar_leads: "Comprar Leads", treinamentos: "Treinamentos", agenda: "Agenda" };
     if (el.supervisorViewTitle) el.supervisorViewTitle.textContent = labels[name] || "Operação";
   }
 
@@ -2084,6 +2086,7 @@
   }
 
   function closeSupervisorArea() {
+    window.LungoBusinessIntelligence?.reset();
     stopCalendarReminders();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     clearInterval(recruitmentTimer); recruitmentTimer = null;
@@ -2550,6 +2553,7 @@
     const titles = {
       crm: ["Meus Leads", "Pipeline comercial com lista, kanban, importação e exportação."],
       clients: ["Clientes", "Carteira ativa, clientes em fechamento, pós-venda e faturamento."],
+      business_intelligence: ["Prospecção de Empresas", "Encontre empresas para prospectar e gerar novas oportunidades."],
       connect: ["Conectar WhatsApp", "Conecte a instância por QR Code."],
       broadcast: ["Disparos", "Envie mensagens para bases autorizadas."],
       instance: ["Meus dados", "Consulte o status da conexão."],
@@ -2578,6 +2582,7 @@
     }
     else stopCrmRealtime();
     if (name === "clients") loadClients();
+    if (name === "business_intelligence") window.LungoBusinessIntelligence?.open(state.token);
     if (name === "relatorios") refreshBrokerReport();
     if (name === "treinamentos") loadTrainingLibrary(state.token, 'broker');
     if (name === "agenda") { renderTeamCalendar('broker'); startCalendarReminders(); }
@@ -4537,6 +4542,7 @@
   }
 
   function logout() {
+    window.LungoBusinessIntelligence?.reset();
     stopCalendarReminders();
     stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
