@@ -38,6 +38,52 @@
   }
   function detail(label, value, css = '') { const n = node('div', `pr-detail ${css}`); n.append(node('small', '', label), node('span', '', clean(value) || 'Não informado')); return n; }
   function openLeads() { document.querySelector(state.role === 'supervisor' ? '[data-supervisor-operation="crm"]' : '[data-view="crm"]')?.click(); }
+  function dialog(title) {
+    const modal = node('dialog', 'modal');
+    const form = node('form', 'modal-card'); form.method = 'dialog';
+    form.append(node('h2', '', title)); modal.append(form); document.body.append(modal);
+    modal.addEventListener('close', () => modal.remove(), { once: true });
+    modal.showModal(); return { modal, form };
+  }
+  function field(form, label, element) { const wrapper = node('label'); wrapper.append(node('span', '', label), element); form.append(wrapper); return element; }
+  function actions(form, modal, submitLabel, onSubmit) {
+    const footer = node('footer'); const cancel = node('button', '', 'Cancelar'); cancel.type = 'button'; cancel.onclick = () => modal.close();
+    const submit = node('button', 'primary', submitLabel); submit.type = 'button'; submit.onclick = onSubmit;
+    footer.append(cancel, submit); form.append(footer); return submit;
+  }
+  function agenda(company) {
+    document.dispatchEvent(new CustomEvent('lungo:prospecting-agenda', { detail: { role: state.role, name: clean(company.trade_name || company.legal_name), cnpj: company.cnpj, phone: company.mobile_1, city: company.city, state: company.state } }));
+  }
+  function attendance(company) {
+    const { modal, form } = dialog(`Atendimento · ${clean(company.trade_name || company.legal_name)}`);
+    const status = field(form, 'Situação', node('select')); for (const [value, label] of [['new','Novo'],['contacted','Contatado'],['follow_up','Retornar'],['interested','Interessado'],['not_interested','Sem interesse'],['converted','Convertido']]) status.append(new Option(label, value)); status.value = company.service_status || 'new';
+    const notes = field(form, 'Observações', node('textarea')); notes.maxLength = 10000; notes.rows = 4; notes.value = company.notes || '';
+    const follow = field(form, 'Próximo retorno', node('input')); follow.type = 'datetime-local'; if (company.next_follow_up_at) { const d = new Date(company.next_follow_up_at); if (Number.isFinite(+d)) follow.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+    const message = node('p', 'auth-status'); form.append(message); let pending;
+    const submit = actions(form, modal, 'Salvar atendimento', async () => {
+      const input = { status: status.value, notes: notes.value, follow_up_at: follow.value ? new Date(follow.value).toISOString() : null };
+      if (!pending || JSON.stringify(pending.input) !== JSON.stringify(input)) pending = { input, key: crypto.randomUUID(), contact_at: new Date().toISOString() };
+      submit.disabled = true; message.textContent = 'Salvando…';
+      try { await api('interactions', { company_id: company.id, idempotency_key: pending.key, expected_version: company.version, status: input.status, notes: input.notes, contact_at: pending.contact_at, follow_up_at: input.follow_up_at }); modal.close(); notice('Atendimento salvo.'); loadList(state.page); }
+      catch (error) { message.textContent = error.message; if (error.code === 'version_conflict') loadList(state.page); }
+      finally { submit.disabled = false; }
+    });
+  }
+  async function assignTeam(company) {
+    const { modal, form } = dialog(`Distribuir · ${clean(company.trade_name || company.legal_name)}`);
+    const broker = field(form, 'Corretor', node('select')); broker.append(new Option('Carregando equipe…', ''));
+    const message = node('p', 'auth-status'); form.append(message); let pending;
+    const submit = actions(form, modal, 'Distribuir empresa', async () => {
+      if (!broker.value) return; if (!pending || pending.broker_id !== broker.value) pending = { broker_id: broker.value, key: crypto.randomUUID() };
+      submit.disabled = true; message.textContent = 'Distribuindo…';
+      try { await api('assignments', { company_id: company.id, broker_id: pending.broker_id, idempotency_key: pending.key }); modal.close(); notice('Empresa distribuída. O corretor já pode vê-la em Minhas empresas.'); }
+      catch (error) { message.textContent = error.message; }
+      finally { submit.disabled = false; }
+    });
+    submit.disabled = true;
+    try { const result = await api('team'); broker.replaceChildren(new Option('Selecione um corretor', '')); for (const user of result.brokers) broker.append(new Option(clean(user.name), user.id)); message.textContent = result.brokers.length ? 'A distribuição não consome tokens.' : 'Nenhum corretor ativo na equipe.'; submit.disabled = !result.brokers.length; }
+    catch (error) { message.textContent = error.message; }
+  }
   async function exportToLeads(company, button) {
     const generation = state.generation;
     button.disabled = true; button.textContent = 'Enviando para Meus Leads…'; notice();
@@ -74,7 +120,13 @@
         const phone = String(c.mobile_1 || '').replace(/\D/g, '');
         if (/^\d{10,13}$/.test(phone)) { const a = node('a', 'pr-button', 'WhatsApp ↗'); a.href = `https://wa.me/${phone.length <= 11 ? '55' : ''}${phone}`; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', 'Abrir conversa no WhatsApp com o número adquirido'); actions.append(a); }
         const exportButton = node('button', '', 'Enviar para Meus Leads'); exportButton.onclick = () => exportToLeads(c, exportButton); actions.append(exportButton);
-        for (const label of ['◷ Agendamento','✉ E-mail','☎ VOIP','✎ Atendimento', ...(state.role === 'supervisor' ? ['♙ Equipe'] : [])]) { const b = node('button', '', label); b.disabled = true; b.title = 'Em breve'; b.setAttribute('aria-label', `${label} — Em breve`); actions.append(b); }
+        const schedule = node('button', '', '◷ Agendamento'); schedule.onclick = () => agenda(c); actions.append(schedule);
+        const email = String(c.email || '').trim();
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { const link = node('a', 'pr-button', '✉ E-mail'); link.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Contato comercial · ${clean(c.trade_name || c.legal_name)}`)}`; link.title = 'Abrir aplicativo de e-mail padrão'; actions.append(link); }
+        else { const b = node('button', '', '✉ E-mail'); b.disabled = true; b.title = 'E-mail não informado'; actions.append(b); }
+        const voip = node('button', '', '☎ VOIP'); voip.disabled = true; voip.title = 'Disponível em uma etapa futura'; actions.append(voip);
+        const service = node('button', '', '✎ Atendimento'); service.onclick = () => attendance(c); actions.append(service);
+        if (state.role === 'supervisor') { const team = node('button', '', '♙ Equipe'); team.onclick = () => assignTeam(c); actions.append(team); }
         const suggestion = node('button', '', 'Sugestão de abordagem'); suggestion.onclick = () => { $('prApproachText').value = approach; $('prCopyStatus').textContent = ''; $('prApproach').showModal(); }; actions.append(suggestion); footer.append(actions); card.append(footer);
       }
       $('prCards').append(card);
