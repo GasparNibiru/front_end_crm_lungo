@@ -7,14 +7,16 @@
   <meta name="theme-color" content="#101820">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <script>try{if(localStorage.getItem("lungo-auth-session-v1")||localStorage.getItem("lungo-suite-access-v5")||localStorage.getItem("lungo-supervisor-session-v1"))document.documentElement.classList.add("session-restoring")}catch{}</script>
-  <link rel="stylesheet" href="styles.css?v=20260829-partners-intro-1">
+  <link rel="stylesheet" href="styles.css?v=20260830-prospeccao-8">
   <script src="config.js?v=20260819-production-3"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js" defer></script>
   <script src="admin-api.js?v=20260824-meta-ages-1" defer></script>
   <script src="supervisor-api.js?v=20260823-scoped-appearance-1" defer></script>
-  <script src="app.js?v=20260829-partners-intro-1" defer></script>
+  <link rel="stylesheet" href="prospecting.css?v=20260910-core-1">
+  <script src="business-intelligence.js?v=20260910-core-1" defer></script>
+  <script src="app.js?v=20260830-prospeccao-8" defer></script>
 </head>
 <body class="auth-locked">
   <section id="publicVacancyScreen" class="public-vacancy-screen" hidden><main class="public-vacancy-page"><header><img src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo"><span>Oportunidade profissional</span></header><section class="public-vacancy-hero"><div><span id="publicVacancyLocation">Vaga comercial</span><h1 id="publicVacancyTitle">Consultor de Planos de Saúde</h1><p id="publicVacancyHeadline"></p></div></section><div class="public-vacancy-content"><article><h2>Sobre a oportunidade</h2><p id="publicVacancyDescription"></p><h3>Requisitos</h3><div id="publicVacancyRequirements" class="public-vacancy-list"></div><h3>Benefícios</h3><div id="publicVacancyBenefits" class="public-vacancy-list"></div></article><form id="publicApplicationForm" class="public-application-form"><h2>Candidate-se</h2><p>Preencha seus dados para participar do processo seletivo.</p><label><span>Nome completo</span><input id="applicationName" required></label><label><span>WhatsApp</span><input id="applicationPhone" required inputmode="tel"></label><label><span>E-mail</span><input id="applicationEmail" type="email"></label><label><span>Cidade</span><input id="applicationCity"></label><label><span>Experiência comercial</span><select id="applicationExperience"><option value="Sem experiência">Sem experiência</option><option value="Até 1 ano">Até 1 ano</option><option value="1 a 3 anos">1 a 3 anos</option><option value="Mais de 3 anos">Mais de 3 anos</option></select></label><label><span>Link do currículo</span><input id="applicationResumeUrl" type="url" placeholder="Google Drive, LinkedIn..."></label><label class="full"><span>Conte um pouco sobre você</span><textarea id="applicationMessage" rows="4"></textarea></label><input id="applicationWebsite" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn primary" type="submit">Enviar candidatura</button><div id="publicApplicationStatus" class="auth-status">Seus dados serão enviados à equipe responsável.</div></form></div></main></section>
@@ -107,6 +109,7 @@
         <span class="supervisor-nav-group-title">Operação</span>
         <div class="supervisor-nav-cluster"><button class="supervisor-nav-item supervisor-nav-parent" data-supervisor-operation="instance" type="button"><span><svg viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M9 18h6"/></svg></span><b>Meus dados</b><i>›</i></button><div class="supervisor-hover-submenu"><span>Meus dados</span><button class="supervisor-nav-item" data-supervisor-operation="connect" type="button"><b>Conectar WhatsApp</b></button><button class="supervisor-nav-item" data-supervisor-operation="broadcast" type="button"><b>Disparos</b></button></div></div>
         <button class="supervisor-nav-item" data-supervisor-operation="crm" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4z"/><path d="M4 15h5v4H4z"/><path d="M15 15h5v4h-5z"/><path d="M12 9v3M7 12h10M7 12v3M17 12v3"/></svg></span><b>Meus Leads</b></button>
+        <button class="supervisor-nav-item" data-supervisor-operation="business_intelligence" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 20V7l5-3 5 3v13M14 10l6-3v13M2 20h20M7 9h2M7 13h2M7 17h2M17 11h1M17 15h1"/></svg></span><b>Prospecção de Empresas</b></button>
         <button class="supervisor-nav-item" data-supervisor-operation="cotador" type="button"><span><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h4"/></svg></span><b>Cotador</b></button>
         <div class="supervisor-nav-cluster"><button class="supervisor-nav-item supervisor-nav-parent supervisor-buy-leads-parent" data-supervisor-operation="comprar_leads" type="button"><span><svg viewBox="0 0 24 24"><path d="M6 6h15l-2 8H8L6 6Z"/><path d="M6 6 5 3H3"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span><b>Comprar Leads</b><i>›</i></button><div class="supervisor-hover-submenu"><span>Comprar Leads</span><button class="supervisor-nav-item" data-supervisor-view="brazil-partners" type="button"><b>Parceiros Brasil</b></button></div></div>
         <div class="supervisor-nav-cluster"><button class="supervisor-nav-item supervisor-nav-parent" data-supervisor-operation="treinamentos" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg></span><b>Treinamentos</b><i>›</i></button><div class="supervisor-hover-submenu"><span>Treinamentos</span><button class="supervisor-nav-item" data-supervisor-operation="agenda" type="button"><b>Agenda</b></button></div></div>
@@ -251,6 +254,10 @@
           <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
           <span class="nav-label">Clientes</span>
         </button>
+        <button class="nav-item" data-view="business_intelligence" type="button">
+          <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 20V7l5-3 5 3v13M14 10l6-3v13M2 20h20M7 9h2M7 13h2M7 17h2M17 11h1M17 15h1"/></svg></span>
+          <span class="nav-label">Prospecção de Empresas</span>
+        </button>
         <button class="nav-item soon-item" data-view="cotador" type="button">
           <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></span>
           <span class="nav-label">Cotador</span>
@@ -374,6 +381,34 @@
             <div id="kanbanView" class="kanban-view" aria-label="Kanban de leads"></div>
           </div>
         </div>
+      </section>
+
+
+      <section id="view-business-intelligence" class="view business-intelligence-view">
+        <div class="pr-page">
+          <header class="pr-header">
+            <div><span class="pr-eyebrow">NOVAS OPORTUNIDADES</span><h1>Prospecção de Empresas</h1><p>Encontre empresas e use seus tokens para desbloquear os contatos que fazem sentido para você.</p></div>
+            <div class="pr-wallet"><details><summary id="prBalance">Consultando saldo…</summary><div id="prBalanceDetails"></div></details><a class="pr-button" id="prRequestTokens" target="_blank" rel="noopener noreferrer">Solicitar tokens ↗</a></div>
+          </header>
+          <nav class="pr-tabs" aria-label="Prospecção"><button type="button" data-pr-tab="search" aria-pressed="true">Buscar empresas</button><button type="button" data-pr-tab="mine" aria-pressed="false">Minhas empresas</button></nav>
+          <form id="prFilters" class="pr-filters">
+            <div class="pr-picker"><span>UF</span><details id="prStatePicker" class="pr-picker-menu"><summary id="prStateSummary">Todas as UFs</summary><div id="prStateChoices" class="pr-picker-choices"></div></details><select name="state" id="prState" hidden><option value="">Todas as UFs</option></select></div>
+            <div class="pr-picker"><span>Capital</span><details id="prCityPicker" class="pr-picker-menu"><summary id="prCitySummary">Todas as capitais</summary><div id="prCityChoices" class="pr-picker-choices"></div></details><select name="city" id="prCity" hidden><option value="">Todas as capitais</option></select></div>
+            <details class="pr-multiselect"><summary id="prCategoriesSummary">Categoria · Todas</summary><div id="prCategories" class="pr-options"></div></details>
+            <div class="pr-cnaes"><label for="prCnaeInput">CNAE</label><div class="pr-inline"><input id="prCnaeInput" inputmode="numeric" maxlength="7" placeholder="7 dígitos" aria-describedby="prCnaeHint"><button type="button" id="prAddCnae" aria-label="Adicionar CNAE">+</button></div><small id="prCnaeHint">Adicione um ou mais códigos.</small><div id="prCnaeChips" class="pr-chips"></div></div>
+            <label>Ano de abertura<select name="opened_year" id="prYear"><option value="">Últimos 3 anos</option></select></label>
+            <label>Porte<select name="company_size"><option value="">Todos os portes</option><option>MICROEMPRESA</option><option>EMPRESA DE PEQUENO PORTE</option><option>DEMAIS</option></select></label>
+            <div class="pr-filter-actions"><button type="button" id="prClear">Limpar filtros</button><button type="submit" class="pr-primary">Buscar empresas</button></div>
+          </form>
+          <div class="pr-list-header"><div><h2 id="prListTitle">Encontre sua próxima oportunidade</h2><span id="prCount"></span></div><label>Por página <select id="prLimit"><option>25</option><option>50</option><option>100</option></select></label></div>
+          <div id="prNotice" class="pr-notice" role="status" hidden></div>
+          <div id="prStatus" class="pr-status" role="status">Busque empresas para começar.</div>
+          <div id="prCards" class="pr-cards" aria-live="polite"></div>
+          <nav id="prPagination" class="pr-pagination" aria-label="Páginas das empresas" hidden></nav>
+          <aside id="prSelection" class="pr-selection" aria-label="Empresas selecionadas" hidden><div><strong id="prSelectedCount"></strong><span id="prCost"></span></div><button type="button" id="prClearSelection">Limpar seleção</button><button type="button" id="prChoose" class="pr-primary">Escolher empresas</button></aside>
+        </div>
+        <dialog id="prConfirm" class="pr-dialog" aria-labelledby="prConfirmTitle"><h2 id="prConfirmTitle">Desbloquear contatos</h2><p id="prConfirmText"></p><p>As empresas adquiridas continuarão disponíveis em Minhas empresas.</p><div class="pr-dialog-actions"><button id="prCancel" type="button">Voltar</button><button id="prConfirmBuy" class="pr-primary" type="button">Confirmar aquisição</button></div><p id="prConfirmError" role="alert"></p></dialog>
+        <dialog id="prApproach" class="pr-dialog" aria-labelledby="prApproachTitle"><h2 id="prApproachTitle">Sugestão de abordagem</h2><label for="prApproachText">Adapte a mensagem antes de copiar</label><textarea id="prApproachText" rows="10"></textarea><div class="pr-dialog-actions"><button id="prCloseApproach" type="button">Fechar</button><button id="prCopy" class="pr-primary" type="button">Copiar mensagem</button></div><p id="prCopyStatus" role="status"></p></dialog>
       </section>
 
 
