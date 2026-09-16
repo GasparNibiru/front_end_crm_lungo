@@ -39,27 +39,61 @@
   function detail(label, value, css = '') { const n = node('div', `pr-detail ${css}`); n.append(node('small', '', label), node('span', '', clean(value) || 'Não informado')); return n; }
   function openLeads() { document.querySelector(state.role === 'supervisor' ? '[data-supervisor-operation="crm"]' : '[data-view="crm"]')?.click(); }
   function dialog(title) {
-    const modal = node('dialog', 'modal');
-    const form = node('form', 'modal-card'); form.method = 'dialog';
-    form.append(node('h2', '', title)); modal.append(form); document.body.append(modal);
+    const modal = node('dialog', 'pr-dialog pr-action-dialog');
+    const form = node('form', 'pr-action-form'); form.method = 'dialog';
+    const header = node('header', 'pr-action-header'); header.append(node('h2', '', title)); form.append(header); modal.append(form); $('view-business-intelligence').append(modal);
     modal.addEventListener('close', () => modal.remove(), { once: true });
     modal.showModal(); return { modal, form };
   }
-  function field(form, label, element) { const wrapper = node('label'); wrapper.append(node('span', '', label), element); form.append(wrapper); return element; }
+  function field(form, label, element) { const wrapper = node('label', 'pr-action-field'); wrapper.append(node('span', '', label), element); form.append(wrapper); return element; }
   function actions(form, modal, submitLabel, onSubmit) {
-    const footer = node('footer'); const cancel = node('button', '', 'Cancelar'); cancel.type = 'button'; cancel.onclick = () => modal.close();
-    const submit = node('button', 'primary', submitLabel); submit.type = 'button'; submit.onclick = onSubmit;
+    const footer = node('footer', 'pr-action-footer'); const cancel = node('button', '', 'Cancelar'); cancel.type = 'button'; cancel.onclick = () => modal.close();
+    const submit = node('button', 'pr-primary', submitLabel); submit.type = 'button'; submit.onclick = onSubmit;
     footer.append(cancel, submit); form.append(footer); return submit;
   }
+  async function ensureLead(company) {
+    let result = await api('exports', { company_id: company.id });
+    const exportId = result.export_id;
+    for (let attempt = 0; attempt < 12 && ['pending','processing'].includes(result.status); attempt++) { await new Promise(resolve => setTimeout(resolve, 1500)); result = await api(`exports/${encodeURIComponent(exportId)}`); }
+    if (result.status !== 'exported' || !result.lead_id) throw new Error('A empresa ainda não está disponível em Meus Leads. Tente novamente em instantes.');
+    return result.lead_id;
+  }
+  async function scheduledAvailable() {
+    const response = await fetch(`${API}/api/scheduled/health`, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+    const health = await response.json().catch(() => ({}));
+    if (!response.ok || health.ok !== true || health.disabled !== false) throw new Error('O envio programado está indisponível neste ambiente.');
+  }
   function agenda(company) {
-    document.dispatchEvent(new CustomEvent('lungo:prospecting-agenda', { detail: { role: state.role, name: clean(company.trade_name || company.legal_name), cnpj: company.cnpj, phone: company.mobile_1, city: company.city, state: company.state } }));
+    const { modal, form } = dialog(`Programar mensagem · ${clean(company.trade_name || company.legal_name)}`);
+    const grid = node('div', 'pr-action-grid'); form.append(grid);
+    const day = field(grid, 'Data de retorno', node('input')); day.type = 'date'; day.min = new Date().toISOString().slice(0, 10);
+    const hour = field(grid, 'Hora', node('input')); hour.type = 'time'; hour.value = '09:00';
+    const messageText = field(form, 'Mensagem WhatsApp', node('textarea')); messageText.rows = 5; messageText.maxLength = 4000; messageText.value = `Olá! Gostaria de retomar nosso contato com ${clean(company.trade_name || company.legal_name)}.`;
+    const message = node('p', 'pr-action-status'); form.append(message); let pending, ready = false;
+    const submit = actions(form, modal, 'Salvar programação', async () => {
+      if (!day.value || !hour.value || !messageText.value.trim()) { message.textContent = 'Informe data, hora e mensagem.'; return; }
+      if (new Date(`${day.value}T${hour.value}:00`) <= new Date()) { message.textContent = 'Escolha uma data e hora futuras.'; return; }
+      const input = { data: day.value, hora: hour.value, mensagem: messageText.value.trim() };
+      if (!pending || JSON.stringify(pending.input) !== JSON.stringify(input)) pending = { input };
+      submit.disabled = true; message.textContent = 'Preparando lead e salvando programação…';
+      try {
+        await scheduledAvailable(); ready = true;
+        const leadId = await ensureLead(company);
+        const response = await fetch(`${API}/api/scheduled/leads/${encodeURIComponent(leadId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: state.token, ...pending.input, recorrencia: 'unica', tipo: 'retorno' }), cache: 'no-store', signal: AbortSignal.timeout(30000) });
+        const result = await response.json().catch(() => ({})); if (!response.ok || result.ok !== true) throw new Error(result.error || 'Não foi possível programar a mensagem.');
+        modal.close(); notice('Mensagem WhatsApp programada. Você pode acompanhá-la em Meus Leads.');
+      } catch (error) { message.textContent = error.message; if (error.message.includes('envio programado')) ready = false; }
+      finally { submit.disabled = !ready; }
+    });
+    submit.disabled = true; message.textContent = 'Conferindo disponibilidade do envio…';
+    scheduledAvailable().then(() => { if (modal.open) { ready = true; submit.disabled = false; message.textContent = ''; } }).catch(error => { if (modal.open) message.textContent = error.message; });
   }
   function attendance(company) {
     const { modal, form } = dialog(`Atendimento · ${clean(company.trade_name || company.legal_name)}`);
     const status = field(form, 'Situação', node('select')); for (const [value, label] of [['new','Novo'],['contacted','Contatado'],['follow_up','Retornar'],['interested','Interessado'],['not_interested','Sem interesse'],['converted','Convertido']]) status.append(new Option(label, value)); status.value = company.service_status || 'new';
     const notes = field(form, 'Observações', node('textarea')); notes.maxLength = 10000; notes.rows = 4; notes.value = company.notes || '';
     const follow = field(form, 'Próximo retorno', node('input')); follow.type = 'datetime-local'; if (company.next_follow_up_at) { const d = new Date(company.next_follow_up_at); if (Number.isFinite(+d)) follow.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
-    const message = node('p', 'auth-status'); form.append(message); let pending;
+    const message = node('p', 'pr-action-status'); form.append(message); let pending;
     const submit = actions(form, modal, 'Salvar atendimento', async () => {
       const input = { status: status.value, notes: notes.value, follow_up_at: follow.value ? new Date(follow.value).toISOString() : null };
       if (!pending || JSON.stringify(pending.input) !== JSON.stringify(input)) pending = { input, key: crypto.randomUUID(), contact_at: new Date().toISOString() };
@@ -72,7 +106,7 @@
   async function assignTeam(company) {
     const { modal, form } = dialog(`Distribuir · ${clean(company.trade_name || company.legal_name)}`);
     const broker = field(form, 'Corretor', node('select')); broker.append(new Option('Carregando equipe…', ''));
-    const message = node('p', 'auth-status'); form.append(message); let pending;
+    const message = node('p', 'pr-action-status'); form.append(message); let pending;
     const submit = actions(form, modal, 'Distribuir empresa', async () => {
       if (!broker.value) return; if (!pending || pending.broker_id !== broker.value) pending = { broker_id: broker.value, key: crypto.randomUUID() };
       submit.disabled = true; message.textContent = 'Distribuindo…';
@@ -167,7 +201,9 @@
   function initialize() {
     if (initialized || !$('view-business-intelligence')) return; initialized = true;
     $('prRequestTokens').href = 'https://wa.me/5555992102864?text=' + encodeURIComponent('Olá! Gostaria de solicitar mais tokens para Prospecção de Empresas no Lungo CRM.');
-    for (const uf of 'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')) $('prState').append(new Option(uf, uf)); for (let y = new Date().getFullYear(); y >= 1900; y--) $('prYear').append(new Option(y, y));
+    for (const uf of 'MG PR RJ RS SP'.split(' ')) $('prState').append(new Option(uf, uf)); for (let y = new Date().getFullYear(), min = y - 2; y >= min; y--) $('prYear').append(new Option(y, y));
+    $('prCity').onchange = () => { const selected = $('prCity').selectedOptions[0]; if (selected?.dataset.state) $('prState').value = selected.dataset.state; };
+    $('prState').onchange = () => { if ($('prCity').selectedOptions[0]?.dataset.state !== $('prState').value) $('prCity').value = ''; };
     for (const c of categories) { const label = node('label'), input = node('input'); input.type = 'checkbox'; input.name = 'category'; input.value = c; label.append(input, node('span', '', c)); $('prCategories').append(label); }
     $('prCategories').onchange = () => { const n = $('prCategories').querySelectorAll(':checked').length; $('prCategoriesSummary').textContent = n ? `Categoria · ${n} selecionadas` : 'Categoria · Todas'; };
     $('prAddCnae').onclick = addCnae; $('prCnaeInput').oninput = () => $('prCnaeInput').setCustomValidity(''); $('prCnaeInput').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addCnae(); } };
