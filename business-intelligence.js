@@ -8,6 +8,26 @@
   const state = { token: '', tab: 'search', page: 1, pages: 0, limit: 25, rows: [], selected: new Map(), cnaes: new Set(), filters: new URLSearchParams(), wallet: null, role: '', loading: false, buying: false, generation: 0, request: 0, controller: null, pending: null };
   let initialized = false;
   function node(tag, className = '', value) { const n = document.createElement(tag); n.className = className; if (value !== undefined) n.textContent = String(value ?? '—'); return n; }
+  function syncPicker(id) {
+    const select = $(id), details = $(`${id}Picker`), summary = $(`${id}Summary`);
+    summary.textContent = select.selectedOptions[0]?.textContent || select.options[0].textContent;
+    for (const button of details.querySelectorAll('.pr-picker-choice')) button.setAttribute('aria-current', String(button.dataset.value === select.value));
+  }
+  function closePickers() { for (const id of ['prStatePicker','prCityPicker']) $(id).open = false; }
+  function bindPicker(id) {
+    const select = $(id), details = $(`${id}Picker`), choices = $(`${id}Choices`);
+    for (const option of select.options) {
+      const button = node('button', 'pr-picker-choice', option.textContent); button.type = 'button'; button.dataset.value = option.value;
+      button.onclick = () => { select.value = option.value; select.dispatchEvent(new Event('change', { bubbles: true })); details.open = false; };
+      choices.append(button);
+    }
+    details.addEventListener('toggle', () => {
+      if (!details.open) return;
+      for (const other of ['prStatePicker','prCityPicker']) if (other !== details.id) $(other).open = false;
+      requestAnimationFrame(() => { const bottom = choices.getBoundingClientRect().bottom, view = $('view-business-intelligence'); if (bottom > view.getBoundingClientRect().bottom - 8) view.scrollBy({ top: bottom - view.getBoundingClientRect().bottom + 16, behavior: 'smooth' }); });
+    });
+    syncPicker(id);
+  }
   function date(value) { return value ? String(value).slice(0, 10).split('-').reverse().join('/') : '—'; }
   function cnpj(value) { const s = String(value || ''); return /^\d{14}$/.test(s) ? s.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : s; }
   function clean(value) { const s = String(value ?? ''); if (!/[ÃÂ]/.test(s)) return s; try { return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(s, c => c.charCodeAt(0))); } catch { return s; } }
@@ -89,21 +109,6 @@
     submit.disabled = true; message.textContent = 'Conferindo disponibilidade do envio…';
     scheduledAvailable().then(() => { if (modal.open) { ready = true; submit.disabled = false; message.textContent = ''; } }).catch(error => { if (modal.open) message.textContent = error.message; });
   }
-  function attendance(company) {
-    const { modal, form } = dialog(`Atendimento · ${clean(company.trade_name || company.legal_name)}`);
-    const status = field(form, 'Situação', node('select')); for (const [value, label] of [['new','Novo'],['contacted','Contatado'],['follow_up','Retornar'],['interested','Interessado'],['not_interested','Sem interesse'],['converted','Convertido']]) status.append(new Option(label, value)); status.value = company.service_status || 'new';
-    const notes = field(form, 'Observações', node('textarea')); notes.maxLength = 10000; notes.rows = 4; notes.value = company.notes || '';
-    const follow = field(form, 'Próximo retorno', node('input')); follow.type = 'datetime-local'; if (company.next_follow_up_at) { const d = new Date(company.next_follow_up_at); if (Number.isFinite(+d)) follow.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
-    const message = node('p', 'pr-action-status'); form.append(message); let pending;
-    const submit = actions(form, modal, 'Salvar atendimento', async () => {
-      const input = { status: status.value, notes: notes.value, follow_up_at: follow.value ? new Date(follow.value).toISOString() : null };
-      if (!pending || JSON.stringify(pending.input) !== JSON.stringify(input)) pending = { input, key: crypto.randomUUID(), contact_at: new Date().toISOString() };
-      submit.disabled = true; message.textContent = 'Salvando…';
-      try { await api('interactions', { company_id: company.id, idempotency_key: pending.key, expected_version: company.version, status: input.status, notes: input.notes, contact_at: pending.contact_at, follow_up_at: input.follow_up_at }); modal.close(); notice('Atendimento salvo.'); loadList(state.page); }
-      catch (error) { message.textContent = error.message; if (error.code === 'version_conflict') loadList(state.page); }
-      finally { submit.disabled = false; }
-    });
-  }
   async function assignTeam(company) {
     const { modal, form } = dialog(`Distribuir · ${clean(company.trade_name || company.legal_name)}`);
     const broker = field(form, 'Corretor', node('select')); broker.append(new Option('Carregando equipe…', ''));
@@ -159,8 +164,6 @@
         const email = String(c.email || '').trim();
         if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { const link = node('a', 'pr-button', '✉ E-mail'); link.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Contato comercial · ${clean(c.trade_name || c.legal_name)}`)}`; link.title = 'Abrir aplicativo de e-mail padrão'; actions.append(link); }
         else { const b = node('button', '', '✉ E-mail'); b.disabled = true; b.title = 'E-mail não informado'; actions.append(b); }
-        const voip = node('button', '', '☎ VOIP'); voip.disabled = true; voip.title = 'Disponível em uma etapa futura'; actions.append(voip);
-        const service = node('button', '', '✎ Atendimento'); service.onclick = () => attendance(c); actions.append(service);
         if (state.role === 'supervisor') { const team = node('button', '', '♙ Equipe'); team.onclick = () => assignTeam(c); actions.append(team); }
         const suggestion = node('button', '', 'Sugestão de abordagem'); suggestion.onclick = () => { $('prApproachText').value = approach; $('prCopyStatus').textContent = ''; $('prApproach').showModal(); }; actions.append(suggestion); footer.append(actions); card.append(footer);
       }
@@ -187,7 +190,7 @@
       $('prCount').textContent = ''; $('prStatus').hidden = false; $('prStatus').className = 'pr-status error'; $('prStatus').replaceChildren(node('p', '', e.name === 'TimeoutError' ? 'A consulta demorou mais que o esperado.' : e.message)); const b = node('button', '', 'Tentar novamente'); b.onclick = () => { loadWallet(); loadList(page); }; $('prStatus').append(b);
     } finally { if (request === state.request && g === state.generation) { state.loading = false; $('prCards').setAttribute('aria-busy', 'false'); renderSelection(); } }
   }
-  function setTab(tab) { if (state.buying) return; state.tab = tab; $('prFilters').hidden = tab !== 'search'; notice(); for (const b of $('view-business-intelligence').querySelectorAll('[data-pr-tab]')) b.setAttribute('aria-pressed', String(b.dataset.prTab === tab)); $('prListTitle').textContent = tab === 'mine' ? 'Suas empresas, seus próximos contatos' : 'Encontre sua próxima oportunidade'; renderSelection(); loadList(); }
+  function setTab(tab) { if (state.buying) return; closePickers(); state.tab = tab; $('prFilters').hidden = tab !== 'search'; notice(); for (const b of $('view-business-intelligence').querySelectorAll('[data-pr-tab]')) b.setAttribute('aria-pressed', String(b.dataset.prTab === tab)); $('prListTitle').textContent = tab === 'mine' ? 'Suas empresas, seus próximos contatos' : 'Encontre sua próxima oportunidade'; renderSelection(); loadList(); }
   function renderChips() { $('prCnaeChips').replaceChildren(); for (const c of state.cnaes) { const b = node('button', '', `${c} ×`); b.type = 'button'; b.setAttribute('aria-label', `Remover CNAE ${c}`); b.onclick = () => { state.cnaes.delete(c); renderChips(); }; $('prCnaeChips').append(b); } }
   function addCnae() { const input = $('prCnaeInput'), v = input.value.trim(); if (!v) return true; if (!/^\d{7}$/.test(v) || state.cnaes.size >= 100) { input.setCustomValidity('Informe um CNAE com 7 dígitos (máximo 100 códigos).'); input.reportValidity(); return false; } input.setCustomValidity(''); state.cnaes.add(v); input.value = ''; renderChips(); return true; }
   function readFilters() { const q = new URLSearchParams(new FormData($('prFilters'))); for (const [k, v] of [...q]) if (!v) q.delete(k); for (const c of state.cnaes) q.append('cnae', c); state.filters = q; state.selected.clear(); state.pending = null; notice(); }
@@ -205,13 +208,15 @@
     for (const uf of capitals.map(([, state]) => state).sort()) $('prState').append(new Option(uf, uf));
     for (const [city, uf] of [...capitals].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))) { const option = new Option(`${city} / ${uf}`, city); option.dataset.state = uf; $('prCity').append(option); }
     for (let y = new Date().getFullYear(), min = y - 2; y >= min; y--) $('prYear').append(new Option(y, y));
-    $('prCity').onchange = () => { const selected = $('prCity').selectedOptions[0]; if (selected?.dataset.state) $('prState').value = selected.dataset.state; };
-    $('prState').onchange = () => { if ($('prCity').selectedOptions[0]?.dataset.state !== $('prState').value) $('prCity').value = ''; };
+    bindPicker('prState'); bindPicker('prCity');
+    $('prCity').onchange = () => { const selected = $('prCity').selectedOptions[0]; if (selected?.dataset.state) $('prState').value = selected.dataset.state; syncPicker('prState'); syncPicker('prCity'); };
+    $('prState').onchange = () => { if ($('prCity').selectedOptions[0]?.dataset.state !== $('prState').value) $('prCity').value = ''; syncPicker('prState'); syncPicker('prCity'); };
+    document.addEventListener('click', event => { for (const id of ['prStatePicker','prCityPicker']) if ($(id).open && !$(id).contains(event.target)) $(id).open = false; });
     for (const c of categories) { const label = node('label'), input = node('input'); input.type = 'checkbox'; input.name = 'category'; input.value = c; label.append(input, node('span', '', c)); $('prCategories').append(label); }
     $('prCategories').onchange = () => { const n = $('prCategories').querySelectorAll(':checked').length; $('prCategoriesSummary').textContent = n ? `Categoria · ${n} selecionadas` : 'Categoria · Todas'; };
     $('prAddCnae').onclick = addCnae; $('prCnaeInput').oninput = () => $('prCnaeInput').setCustomValidity(''); $('prCnaeInput').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addCnae(); } };
     $('prFilters').onsubmit = e => { e.preventDefault(); if (state.buying || !addCnae()) return; readFilters(); loadList(); };
-    $('prClear').onclick = () => { if (state.buying) return; $('prFilters').reset(); state.cnaes.clear(); $('prCnaeInput').setCustomValidity(''); $('prCategoriesSummary').textContent = 'Categoria · Todas'; renderChips(); readFilters(); loadList(); };
+    $('prClear').onclick = () => { if (state.buying) return; closePickers(); $('prFilters').reset(); syncPicker('prState'); syncPicker('prCity'); state.cnaes.clear(); $('prCnaeInput').setCustomValidity(''); $('prCategoriesSummary').textContent = 'Categoria · Todas'; renderChips(); readFilters(); loadList(); };
     $('prLimit').onchange = () => { if (!state.buying) { state.limit = +$('prLimit').value; loadList(); } };
     for (const b of $('view-business-intelligence').querySelectorAll('[data-pr-tab]')) b.onclick = () => setTab(b.dataset.prTab);
     $('prClearSelection').onclick = () => { if (state.buying) return; state.selected.clear(); state.pending = null; renderCards(); renderSelection(); };
@@ -220,7 +225,7 @@
     $('prCloseApproach').onclick = () => { $('prApproach').close(); $('prApproachText').value = ''; };
     $('prCopy').onclick = async () => { try { await navigator.clipboard.writeText($('prApproachText').value); $('prCopyStatus').textContent = 'Mensagem copiada.'; } catch { $('prApproachText').select(); $('prCopyStatus').textContent = 'Selecione e copie o texto manualmente.'; } };
   }
-  function open(token) { initialize(); if (!initialized) return; const changed = state.token !== String(token || '').trim(); if (changed) { reset(); state.token = String(token || '').trim(); $('prFilters').reset(); state.cnaes.clear(); state.filters = new URLSearchParams(); renderChips(); $('prCategoriesSummary').textContent = 'Categoria · Todas'; setTab('search'); } else loadList(state.page); loadWallet(); }
+  function open(token) { initialize(); if (!initialized) return; const changed = state.token !== String(token || '').trim(); if (changed) { reset(); state.token = String(token || '').trim(); $('prFilters').reset(); syncPicker('prState'); syncPicker('prCity'); state.cnaes.clear(); state.filters = new URLSearchParams(); renderChips(); $('prCategoriesSummary').textContent = 'Categoria · Todas'; setTab('search'); } else loadList(state.page); loadWallet(); }
   window.LungoBusinessIntelligence = { open, reset };
   document.addEventListener('DOMContentLoaded', initialize, { once: true });
 })();
