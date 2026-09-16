@@ -5,9 +5,9 @@ lista de empresas adquiridas passam pelo backend; o navegador não consulta o
 Supabase diretamente. Contatos de empresas ainda não adquiridas são mascarados.
 
 Nesta fase a busca inclui apenas empresas abertas nos três anos mais recentes e
-localizadas em São Paulo, Rio de Janeiro, Belo Horizonte, Curitiba ou Porto Alegre.
-O backend aplica o mesmo recorte mesmo quando o navegador não envia filtros. A
-interface permite escolher uma dessas capitais, UF, categoria, CNAE, ano e porte.
+localizadas nas 27 capitais brasileiras. O backend aplica o mesmo recorte mesmo
+quando o navegador não envia filtros. A interface permite escolher capital, UF,
+categoria, CNAE, ano e porte.
 
 Em Minhas empresas, WhatsApp abre o número adquirido, E-mail abre o aplicativo
 padrão do usuário, e Enviar para Meus Leads cria uma exportação idempotente. O

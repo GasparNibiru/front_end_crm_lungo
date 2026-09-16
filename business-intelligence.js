@@ -3,6 +3,7 @@
   const API = String(window.LUNGO_CONFIG?.API_BASE_URL || '').replace(/\/+$/, '');
   const $ = id => document.getElementById(id);
   const categories = ['Alimentício e Bebidas','Saúde e Serviços Médicos','Estética, Beleza e Bem-Estar','Construção Civil e Imobiliário','Jurídico e Contábil','Tecnologia, Software e Comunicação','Comércio Varejista','Indústria e Manufatura','Transporte e Logística','Educação e Treinamentos','Serviços Financeiros e Seguros','Serviços Operacionais e Manutenção','Serviços Empresariais e Administrativos','Turismo, Hotelaria e Eventos','Automotivo','Comércio Atacadista e Distribuição','Serviços para Animais e Pet Care','Agropecuária e Agronegócio','Outros'];
+  const capitals = [['Rio Branco','AC'],['Maceió','AL'],['Macapá','AP'],['Manaus','AM'],['Salvador','BA'],['Fortaleza','CE'],['Brasília','DF'],['Vitória','ES'],['Goiânia','GO'],['São Luís','MA'],['Cuiabá','MT'],['Campo Grande','MS'],['Belo Horizonte','MG'],['Belém','PA'],['João Pessoa','PB'],['Curitiba','PR'],['Recife','PE'],['Teresina','PI'],['Rio de Janeiro','RJ'],['Natal','RN'],['Porto Alegre','RS'],['Porto Velho','RO'],['Boa Vista','RR'],['Florianópolis','SC'],['São Paulo','SP'],['Aracaju','SE'],['Palmas','TO']];
   const approach = 'Olá! Tudo bem?\n\nMeu nome é ___ e sou consultor(a) de benefícios da ___.\n\nEstamos entrando em contato com algumas empresas da sua região para apresentar soluções e benefícios disponíveis para CNPJ, que também podem atender o proprietário e os colaboradores da empresa.\n\nPosso te enviar algumas informações para você conhecer?';
   const state = { token: '', tab: 'search', page: 1, pages: 0, limit: 25, rows: [], selected: new Map(), cnaes: new Set(), filters: new URLSearchParams(), wallet: null, role: '', loading: false, buying: false, generation: 0, request: 0, controller: null, pending: null };
   let initialized = false;
@@ -201,7 +202,9 @@
   function initialize() {
     if (initialized || !$('view-business-intelligence')) return; initialized = true;
     $('prRequestTokens').href = 'https://wa.me/5555992102864?text=' + encodeURIComponent('Olá! Gostaria de solicitar mais tokens para Prospecção de Empresas no Lungo CRM.');
-    for (const uf of 'MG PR RJ RS SP'.split(' ')) $('prState').append(new Option(uf, uf)); for (let y = new Date().getFullYear(), min = y - 2; y >= min; y--) $('prYear').append(new Option(y, y));
+    for (const uf of capitals.map(([, state]) => state).sort()) $('prState').append(new Option(uf, uf));
+    for (const [city, uf] of [...capitals].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))) { const option = new Option(`${city} / ${uf}`, city); option.dataset.state = uf; $('prCity').append(option); }
+    for (let y = new Date().getFullYear(), min = y - 2; y >= min; y--) $('prYear').append(new Option(y, y));
     $('prCity').onchange = () => { const selected = $('prCity').selectedOptions[0]; if (selected?.dataset.state) $('prState').value = selected.dataset.state; };
     $('prState').onchange = () => { if ($('prCity').selectedOptions[0]?.dataset.state !== $('prState').value) $('prCity').value = ''; };
     for (const c of categories) { const label = node('label'), input = node('input'); input.type = 'checkbox'; input.name = 'category'; input.value = c; label.append(input, node('span', '', c)); $('prCategories').append(label); }
