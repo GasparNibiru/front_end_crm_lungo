@@ -1741,15 +1741,6 @@
     form.reset(); form.querySelector('[name="time"]').value = '09:00'; form.querySelector('.calendar-form-status').textContent = ''; modal.showModal();
   }
 
-  document.addEventListener('lungo:prospecting-agenda', (event) => {
-    const company = event.detail || {};
-    openCalendarEditor(company.role === 'supervisor' ? 'supervisor' : 'broker');
-    const form = $('#calendarEditorModal form');
-    form.elements.title.value = `Contato com ${company.name || 'empresa'}`.slice(0, 160);
-    form.elements.description.value = `Empresa: ${company.name || ''}\nCNPJ: ${company.cnpj || ''}\nTelefone: ${company.phone || ''}`.slice(0, 2000);
-    form.elements.location.value = `${company.city || ''}${company.state ? ` / ${company.state}` : ''}`.slice(0, 240);
-    form.elements.type.value = 'Retorno';
-  });
 
   async function renderTeamCalendarWeekly(target = 'broker') {
     const container = target === 'supervisor' ? el.supervisorOperationContent : el.views.agenda; if (!container) return;
