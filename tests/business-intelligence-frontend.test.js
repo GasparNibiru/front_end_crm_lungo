@@ -20,3 +20,14 @@ test('staging configuration preserved and browser never receives server credenti
   assert.match(read('config.js'), /lungo-lungo-backend-staging/);
   assert.doesNotMatch(read('business-intelligence.js'), /SUPABASE|service_role|sb_secret_|\.innerHTML|localStorage\.setItem/);
 });
+test('money totals keep decimal precision without turning the decimal point into thousands', () => {
+  const app = read('app.js');
+  const functionSource = (name, nextName) => app.slice(app.indexOf(`  function ${name}`), app.indexOf(`  function ${nextName}`));
+  const helpers = Function(`${functionSource('moneyNumber', 'leadDateValue')}\n${functionSource('formatMoney', 'formatDate')}\nreturn { moneyNumber, formatMoney };`)();
+  const values = ['R$ 5.372,90', '2.858,37', '252,87', '460.59'];
+  const total = values.reduce((sum, value) => sum + helpers.moneyNumber(value), 0);
+  assert.equal(total, 8944.730000000001);
+  assert.match(helpers.formatMoney(total), /8\.944,73/);
+  assert.equal(helpers.moneyNumber('8,944.73'), 8944.73);
+  assert.match(helpers.formatMoney(0), /0,00/);
+});
