@@ -853,10 +853,10 @@
   }
 
   function formatMoney(value) {
-    const text = String(value || "").trim();
+    const text = String(value ?? "").trim();
     if (!text) return "—";
-    const numeric = Number(text.replace(/[^0-9,.-]/g, "").replace(".", "").replace(",", "."));
-    if (Number.isFinite(numeric) && numeric > 0) return numeric.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const numeric = moneyNumber(value);
+    if (Number.isFinite(numeric)) return numeric.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     return text;
   }
 
@@ -925,9 +925,28 @@
   }
 
   function moneyNumber(value) {
-    const text = String(value || "").trim();
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const text = String(value ?? "").trim();
     if (!text) return 0;
-    const numeric = Number(text.replace(/[^0-9,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."));
+    let normalized = text.replace(/[^0-9,.-]/g, "");
+    const negative = normalized.startsWith("-");
+    normalized = normalized.replace(/-/g, "");
+    const lastComma = normalized.lastIndexOf(",");
+    const lastDot = normalized.lastIndexOf(".");
+    if (lastComma >= 0 && lastDot >= 0) {
+      const decimalSeparator = lastComma > lastDot ? "," : ".";
+      const thousandsSeparator = decimalSeparator === "," ? "." : ",";
+      normalized = normalized.replaceAll(thousandsSeparator, "");
+      normalized = normalized.replace(decimalSeparator, ".");
+    } else if (lastComma >= 0 || lastDot >= 0) {
+      const separator = lastComma >= 0 ? "," : ".";
+      const parts = normalized.split(separator);
+      const fraction = parts[parts.length - 1] || "";
+      if (parts.length === 2 && (fraction.length <= 2 || fraction.length > 3)) normalized = `${parts[0]}.${fraction}`;
+      else normalized = parts.join("");
+    }
+    if (negative) normalized = `-${normalized}`;
+    const numeric = Number(normalized);
     return Number.isFinite(numeric) ? numeric : 0;
   }
 
@@ -2046,9 +2065,9 @@
     ];
     if (el.supervisorKanban) el.supervisorKanban.innerHTML = stages.map(([key, label, fullLabel]) => {
       const deals = SUPERVISOR_DEALS.filter((deal) => deal.stage === key);
-      const total = deals.reduce((sum, deal) => sum + Number(String(deal.value || "").replace(/[^0-9,]/g, "").replace(",", ".") || 0), 0);
+      const total = deals.reduce((sum, deal) => sum + moneyNumber(deal.value), 0);
       const totalLabel = ["novos", "em_atendimento"].includes(key) ? "Valor especulativo" : key === "fechamento" ? "Realizado" : key === "perdida" ? "Perdido" : "Previsto";
-      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal ${deal.companyProvided ? 'company-provided' : ''}"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b>${deal.companyProvided ? '<em class="supervisor-company-lead">Lead da empresa</em>' : ''}<span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(String(total))}</span></footer></section>`;
+      return `<section class="supervisor-lane"><header title="${escapeHtml(fullLabel)}"><b>${escapeHtml(label)}</b><span>${deals.length}</span></header><div class="supervisor-lane-cards">${deals.map((deal) => `<article class="supervisor-deal ${deal.companyProvided ? 'company-provided' : ''}"><b title="${escapeHtml(deal.client)}">${escapeHtml(deal.client)}</b>${deal.companyProvided ? '<em class="supervisor-company-lead">Lead da empresa</em>' : ''}<span class="supervisor-deal-seller" title="Responsável: ${escapeHtml(deal.seller)}"><i style="--broker-marker:${supervisorBrokerMarkerColor(deal)}" aria-hidden="true"></i>${escapeHtml(deal.seller)}</span><div><small>${escapeHtml(deal.value)}</small><button class="tiny-btn" type="button" data-supervisor-deal="${deal.id}">Ver</button></div></article>`).join("")}</div><footer class="supervisor-lane-total ${key === "perdida" ? "lost" : ""}"><b>${deals.length} negócio${deals.length === 1 ? "" : "s"}</b><span>${totalLabel}: ${formatMoney(total)}</span></footer></section>`;
     }).join("");
 
     renderSupervisorCustomers();
@@ -3717,8 +3736,8 @@
     const m = state.clientMetrics || { totalClientes: 0, faturamentoTotal: 0, totalVidas: 0, aRenovar: 0, vendasBaseValor: 0 };
     el.clientMetrics.innerHTML = [
       ["Clientes", m.totalClientes || 0],
-      ["Faturamento", formatMoney(String(m.faturamentoTotal || 0))],
-      ["Vendas da base", formatMoney(String(m.vendasBaseValor || 0))],
+      ["Faturamento", formatMoney(m.faturamentoTotal || 0)],
+      ["Vendas da base", formatMoney(m.vendasBaseValor || 0)],
       ["Vidas totais", m.totalVidas || 0],
       ["A renovar", m.aRenovar || 0]
     ].map(([label, value]) => `<article class="metric"><span>${label}</span><b>${value}</b></article>`).join("");
@@ -3736,12 +3755,12 @@
 
   function renderClientCharts() {
     const m = state.clientMetrics || {};
-    if (el.revenueChartTotal) el.revenueChartTotal.textContent = formatMoney(String(m.faturamentoTotal || 0));
+    if (el.revenueChartTotal) el.revenueChartTotal.textContent = formatMoney(m.faturamentoTotal || 0);
     if (el.productsChartTotal) el.productsChartTotal.textContent = `${(m.produtos || []).reduce((sum, item) => sum + Number(item.value || 0), 0)} vendas`;
-    if (el.baseSalesChartTotal) el.baseSalesChartTotal.textContent = formatMoney(String(m.vendasBaseValor || 0));
-    chartBars(m.faturamentoMensal || [], el.revenueChart, (value) => formatMoney(String(value || 0)));
+    if (el.baseSalesChartTotal) el.baseSalesChartTotal.textContent = formatMoney(m.vendasBaseValor || 0);
+    chartBars(m.faturamentoMensal || [], el.revenueChart, (value) => formatMoney(value || 0));
     chartBars(m.produtos || [], el.productsChart, (value) => `${value}`);
-    chartBars(m.vendasBaseMensal || [], el.baseSalesChart, (value) => formatMoney(String(value || 0)));
+    chartBars(m.vendasBaseMensal || [], el.baseSalesChart, (value) => formatMoney(value || 0));
   }
 
   function productOptions() {
@@ -3921,10 +3940,7 @@
   }
 
   function reportMoneyNumber(value) {
-    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-    const text = String(value || "").replace(/[^0-9,.-]/g, "");
-    const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
-    return Number(normalized) || 0;
+    return moneyNumber(value);
   }
 
   function renderBrokerReport() {
