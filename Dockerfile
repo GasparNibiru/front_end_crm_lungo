@@ -1,7 +1,7 @@
 FROM nginx:1.27-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY index.html config.js app.js admin-api.js supervisor-api.js business-intelligence.js supervisor-finance.js styles.css prospecting.css supervisor-finance.css marketing-nav.css /usr/share/nginx/html/
+COPY index.html config.js app.js admin-api.js supervisor-api.js business-intelligence.js supervisor-finance.js styles.css prospecting.css supervisor-finance.css marketing-nav.css ai-agent.css ai-agent.js /usr/share/nginx/html/
 COPY assets/ /usr/share/nginx/html/assets/
 
 EXPOSE 80
