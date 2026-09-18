@@ -80,9 +80,9 @@
     return result.lead_id;
   }
   async function scheduledAvailable() {
-    const response = await fetch(`${API}/api/scheduled/health`, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
-    const health = await response.json().catch(() => ({}));
-    if (!response.ok || health.ok !== true || health.disabled !== false) throw new Error('O envio programado está indisponível neste ambiente.');
+    const response = await fetch(`${API}/api/scheduled/availability`, { headers: { 'x-client-token': state.token }, cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok !== true || result.connected !== true) throw new Error(result.error || 'Não foi possível verificar seu WhatsApp. Conecte o número à plataforma em Meus dados e tente novamente.');
   }
   function agenda(company) {
     const { modal, form } = dialog(`Programar mensagem · ${clean(company.trade_name || company.legal_name)}`);
@@ -103,7 +103,7 @@
         const response = await fetch(`${API}/api/scheduled/leads/${encodeURIComponent(leadId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: state.token, ...pending.input, recorrencia: 'unica', tipo: 'retorno' }), cache: 'no-store', signal: AbortSignal.timeout(30000) });
         const result = await response.json().catch(() => ({})); if (!response.ok || result.ok !== true) throw new Error(result.error || 'Não foi possível programar a mensagem.');
         modal.close(); notice('Mensagem WhatsApp programada. Você pode acompanhá-la em Meus Leads.');
-      } catch (error) { message.textContent = error.message; if (error.message.includes('envio programado')) ready = false; }
+      } catch (error) { message.textContent = error.message; ready = false; }
       finally { submit.disabled = !ready; }
     });
     submit.disabled = true; message.textContent = 'Conferindo disponibilidade do envio…';

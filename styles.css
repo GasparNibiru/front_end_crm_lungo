@@ -4358,7 +4358,7 @@ html .supervisor-sidebar.company-sidebar-custom {
 .supervisor-hover-submenu .supervisor-nav-item b { display: block; }
 .supervisor-nav-cluster:hover > .supervisor-hover-submenu,
 .supervisor-nav-cluster:focus-within > .supervisor-hover-submenu {
-  max-height: 78px;
+  max-height: none;
   margin-top: 3px;
   margin-bottom: 3px;
   padding-top: 2px;
@@ -5265,3 +5265,16 @@ body.supervisor-mode .supervisor-deal > b {
   .brazil-partners-overlay { top: 8px; right: 8px; left: auto; width: calc(100% - 16px); padding: 11px 38px 11px 12px; }
   .brazil-partners-overlay h2 { font-size: 14px; }
 }
+
+/* Compact sidebar submenus use the top layer, outside the sidebar clipping. */
+.supervisor-screen .supervisor-hover-submenu:popover-open {
+  display:grid; position:fixed; inset:auto; width:190px; max-height:calc(100dvh - 20px);
+  margin:0; padding:8px; gap:3px; overflow:auto; opacity:1; visibility:visible;
+  background:var(--surface); color:var(--text); border:1px solid var(--border);
+  border-radius:8px; box-shadow:var(--shadow); transition:none;
+}
+.supervisor-screen .supervisor-hover-submenu:popover-open .supervisor-nav-item {
+  width:100%; min-height:32px; padding:6px 8px; justify-content:flex-start; color:var(--text);
+}
+.supervisor-screen .supervisor-hover-submenu:popover-open .supervisor-nav-item b { display:block; }
+.supervisor-hover-submenu:popover-open > span { display:block; font-size:10px; padding:4px 8px; color:var(--muted); }
