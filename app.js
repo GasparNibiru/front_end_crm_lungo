@@ -2110,6 +2110,7 @@
     stopCalendarReminders();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     clearInterval(recruitmentTimer); recruitmentTimer = null;
+    window.LungoAiAgent?.reset();
     supervisorAccessToken = "";
     supervisorUserId = "";
     supervisorDashboard = null;
@@ -2277,6 +2278,7 @@
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
     if (name === 'rh') loadRecruitment(false);
     if (name === 'finance') window.LungoSupervisorFinance?.open(supervisorAccessToken);
+    if (name === 'marketing-ai') window.LungoAiAgent?.open(supervisorAccessToken);
     if (name === 'brazil-partners') { const intro = $('#brazilPartnerIntro'); if (intro) intro.hidden = false; loadSupervisorBrazilPartners(); }
   }
 
@@ -5219,13 +5221,14 @@
     ensureAdminMobileHeader();
     if (window.matchMedia("(max-width: 600px)").matches && options.remember !== false && view !== adminMasterCurrentView) adminMasterViewHistory.push(adminMasterCurrentView);
     adminMasterCurrentView = view;
-    const titles = { dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", "brazil-partners": "Parceiros Brasil", settings: "Configurações" };
+    const titles = { "ai-credits": "Créditos de IA", dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", "brazil-partners": "Parceiros Brasil", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
     closeAdminMobileMore();
     $("#adminMobileBackBtn")?.classList.toggle("visible", view !== "dashboard");
+    if (view === 'ai-credits') window.LungoAiAgent?.adminOpen(adminMasterKey);
     if (view === 'trainings') loadAdminTrainings();
     if (view === 'campaigns') loadAdminCampaignMedia();
     if (view === 'lead-marketplace') loadAdminLeadMarketplace();
@@ -5281,6 +5284,7 @@
   }
 
   function logoutAdminMaster() {
+    window.LungoAiAgent?.adminReset();
     adminMasterLogged = false;
     adminMasterKey = "";
     renderAdminMasterSession();
