@@ -43,6 +43,9 @@ test('supervisor finance is isolated, authenticated and shipped with the fronten
   assert.match(finance, /data-finance-edit-product/);
   assert.match(finance, /Comissões por corretor/);
   assert.match(finance, /data-finance-new-broker-rule/);
+  assert.match(finance, /function reports\(\)/);
+  assert.match(finance, /data-finance-export-csv/);
+  assert.match(finance, /data-finance-export-pdf/);
   assert.match(finance, /finance_sales\?\.seller_name/);
   assert.doesNotMatch(finance, /localStorage|SUPABASE|service_role|sb_secret_/);
   for (const asset of ['supervisor-finance.js', 'supervisor-finance.css']) assert.ok(docker.includes(asset));
