@@ -19,7 +19,7 @@ try{
  await page.locator('#aiConfigForm input[name="agentName"]').fill('Clara');await page.getByRole('button',{name:'Salvar configuração',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#aiStatus').textContent==='Configuração salva.');assert.equal(writes[0].agentName,'Clara');assert.equal(writes[0].agentType,'multiramos');assert.equal(await page.locator('#aiConfigForm [name=agentType]').inputValue(),'multiramos');
  assert.equal(await page.locator('.ai-wallet progress').getAttribute('value'),'83.4');assert.ok((await page.locator('.ai-packages a').first().getAttribute('href')).startsWith('https://wa.me/5555992102864'));
  await page.locator('#aiConnect').click();await page.locator('#aiQrContent img').waitFor();assert.equal(await page.locator('#aiQrDialog').isVisible(),true);await page.getByRole('button',{name:'Fechar QR Code',exact:true}).click();connected=true;await page.locator('#aiCheckConnection').click();await page.waitForFunction(()=>document.querySelector('#aiConnection').textContent.includes('conectado.'));
- await page.locator('#aiToggle').click();await page.waitForFunction(()=>document.querySelector('#aiToggle').textContent==='Pausar agente');assert.equal(await page.locator('#aiConfigForm input[name=agentName]').isDisabled(),true);
+ await page.locator('#aiToggle').click();await page.waitForFunction(()=>document.querySelector('#aiToggle').textContent==='Pausar agente');assert.equal(await page.locator('#aiConfigForm input[name=agentName]').isDisabled(),true);await page.getByRole('button',{name:'Qual número usar para receber os leads?',exact:true}).click();assert.equal(await page.locator('#aiSummaryDialog').isVisible(),true);await page.keyboard.press('Escape');
  await page.locator('#aiToggle').click();await page.waitForFunction(()=>document.querySelector('#aiToggle').textContent==='Ativar agente');
  for(const [width,height] of [[1920,1080],[1360,633],[1366,768],[1280,720],[1024,600],[768,1024],[390,844],[320,568]])for(const theme of ['dark','light']){
   await page.setViewportSize({width,height});await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
@@ -39,6 +39,7 @@ try{
   const dialog=await page.locator('#aiPackagesDialog').evaluate(x=>({scroll:x.scrollHeight>x.clientHeight+1,bottom:x.getBoundingClientRect().bottom}));assert.equal(dialog.scroll,false,`packages overflow ${width}x${height}`);assert.ok(dialog.bottom<=height);
   await page.keyboard.press('Escape');assert.equal(await page.locator('#aiPackagesDialog').isVisible(),false);
   if(width<=1100)await page.locator('[data-ai-panel="config"]').click();
+  await page.getByRole('button',{name:'Qual número usar para receber os leads?',exact:true}).click();assert.equal(await page.locator('#aiSummaryDialog').isVisible(),true);assert.match(await page.locator('#aiSummaryDialog').innerText(),/número diferente/);await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Como atende',exact:true}).click();assert.equal(await page.locator('#aiScriptDialog').isVisible(),true);assert.match(await page.locator('#aiScriptDescription').innerText(),/Auto, Residencial, Consórcio, Viagem, Vida ou Saúde/);await page.keyboard.press('Escape');
  }
  await page.evaluate(()=>{window.LungoAiAgent.reset();});assert.equal(await page.locator('#supervisor-view-marketing-ai').innerHTML(),'');

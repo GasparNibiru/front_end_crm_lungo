@@ -137,3 +137,8 @@
   #supervisor-view-marketing-ai textarea { height:56px; }
   #supervisor-view-marketing-ai fieldset { gap:6px 10px; }
 }
+
+.ai-summary-field { display:grid; gap:5px; align-content:start; min-width:0; }
+.ai-field-heading { display:flex; align-items:center; justify-content:space-between; gap:4px; }
+.ai-info-button { flex-shrink:0; width:18px; height:18px; padding:0; border:1px solid var(--border); border-radius:50%; background:var(--surface-2); color:var(--text); font:inherit; font-size:11px; cursor:pointer; }
+.ai-info-button:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
