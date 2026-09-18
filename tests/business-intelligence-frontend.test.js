@@ -31,3 +31,13 @@ test('money totals keep decimal precision without turning the decimal point into
   assert.equal(helpers.moneyNumber('8,944.73'), 8944.73);
   assert.match(helpers.formatMoney(0), /0,00/);
 });
+test('supervisor finance is isolated, authenticated and shipped with the frontend', () => {
+  const html = read('index.html'), api = read('supervisor-api.js'), app = read('app.js'), docker = read('Dockerfile'), finance = read('supervisor-finance.js');
+  assert.match(html, /data-supervisor-view="finance"/);
+  assert.match(html, /id="supervisor-view-finance"/);
+  assert.match(app, /LungoSupervisorFinance\?\.open\(supervisorAccessToken\)/);
+  assert.match(api, /\/api\/supervisor\/finance\/products/);
+  assert.match(finance, /activateFinance\(token\)/);
+  assert.doesNotMatch(finance, /localStorage|SUPABASE|service_role|sb_secret_/);
+  for (const asset of ['supervisor-finance.js', 'supervisor-finance.css']) assert.ok(docker.includes(asset));
+});

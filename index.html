@@ -15,7 +15,9 @@
   <script src="admin-api.js?v=20260824-meta-ages-1" defer></script>
   <script src="supervisor-api.js?v=20260823-scoped-appearance-1" defer></script>
   <link rel="stylesheet" href="prospecting.css?v=20260910-core-1">
+  <link rel="stylesheet" href="supervisor-finance.css?v=20260918-1">
   <script src="business-intelligence.js?v=20260910-core-1" defer></script>
+  <script src="supervisor-finance.js?v=20260918-1" defer></script>
   <script src="app.js?v=20260830-prospeccao-8" defer></script>
 </head>
 <body class="auth-locked">
@@ -117,6 +119,7 @@
         <div class="supervisor-nav-cluster"><button class="supervisor-nav-item supervisor-nav-parent active" data-supervisor-view="dashboard" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-7M20 16V6"/></svg></span><b>Dashboard da Equipe</b><i>›</i></button><div class="supervisor-hover-submenu"><span>Dashboard da Equipe</span><button class="supervisor-nav-item" data-supervisor-view="brokers" type="button"><b>Corretores</b></button><button class="supervisor-nav-item" data-supervisor-view="funnel" type="button"><b>Funil de Vendas</b></button></div></div>
         <button class="supervisor-nav-item" data-supervisor-view="customers" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M17 11a4 4 0 0 1 4 4v2"/></svg></span><b>Todos os Clientes</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="reports" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-7"/></svg></span><b>Relatórios</b></button>
+        <button class="supervisor-nav-item" data-supervisor-view="finance" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4zM7 10h10M7 14h6"/></svg></span><b>Financeiro</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="messages" type="button"><span><svg viewBox="0 0 24 24"><path d="M4 5h16v12H7l-3 3zM7 9h10M7 13h7"/></svg></span><b>Mensagens</b></button>
         <button class="supervisor-nav-item" data-supervisor-view="rh" type="button"><span><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M17 8h4M19 6v4"/></svg></span><b>Recursos Humanos</b></button>
       </nav>
@@ -177,6 +180,8 @@
           <div class="supervisor-report-actions"><h2>Relatório gerencial</h2><p>Prévia consolidada do período selecionado.</p><button id="supervisorGenerateReportBtn" class="btn primary" type="button">Gerar relatório</button><div id="supervisorReportStatus" class="auth-status">Prévia pronta para conferência.</div></div>
           <div class="supervisor-report-preview"><article class="supervisor-report-sheet"><header><img id="supervisorReportLogo" src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Corretora"><div><b>Relatório Comercial</b><span id="supervisorReportCompany">Corretora</span><small id="supervisorReportOwner">Supervisor · Período atual</small></div></header><div class="report-rule"></div><div id="supervisorReportNumbers" class="report-numbers"></div><h3>Ranking e desempenho dos corretores</h3><table class="report-table"><thead><tr><th>#</th><th>Corretor</th><th>Vendas</th><th>Meta</th><th>%</th><th>Último login</th></tr></thead><tbody id="supervisorReportRows"></tbody></table><h3>Resumo do funil</h3><div id="supervisorReportFunnel" class="report-funnel"></div><footer><span>Relatório gerencial</span><span id="supervisorReportFooter">1/1</span></footer></article></div>
         </section>
+
+        <section id="supervisor-view-finance" class="supervisor-view supervisor-finance-view"><div id="supervisorFinanceRoot"><div class="empty-state">Carregando financeiro...</div></div></section>
 
         <section id="supervisor-view-messages" class="supervisor-view supervisor-message-layout">
           <article class="supervisor-card"><header><div><h2>Nova mensagem</h2><p>Envie um aviso para um corretor ou para toda a equipe.</p></div></header><div class="supervisor-message-form"><label><span>Destinatário</span><select id="supervisorMessageRecipient"><option value="all">Todos os corretores</option></select></label><label><span>Mensagem</span><textarea id="supervisorMessageText" rows="6" maxlength="2000" placeholder="Digite a mensagem para a equipe"></textarea></label><button id="supervisorSendMessageBtn" class="btn primary" type="button">Enviar mensagem</button><div id="supervisorMessageStatus" class="auth-status">Aguardando envio.</div></div></article>
