@@ -15,7 +15,7 @@ const raw = [{ company_id: 'owned', cnpj: '12345678000199', trade_name: 'Aurora 
 const queries = [];
 function project(r, token) { const yes = token !== 'other' && acquired.has(r.company_id); return { ...r, ...(yes ? { id: r.company_id, version: 0, service_status: 'new', notes: '' } : { cnpj: '**.***.***/****-**', mobile_1: `(${r.mobile_1.slice(0, 2)}) *****-****`, mobile_2: `(${r.mobile_2.slice(0, 2)}) *****-****`, email: '***@***' }), is_acquired: yes, selectable: !yes, acquired_at: '2026-09-10T12:00:00Z' }; }
 async function main() {
-  const server = http.createServer((req, res) => { const file = req.url.split('?')[0]; if (file === '/' || file === '/shell') { res.setHeader('content-type','text/html'); return res.end(file === '/shell' ? shell : fixture); } if (!['/styles.css','/prospecting.css','/business-intelligence.js'].includes(file)) { res.statusCode = 404; return res.end(); } res.setHeader('content-type', file.endsWith('.css') ? 'text/css' : 'text/javascript'); res.end(fs.readFileSync(path.join(root, file))); });
+  const server = http.createServer((req, res) => { const file = req.url.split('?')[0]; if (file === '/' || file === '/shell') { res.setHeader('content-type','text/html'); return res.end(file === '/shell' ? shell : fixture); } if (!['/styles.css','/prospecting.css','/business-intelligence.js','/marketing-nav.css','/ai-agent.css','/supervisor-finance.css'].includes(file)) { res.statusCode = 404; return res.end(); } res.setHeader('content-type', file.endsWith('.css') ? 'text/css' : 'text/javascript'); res.end(fs.readFileSync(path.join(root, file))); });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   let browser;
   try {
