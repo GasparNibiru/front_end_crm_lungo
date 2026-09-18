@@ -200,7 +200,7 @@
     supervisorLogoutBtn: $("#supervisorLogoutBtn"),
     supervisorThemeBtn: $("#supervisorThemeBtn"),
     supervisorViewTitle: $("#supervisorViewTitle"),
-    supervisorNavItems: $$(".supervisor-nav-item"),
+    supervisorNavItems: $$(".supervisor-nav-item, .marketing-nav-item"),
     supervisorViews: $$(".supervisor-view"),
     supervisorBrokerList: $("#supervisorBrokerList"),
     supervisorBrokerRows: $("#supervisorBrokerRows"),
@@ -2250,7 +2250,7 @@
 
   function setSupervisorView(name) {
     restoreSupervisorSharedView();
-    const titles = { dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", "brazil-partners": "Parceiros Brasil", reports: "Relatórios", finance: "Financeiro", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
+    const titles = { "marketing-ai": "Agente de IA", "marketing-site": "Site", "marketing-forms": "Formulários", "marketing-instagram": "Instagram", dashboard: "Dashboard da Equipe", brokers: "Corretores", funnel: "Funil de Vendas", customers: "Todos os Clientes", "brazil-partners": "Parceiros Brasil", reports: "Relatórios", finance: "Financeiro", messages: "Mensagens", rh: "Recursos Humanos", settings: "Configurações da Corretora" };
     el.supervisorNavItems.forEach((button) => button.classList.toggle("active", button.dataset.supervisorView === name));
     syncSupervisorNavClusters();
     el.supervisorViews.forEach((view) => view.classList.toggle("active", view.id === `supervisor-view-${name}`));
@@ -2281,6 +2281,10 @@
   }
 
   function syncSupervisorNavClusters() {
+    $$(".marketing-nav-item").forEach((button) => {
+      if (button.classList.contains("active")) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    });
     $$(".supervisor-nav-cluster").forEach((cluster) => {
       cluster.classList.toggle("has-active", Boolean(cluster.querySelector(".supervisor-hover-submenu .supervisor-nav-item.active")));
     });
