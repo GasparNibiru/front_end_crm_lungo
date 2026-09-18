@@ -67,7 +67,7 @@
 #supervisor-view-marketing-ai fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; }
 .ai-field-wide { grid-column:1/-1; }
 #supervisor-view-marketing-ai label { gap:5px; font-size:11px; line-height:1.35; }
-#supervisor-view-marketing-ai input { height:32px; padding:6px 9px; border-radius:6px; }
+#supervisor-view-marketing-ai input,#supervisor-view-marketing-ai select { height:32px; padding:6px 9px; border-radius:6px; }
 #supervisor-view-marketing-ai textarea { height:88px; min-height:0; resize:none; padding:7px 9px; border-radius:6px; line-height:1.4; }
 #supervisor-view-marketing-ai .ai-card small,#supervisor-view-marketing-ai .ai-hint { font-size:10px; line-height:1.4; }
 #supervisor-view-marketing-ai .ai-hint { margin:8px 0 0; }
