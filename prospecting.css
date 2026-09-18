@@ -88,3 +88,64 @@
 @media (max-width:1150px) { #view-business-intelligence .pr-page { padding:20px; } #view-business-intelligence .pr-filters { grid-template-columns:repeat(3,minmax(0,1fr)); } #view-business-intelligence .pr-card { gap:16px; padding:18px; } }
 @media (max-width:800px) { #view-business-intelligence .pr-header { flex-direction:column; } #view-business-intelligence .pr-wallet { width:100%; } #view-business-intelligence .pr-card { grid-template-columns:1fr 1fr; } #view-business-intelligence .pr-company { grid-column:1 / -1; } #view-business-intelligence .pr-filters { grid-template-columns:1fr 1fr; } #view-business-intelligence .pr-selection { flex-wrap:wrap; } #view-business-intelligence .pr-selection > div { flex-basis:100%; } }
 @media (max-width:480px) { #view-business-intelligence .pr-page { padding:12px; } #view-business-intelligence .pr-filters { padding:12px; gap:12px; } #view-business-intelligence .pr-cnaes { grid-column:1 / -1; } #view-business-intelligence .pr-card { grid-template-columns:1fr; padding:16px; } #view-business-intelligence .pr-company { grid-column:auto; } #view-business-intelligence .pr-meta { grid-template-columns:1fr 1fr; } #view-business-intelligence .pr-list-header { align-items:flex-start; } #view-business-intelligence .pr-list-header h2 { font-size:15px; } #view-business-intelligence .pr-options { left:auto; right:0; max-width:calc(100vw - 66px); } #view-business-intelligence .pr-picker:nth-child(2) .pr-picker-choices { left:auto; right:0; } #view-business-intelligence .pr-pagination { gap:8px; font-size:12px; } #view-business-intelligence .pr-future-actions { grid-template-columns:repeat(2,minmax(0,1fr)); } #view-business-intelligence .pr-action-form { padding:18px; } #view-business-intelligence .pr-action-grid { grid-template-columns:1fr; } }
+
+/* Shared CRM typography, surfaces and compact spacing. */
+#view-business-intelligence,
+[data-theme="light"] #view-business-intelligence {
+  --pr-bg:var(--surface-2); --pr-card:var(--surface); --pr-border:var(--border);
+  --pr-text:var(--text); --pr-muted:var(--muted); --pr-accent:var(--primary);
+  background:transparent; font-size:11px;
+}
+#view-business-intelligence .pr-page { max-width:none; padding:12px; }
+#view-business-intelligence .pr-header { gap:12px; margin-bottom:10px; align-items:center; }
+#view-business-intelligence .pr-eyebrow { font-size:9px; letter-spacing:.08em; }
+#view-business-intelligence h1 { font-size:16px; margin:3px 0 4px; letter-spacing:0; }
+#view-business-intelligence p { font-size:11px; line-height:1.4; }
+#view-business-intelligence .pr-wallet { min-width:200px; padding:10px 12px; gap:7px; border-radius:8px; }
+#view-business-intelligence .pr-wallet summary { font-size:13px; }
+#view-business-intelligence :is(button,.pr-button) { min-height:30px; padding:6px 10px; font-size:11px; border-radius:6px; font-weight:500; }
+#view-business-intelligence .pr-tabs { gap:4px; padding:4px; margin-bottom:10px; border:1px solid var(--pr-border); border-radius:6px; background:var(--pr-card); }
+#view-business-intelligence .pr-tabs button[aria-pressed="true"] { background:var(--pr-bg); box-shadow:inset 0 -2px var(--pr-accent); border-color:transparent; }
+#view-business-intelligence .pr-filters { padding:12px; gap:8px 12px; border-radius:8px; }
+#view-business-intelligence :is(label,.pr-cnaes,.pr-picker) { font-size:11px; gap:5px; }
+#view-business-intelligence :is(input:not([type="checkbox"]),select) { height:32px; min-height:32px; padding:6px 9px; border-radius:6px; }
+#view-business-intelligence .pr-picker-menu summary { min-height:32px; height:32px; padding:6px 9px; border-radius:6px; box-sizing:border-box; }
+#view-business-intelligence .pr-multiselect { padding-top:20px; }
+#view-business-intelligence .pr-multiselect summary { padding:7px 9px; border-radius:6px; min-height:32px; box-sizing:border-box; }
+#view-business-intelligence .pr-filter-actions { padding-top:0; gap:6px; }
+#view-business-intelligence .pr-list-header { margin:12px 0 8px; gap:10px; }
+#view-business-intelligence h2 { font-size:13px; margin-bottom:3px; }
+#view-business-intelligence .pr-cards { gap:8px; }
+#view-business-intelligence .pr-card { gap:10px 16px; padding:12px; border-radius:8px; box-shadow:none; }
+#view-business-intelligence h3 { font-size:13px; margin-bottom:3px; }
+#view-business-intelligence .pr-company { gap:8px; }
+#view-business-intelligence .pr-company p,#view-business-intelligence .pr-detail span { font-size:11px; }
+#view-business-intelligence .pr-contacts,#view-business-intelligence .pr-meta { gap:6px; }
+#view-business-intelligence .pr-phone span { font-size:12px; }
+#view-business-intelligence .pr-lock,#view-business-intelligence .pr-acquired { margin-top:6px; font-size:10px; }
+#view-business-intelligence .pr-card-footer { gap:8px; padding-top:10px; font-size:11px; }
+#view-business-intelligence .pr-future-actions { gap:6px; }
+#view-business-intelligence .pr-future-actions :is(button,a) { min-height:30px; padding:6px 8px; font-size:11px; }
+#view-business-intelligence .pr-selection { gap:8px; margin-top:8px; padding:10px 12px; border-radius:8px; }
+#view-business-intelligence .pr-pagination { gap:10px; margin:12px 0 0; }
+#view-business-intelligence .pr-status { padding:24px 12px; border-radius:8px; }
+#view-business-intelligence .pr-notice { margin:8px 0; padding:8px 10px; }
+#view-business-intelligence .pr-dialog { padding:16px; border-radius:10px; }
+#view-business-intelligence .pr-action-dialog { padding:0; }
+#view-business-intelligence .pr-action-form { padding:16px; gap:12px; }
+#view-business-intelligence .pr-action-header h2 { font-size:15px; }
+#view-business-intelligence .pr-action-field { font-size:11px; }
+#view-business-intelligence .pr-action-footer { padding-top:10px; }
+@media(max-width:800px) {
+  #view-business-intelligence .pr-header { align-items:stretch; gap:8px; }
+  #view-business-intelligence .pr-wallet { min-width:0; grid-template-columns:1fr auto; align-items:center; }
+}
+@media(max-width:480px) {
+  #view-business-intelligence .pr-page { padding:8px; }
+  #view-business-intelligence .pr-header > div:first-child > p { margin-bottom:0; }
+  #view-business-intelligence .pr-filters { padding:10px; gap:8px; }
+  #view-business-intelligence .pr-card { padding:10px; }
+  #view-business-intelligence .pr-list-header h2 { font-size:13px; }
+  #view-business-intelligence .pr-wallet { padding:8px; gap:6px; }
+  #view-business-intelligence .pr-wallet summary { font-size:12px; }
+}
