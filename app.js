@@ -2282,6 +2282,28 @@
     if (name === 'brazil-partners') { const intro = $('#brazilPartnerIntro'); if (intro) intro.hidden = false; loadSupervisorBrazilPartners(); }
   }
 
+  function prepareSupervisorSubmenus() {
+    $$('.supervisor-nav-cluster').forEach(cluster => {
+      const parent = cluster.querySelector('.supervisor-nav-parent'), menu = cluster.querySelector('.supervisor-hover-submenu');
+      if (!parent || !menu) return;
+      const close = () => { if(menu.matches(':popover-open')) menu.hidePopover(); menu.removeAttribute('popover'); parent.setAttribute('aria-expanded','false'); };
+      const open = () => {
+        if (cluster.getBoundingClientRect().width > 80) { close(); return; }
+        $$('.supervisor-hover-submenu:popover-open').forEach(other=>{if(other!==menu)other.hidePopover();});
+        menu.setAttribute('popover','auto'); menu.showPopover();
+        const r=parent.getBoundingClientRect(); menu.style.left=Math.min(r.right+6,window.innerWidth-200)+'px';
+        menu.style.top=Math.max(8,Math.min(r.top,window.innerHeight-menu.offsetHeight-8))+'px';
+        parent.setAttribute('aria-expanded','true');
+      };
+      parent.addEventListener('click',open); parent.addEventListener('mouseenter',open);
+      el.supervisorSidebarToggle?.addEventListener('click',close);
+      menu.addEventListener('click',event=>{if(event.target.closest('[data-supervisor-view]'))close();});
+      menu.addEventListener('toggle',()=>{if(!menu.matches(':popover-open'))parent.setAttribute('aria-expanded','false');});
+      window.addEventListener('resize',close);
+    });
+  }
+  prepareSupervisorSubmenus();
+
   function syncSupervisorNavClusters() {
     $$(".marketing-nav-item").forEach((button) => {
       if (button.classList.contains("active")) button.setAttribute("aria-current", "page");
@@ -3023,9 +3045,15 @@
     el.leadModal.close();
   }
 
-  function openLeadScheduleModal(lead = null) {
+  async function requireScheduledWhatsApp() {
+    const result = await api('/api/scheduled/availability', { headers: { 'x-client-token': state.token } });
+    if (result.connected !== true) throw new Error('Conecte seu WhatsApp à plataforma em Meus dados antes de agendar mensagens.');
+  }
+
+  async function openLeadScheduleModal(lead = null) {
     const item = lead || getLead(el.leadId.value);
     if (!item?.id) return toast("Salve o lead antes de programar a mensagem.");
+    try { await requireScheduledWhatsApp(); } catch (error) { toast(error.message); return; }
     const s = item.mensagemProgramada || {};
     state.leadScheduleTarget = item.id;
     el.leadScheduleId.value = item.id;
@@ -3057,6 +3085,7 @@
       if (!payload.data) throw new Error("Informe a data de retorno.");
       if (!payload.hora) throw new Error("Informe a hora.");
       if (!payload.mensagem) throw new Error("Informe a mensagem.");
+      await requireScheduledWhatsApp();
       await api(`/api/scheduled/leads/${encodeURIComponent(id)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
