@@ -1721,6 +1721,18 @@
     if (modal?.open) modal.close();
   }
 
+  document.querySelectorAll('.daily-trigger').forEach(button => button.addEventListener('click', () => {
+    const supervisor = Boolean(supervisorAccessToken);
+    const token = supervisorAccessToken || state.token;
+    window.LungoDailyAssistant?.open({ token, supervisor, navigate: async item => {
+      if ((supervisorAccessToken || state.token) !== token) return;
+      if (item.kind === 'agenda') { if(supervisor) setSupervisorOperation('agenda'); else setView('agenda'); return; }
+      if (item.kind === 'client') { if(supervisor) setSupervisorOperation('clients'); else setView('clients'); await loadClients(true); const client=state.clients.find(x=>String(x.id)===String(item.id)); if(client)openClientModal(client); else toast('Cliente disponível na carteira.'); return; }
+      if (item.team && supervisor) { await loadSupervisorRemoteData(); setSupervisorView('funnel'); const deal=SUPERVISOR_DEALS.find(x=>String(x.id)===String(item.id)); if(deal)openSupervisorDealDetails(deal,{}); else toast('O lead não está mais disponível no funil.'); }
+      else { if(supervisor)setSupervisorOperation('crm');else setView('crm');await loadCrm(true);const lead=getLead(item.id);if(lead)openLeadModal(lead);else toast('O lead não está mais disponível.'); }
+    }});
+  }));
+
   function calendarToken() { return supervisorAccessToken || state.token; }
   function calendarDateTime(value) { return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 
@@ -2107,6 +2119,7 @@
 
   function closeSupervisorArea() {
     window.LungoBusinessIntelligence?.reset();
+    window.LungoDailyAssistant?.reset();
     stopCalendarReminders();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     clearInterval(recruitmentTimer); recruitmentTimer = null;
@@ -4596,6 +4609,7 @@
 
   function logout() {
     window.LungoBusinessIntelligence?.reset();
+    window.LungoDailyAssistant?.reset();
     stopCalendarReminders();
     stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
