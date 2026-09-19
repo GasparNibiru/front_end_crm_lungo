@@ -1,0 +1,34 @@
+const {chromium}=require('playwright');
+const fs=require('fs'),path=require('path'),http=require('http'),assert=require('assert/strict');
+const root=path.resolve(__dirname,'..');
+(async()=>{
+ const server=http.createServer((req,res)=>{const file=path.join(root,req.url.split('?')[0]==='/'?'index.html':req.url.split('?')[0]);if(!file.startsWith(root)||!fs.existsSync(file)||fs.statSync(file).isDirectory()){res.writeHead(404);return res.end();}res.setHeader('Content-Type',file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':file.endsWith('.html')?'text/html':'application/octet-stream');const content=fs.readFileSync(file);res.end(file.endsWith('app.js')?content.toString().replace("  document.querySelectorAll('.daily-trigger')","  window.__dailyTestToken=token=>{state.token=token;};\n  document.querySelectorAll('.daily-trigger')"):content);});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
+ try {
+  browser=await chromium.launch({channel:'chrome',headless:true});const page=await browser.newPage({viewport:{width:1360,height:768}}),errors=[],requests=[];
+  page.on('pageerror',e=>errors.push(e.message));await page.route('https://**/*',r=>r.abort());
+  let fail=false,empty=false;
+  await page.route('**/api/**',async r=>{const req=r.request(),u=new URL(req.url());requests.push(u.pathname);assert.equal(req.method(),'GET');const now=new Date(),date=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);const json=u.pathname.includes('calendar')?{ok:true,events:empty?[]:[{id:'event',title:'Reunião de equipe',startsAt:date+'T15:00:00'}]}:u.pathname.includes('client')?{ok:true,clients:empty?[]:[{id:'client',nome:'Cliente carteira',dataRenovacao:date}]}:{ok:true,leads:empty?[]:[{id:u.pathname.includes('supervisor')?'team':'own',nome:'Ana <script>unsafe</script>',telefone:'5511999998888',status:'novo',mensagemProgramada:{data:date,hora:'14:00',ativo:true}}]};if(fail&&u.pathname.includes('calendar'))return r.fulfill({status:503,json:{error:'offline'}});return r.fulfill({json});});
+  await page.goto('http://127.0.0.1:'+server.address().port);await page.evaluate(()=>{document.body.classList.remove('auth-locked');document.body.classList.add('supervisor-mode');document.querySelector('#authScreen').hidden=true;document.querySelector('#supervisorScreen').hidden=false;});
+  await page.locator('.supervisor-topbar .daily-trigger').click();assert.match(await page.locator('.daily-status').innerText(),/Entre na sua conta/);await page.keyboard.press('Escape');
+  const open=supervisor=>page.evaluate(supervisor=>window.LungoDailyAssistant.open({token:'mock-token',supervisor,navigate:item=>{window.dailySelected=item;}}),supervisor);
+  await open(true);assert.equal(await page.locator('.daily-row').count(),3);await page.getByRole('button',{name:'Pendências'}).click();assert.equal(await page.locator('.daily-row').count(),2);assert.equal(await page.locator('.daily-row script').count(),0);
+  await page.locator('.daily-open').first().click();assert.equal(await page.locator('.daily-dialog').isVisible(),false);assert.equal(await page.evaluate(()=>window.dailySelected.kind),'lead');
+  requests.length=0;await open(false);assert.ok(!requests.some(x=>x.startsWith('/api/supervisor')));await page.keyboard.press('Escape');
+  fail=true;await open(true);assert.match(await page.locator('.daily-status').innerText(),/Resumo parcial/);fail=false;
+  empty=true;await open(false);assert.match(await page.locator('.daily-intro').innerText(),/Tudo em ordem/);empty=false;
+  fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
+  for(const [width,height] of [[1920,1080],[1360,633],[1280,720],[1024,600],[390,844],[320,568]])for(const theme of ['light','dark']){
+   await page.setViewportSize({width,height});await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await open(true);
+   const geometry=await page.locator('.daily-dialog').evaluate(x=>({width:x.scrollWidth,client:x.clientWidth,bottom:x.getBoundingClientRect().bottom,left:x.getBoundingClientRect().left}));assert.ok(geometry.width<=geometry.client+1,JSON.stringify(geometry));assert.ok(geometry.bottom<=height&&geometry.left>=0);await page.screenshot({path:path.join(root,'test-results',`daily-${width}-${theme}.png`)});await page.keyboard.press('Escape');
+   const box=await page.locator('.supervisor-topbar .daily-trigger').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width,'orb fits header');
+  }
+  await page.evaluate(()=>{document.body.classList.remove('supervisor-mode');document.querySelector('#supervisorScreen').hidden=true;document.querySelector('#appShell').hidden=false;window.__dailyTestToken('mock-token');});
+  for(const width of [1360,390,320]){await page.setViewportSize({width,height:768});const box=await page.locator('.topbar .daily-trigger').boundingBox();assert.ok(box&&box.x>=0&&box.x+box.width<=width,'broker orb fits '+width+' '+JSON.stringify(box));}
+  await page.locator('.topbar .daily-trigger').click();await page.waitForFunction(()=>document.querySelector('.daily-status').textContent.includes('Atualizado'));await page.getByRole('button',{name:'Pendências'}).click();await page.locator('.daily-open').first().click();await page.locator('#leadModal[open]').waitFor();await page.keyboard.press('Escape');
+  await page.evaluate(()=>{document.body.classList.add('supervisor-mode');document.querySelector('#supervisorScreen').hidden=false;});
+  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.supervisor-topbar .daily-orb').evaluate(x=>getComputedStyle(x).animationName),'none');
+  await open(true);await page.evaluate(()=>window.LungoDailyAssistant.reset());assert.equal(await page.locator('.daily-dialog').count(),0);assert.equal(await page.locator('.daily-dot:not([hidden])').count(),0);assert.deepEqual(errors,[]);
+  console.log(JSON.stringify({responsiveVariants:12,scope:'passed',partialFailure:'passed',empty:'passed',navigation:'passed',reset:'passed',reducedMotion:'passed',errors}));
+ }finally{await browser?.close();server.close();}
+})().catch(e=>{console.error(e);process.exitCode=1});
