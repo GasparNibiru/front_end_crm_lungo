@@ -11,3 +11,13 @@ test('no inferred timestamps, duplicate reminders or sample records',()=>{
  assert.deepEqual(summarize({leads:[{id:'x',status:'em_atendimento'},{id:'y',status:'em_atendimento',updatedAt:'invalid'}]},now),[]);
  const lead={id:'1',status:'novo',nome:'<img src=x>',_team:true,brokerName:'Corretora'};const rows=summarize({leads:[lead,lead]},now);assert.equal(rows.length,1);assert.equal(rows[0].team,true);assert.equal(rows[0].name,'<img src=x>');
 });
+
+const {salesSummary,financeSummary}=require('../daily-assistant');
+test('sales use closing date rather than last edit, and parse Brazilian money',()=>{
+ const s=salesSummary([{id:'1',status:'fechamento',closedAt:'2026-09-10T10:00:00',valorNegocio:'1.234,56'},{id:'2',status:'fechamento',updatedAt:'2026-09-10T10:00:00',valorNegocio:2000},{id:'3',status:'novo',valorNegocio:50},{id:'4',status:'fechamento',closedAt:'2026-08-01T10:00:00',valorNegocio:999}],now);
+ assert.equal(s.count,1);assert.equal(s.value,1234.56);assert.equal(s.undated,1);assert.equal(s.open,1);
+});
+test('finance totals separate expected, overdue, paid by payment month and transfers',()=>{
+ const t=financeSummary([{status:'pending',net_amount:100,due_date:'2026-09-18'},{status:'pending',net_amount:200,due_date:'2026-10-01'},{status:'paid',net_amount:400,paid_amount:350,paid_at:'2026-09-02T10:00:00',due_date:'2026-08-01'},{status:'paid',paid_amount:999,paid_at:'2026-08-02T10:00:00'},{status:'cancelled',net_amount:888}],[{status:'pending',expected_amount:80},{status:'paid',expected_amount:10}],now);
+ assert.deepEqual(t,{pending:300,overdue:100,received:350,transfers:80});
+});
