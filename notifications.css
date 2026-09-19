@@ -1,5 +1,5 @@
-.notification-trigger { position:relative; display:grid; place-items:center; width:34px; min-width:34px; height:34px; padding:0!important; }
-.notification-trigger svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.notification-trigger { position:relative; display:grid; place-items:center; flex-shrink:0; }
+.notification-trigger svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .notification-dot { position:absolute; width:7px; height:7px; border-radius:50%; background:#ef4444; top:4px; right:4px; box-shadow:0 0 0 2px var(--surface); }
 .notification-dot[hidden] { display:none; }
 .notification-dialog { position:fixed; inset:76px 16px auto auto; margin:0; width:min(360px,calc(100vw - 24px)); max-height:calc(100dvh - 100px); padding:16px; border:1px solid var(--border); border-radius:14px; background:var(--surface); color:var(--text); box-shadow:0 16px 50px #0005; }
