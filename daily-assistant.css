@@ -102,3 +102,8 @@
 .daily-dialog .daily-welcome { display:none; }
 .daily-dialog footer { flex-shrink:0; }
 .daily-composer .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+
+.daily-brand { display:flex; align-items:center; gap:12px; min-width:0; }
+.daily-brand .daily-orb { width:36px; height:36px; flex-shrink:0; }
+.daily-suggestion { text-align:left; border:1px solid var(--border); border-radius:12px; background:var(--surface-2); color:var(--text); padding:10px 12px; font:inherit; font-size:12px; cursor:pointer; }
+.daily-suggestion:hover { border-color:#22b8cf; }

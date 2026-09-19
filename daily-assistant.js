@@ -47,6 +47,7 @@
     return {pending:receivables.filter(x=>x.status==='pending').reduce((s,x)=>s+money(x.net_amount),0),overdue:receivables.filter(x=>x.status==='pending'&&x.due_date&&x.due_date.slice(0,10)<today).reduce((s,x)=>s+money(x.net_amount),0),received:receivables.filter(x=>x.status==='paid'&&x.paid_at&&dayKey(new Date(x.paid_at)).slice(0,7)===month).reduce((s,x)=>s+money(x.paid_amount),0),transfers:transfers.filter(x=>x.status==='pending').reduce((s,x)=>s+money(x.expected_amount),0)};
   }
   const helpTopics = [
+    {id:'broadcast',title:'Como usar a ferramenta de disparos?',route:'broadcast',steps:['Conecte seu WhatsApp em Meus dados e abra Disparos.','Selecione a planilha de contatos autorizados em XLSX, XLS ou CSV. Confira a instância e clique em Validar.','Escreva e revise a mensagem. Clique em Iniciar para começar a campanha.','Acompanhe Total, Enviados, Pendentes e Erros. Para interromper, clique em Parar.']},
     {id:'connect',title:'Como conectar meu WhatsApp?',route:'connect',steps:['Abra Meus dados e acesse Conectar WhatsApp.','Gere o QR Code e escaneie pelo WhatsApp do seu celular, em Aparelhos conectados.','Confira se a plataforma mostra a conexão ativa antes de programar mensagens.']},
     {id:'crm',title:'Como cadastrar e acompanhar um lead?',route:'crm',steps:['Abra Meus Leads e use a opção de novo lead. Preencha nome e telefone.','Use a lista ou o kanban para acompanhar a etapa da negociação.','Abra a ficha para atualizar informações e definir o próximo retorno.']},
     {id:'schedule',title:'Como agendar uma mensagem?',route:'crm',steps:['Conecte primeiro o WhatsApp vinculado à plataforma.','Em Meus Leads, abra o agendamento do lead e informe data, hora e mensagem.','Salve a programação. O WhatsApp precisa estar conectado também no momento do envio.']},
@@ -60,14 +61,14 @@
   if(typeof window==='undefined')return;
   let generation=0,controller,dialog,session,items=[],tab='today',mode='day',snapshot={leads:[]},failedSources=[],financeCache=null,loadingData=false;
   const node=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
-  let chat=[],chatBusy=false,chatController;
-  function reset(){chatController?.abort();chat=[];chatBusy=false;generation++;controller?.abort();session=null;items=[];snapshot={leads:[]};failedSources=[];financeCache=null;mode='day';loadingData=false;if(dialog?.open)dialog.close();dialog?.remove();dialog=null;document.querySelectorAll('.daily-dot').forEach(n=>n.hidden=true);}
+  let chat=[],chatBusy=false,chatController,teamCache=null;
+  function reset(){chatController?.abort();chat=[];chatBusy=false;teamCache=null;generation++;controller?.abort();session=null;items=[];snapshot={leads:[]};failedSources=[];financeCache=null;mode='day';loadingData=false;if(dialog?.open)dialog.close();dialog?.remove();dialog=null;document.querySelectorAll('.daily-dot').forEach(n=>n.hidden=true);}
   function renderList(){
     const list=dialog.querySelector('.daily-list');list.replaceChildren();
     dialog.querySelector('.daily-tabs').hidden=mode!=='day';
     dialog.querySelectorAll('[data-daily-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.dailyMode===mode)));
-    if(mode==='chat'){for(const entry of chat)list.append(node('p','daily-message '+entry.role,entry.content));if(!chat.length)list.append(node('p','daily-empty','Como posso ajudar você a usar o Lungo?'));if(chatBusy)list.append(node('p','daily-thinking','Pensando…'));list.scrollTop=list.scrollHeight;return;}
-    if(['help','sales','finance'].includes(mode)){renderFeature(list);return;}
+    if(mode==='chat'){for(const entry of chat)list.append(node('p','daily-message '+entry.role,entry.content));if(!chat.length)list.append(node('p','daily-empty','Pergunte sobre suas vendas, o Lungo ou o mercado de seguros.'));if(chatBusy)list.append(node('p','daily-thinking','Pensando…'));list.scrollTop=list.scrollHeight;return;}
+    if(['help','sales','finance','team','market'].includes(mode)){renderFeature(list);return;}
     for(const button of dialog.querySelectorAll('[data-daily-tab]')){button.setAttribute('aria-pressed',String(button.dataset.dailyTab===tab));button.querySelector('b').textContent=items.filter(x=>x.group===button.dataset.dailyTab).length;}
     const rows=mode==='attention'?items.filter(x=>x.group==='pending'||(x.group==='today'&&x.kind!=='agenda')).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')):items.filter(x=>x.group===tab);
     if(!rows.length){const empty=node('div','daily-empty');empty.append(node('span','','✓'),node('h3','','Nenhum item nesta categoria'),node('p','','Com base nos dados consultados agora.'));list.append(empty);return;}
@@ -76,7 +77,30 @@
   const brl=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   function shortcut(list,label,route){const b=node('button','daily-open',label);b.type='button';b.onclick=async()=>{const current=session;dialog.close();try{await current.navigate({kind:'route',route});}catch{if(session===current){dialog.showModal();dialog.querySelector('.daily-status').textContent='Não foi possível abrir a área. Tente novamente.';}}};list.append(b);}
   function metrics(list,values){const grid=node('div','daily-metrics');for(const [label,value] of values){const card=node('article');card.append(node('small','',label),node('strong','',String(value)));grid.append(card);}list.append(grid);}
+  function question(list,text){const button=node('button','daily-suggestion',text);button.type='button';button.onclick=()=>{const input=dialog.querySelector('#dailyQuestion');input.value=text;input.focus();};list.append(button);}
+  async function loadTeam(){
+    const current=session,g=generation;teamCache={loading:true};
+    try{const response=await fetch(window.LUNGO_CONFIG.API_BASE_URL+'/api/assistant/team',{headers:{'x-access-token':current.token},cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(15000)])});if(!response.ok)throw Error();const data=await response.json();if(session!==current||g!==generation)return;teamCache=data;}
+    catch{if(session!==current||g!==generation)return;teamCache={error:true};}
+    if(mode==='team')renderList();
+  }
   function renderFeature(list){
+    if(mode==='market'){
+      list.append(node('h3','','Dúvidas do mercado'),node('p','','Converse sobre seguros, planos de saúde e estratégias de atendimento. Informações atuais dependem de consulta às fontes oficiais.'));
+      for(const text of ['Qual a diferença entre carência e cobertura parcial temporária?','Como explicar franquia de seguro ao cliente?','Como abordar uma objeção de preço?'])question(list,text);
+      return;
+    }
+    if(mode==='team'){
+      if(!session.supervisor)return;
+      if(!teamCache){list.append(node('p','','Consultando sua equipe…'));loadTeam();return;}
+      if(teamCache.loading){list.append(node('p','','Consultando sua equipe…'));return;}
+      if(teamCache.error){list.append(node('p','','Não foi possível consultar a equipe. Tente atualizar.'));return;}
+      list.append(node('h3','',`Minha equipe · ${teamCache.team.count} corretores ativos`),node('p','',`Vendas do mês ${teamCache.period.split('-').reverse().join('/')} · CRM e Financeiro`));
+      for(const member of teamCache.team.members){const row=node('article','daily-row'),copy=node('div');copy.append(node('h3','',member.name),node('p','',`${member.openOpportunities} oportunidades abertas · ${member.salesThisMonth} vendas · ${brl(member.valueThisMonth)}`));row.append(copy);list.append(row);}
+      if(teamCache.team.count>teamCache.team.listed)list.append(node('p','',`Exibindo ${teamCache.team.listed} de ${teamCache.team.count} corretores.`));
+      if(!teamCache.team.count)list.append(node('p','','Nenhum corretor ativo cadastrado.'));
+      question(list,'Quem vendeu mais na minha equipe neste mês?');return;
+    }
     if(mode==='help'){
       list.append(node('p','daily-help-intro','Escolha uma dúvida para ver os passos e abrir a área correspondente.'));
       const topics=helpTopics.filter(x=>!x.supervisor||session.supervisor).sort((a,b)=>Number(b.route===session.context)-Number(a.route===session.context));
@@ -119,7 +143,7 @@
     if(g!==generation||session!==current||!dialog)return;
     const data={leads:[],clients:[],events:[]},failed=[];results.forEach((r,i)=>{if(r.status==='fulfilled')data[r.value.key].push(...r.value.rows);else failed.push(sources[i][0]);});
     for(const key of Object.keys(data))data[key]=[...new Map(data[key].map(x=>[String(x.id),x])).values()];
-    loadingData=false;snapshot=data;failedSources=failed;financeCache=null;items=summarize(data);tab=items.some(x=>x.group==='today')?'today':items.some(x=>x.group==='pending')?'pending':'portfolio';
+    loadingData=false;snapshot=data;failedSources=failed;financeCache=null;teamCache=null;items=summarize(data);tab=items.some(x=>x.group==='today')?'today':items.some(x=>x.group==='pending')?'pending':'portfolio';
     status.textContent=failed.length?`Resumo parcial. Não foi possível consultar: ${failed.join(', ')}. Tente atualizar.`:`Atualizado às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} · ${current.supervisor?'Seus atendimentos e os da equipe':'Seus atendimentos'}`;
     dialog.querySelector('.daily-intro').textContent=items.length?`${items.length} ${items.length===1?'ponto merece':'pontos merecem'} sua atenção. Vamos organizar os próximos passos?`:failed.length?'Algumas informações ainda não estão disponíveis.':'Tudo em ordem nos dados consultados. Veja sua agenda quando precisar.';
     document.querySelectorAll('.daily-dot').forEach(n=>n.hidden=!items.some(x=>x.group==='pending'));renderList();refreshButton.disabled=false;
@@ -138,10 +162,10 @@
   }
   async function open(options){
     reset();session=options;dialog=node('dialog','daily-dialog');dialog.setAttribute('aria-labelledby','dailyTitle');
-    dialog.innerHTML='<header class="daily-header"><div><span class="daily-eyebrow">ASSISTENTE LUNGO</span><h2 id="dailyTitle">Como posso ajudar?</h2></div><button type="button" class="daily-close" aria-label="Fechar resumo do dia">×</button></header><div class="daily-welcome"><span class="daily-orb" aria-hidden="true"><i></i><i></i><i></i></span><div><h3></h3><p class="daily-intro">Vamos conferir o que merece sua atenção.</p></div></div><nav class="daily-pills" aria-label="Como posso ajudar"></nav><nav class="daily-tabs" aria-label="Resumo do dia"><button type="button" data-daily-tab="today" aria-pressed="true">Agenda <b>0</b></button><button type="button" data-daily-tab="pending" aria-pressed="false">Pendências <b>0</b></button><button type="button" data-daily-tab="portfolio" aria-pressed="false">Carteira <b>0</b></button></nav><p class="daily-status" role="status"></p><div class="daily-list"></div><form class="daily-composer"><label class="sr-only" for="dailyQuestion">Converse com o Assistente Lungo</label><input id="dailyQuestion" maxlength="2000" autocomplete="off" placeholder="Como posso ajudar?" required><button type="submit" aria-label="Enviar mensagem">Enviar</button></form><footer><span class="daily-chat-error" role="alert"></span><button class="daily-refresh" type="button">Atualizar</button></footer>';
+    dialog.innerHTML='<header class="daily-header"><div class="daily-brand"><span class="daily-orb" aria-hidden="true"><i></i><i></i><i></i></span><div><span class="daily-eyebrow">ASSISTENTE LUNGO</span><h2 id="dailyTitle">Como posso ajudar?</h2></div></div><button type="button" class="daily-close" aria-label="Fechar resumo do dia">×</button></header><div class="daily-welcome"><span class="daily-orb" aria-hidden="true"><i></i><i></i><i></i></span><div><h3></h3><p class="daily-intro">Vamos conferir o que merece sua atenção.</p></div></div><nav class="daily-pills" aria-label="Como posso ajudar"></nav><nav class="daily-tabs" aria-label="Resumo do dia"><button type="button" data-daily-tab="today" aria-pressed="true">Agenda <b>0</b></button><button type="button" data-daily-tab="pending" aria-pressed="false">Pendências <b>0</b></button><button type="button" data-daily-tab="portfolio" aria-pressed="false">Carteira <b>0</b></button></nav><p class="daily-status" role="status"></p><div class="daily-list"></div><form class="daily-composer"><label class="sr-only" for="dailyQuestion">Converse com o Assistente Lungo</label><input id="dailyQuestion" maxlength="2000" autocomplete="off" placeholder="Como posso ajudar?" required><button type="submit" aria-label="Enviar mensagem">Enviar</button></form><footer><span class="daily-chat-error" role="alert"></span><button class="daily-refresh" type="button">Atualizar</button></footer>';
     const hour=new Date().getHours();dialog.querySelector('.daily-welcome h3').textContent=hour<12?'Bom dia!':hour<18?'Boa tarde!':'Boa noite!';
     dialog.querySelector('.daily-close').onclick=()=>dialog.close();dialog.querySelector('.daily-refresh').onclick=refresh;dialog.querySelectorAll('[data-daily-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.dailyTab;renderList();});
-    const choices=[['day','Meu dia'],['help','Ajuda'],['sales','Vendas'],['attention','Prioridades'],...(options.supervisor?[['finance','Financeiro']]:[]),['chat','Conversar']];
+    const choices=[['day','Meu dia'],['help','Ajuda'],['sales','Vendas'],['attention','Prioridades'],...(options.supervisor?[['finance','Financeiro'],['team','Minha equipe']]:[]),['market','Dúvidas do mercado'],['chat','Conversar']];
     for(const [value,label] of choices){const button=node('button','',label);button.type='button';button.dataset.dailyMode=value;button.onclick=()=>{mode=value;renderList();};dialog.querySelector('.daily-pills').append(button);}
     dialog.querySelector('.daily-composer').onsubmit=sendChat;
     document.body.append(dialog);dialog.showModal();if(!options.token){dialog.querySelector('.daily-status').textContent='Entre na sua conta para consultar o resumo.';dialog.querySelector('.daily-refresh').disabled=true;return;}await refresh();
