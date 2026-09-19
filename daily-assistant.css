@@ -88,3 +88,17 @@
 .daily-metrics small { font-size:10px; color:var(--muted); display:block; margin-bottom:7px; }
 .daily-metrics strong { font-size:17px; overflow-wrap:anywhere; }
 @media(max-width:400px) { .daily-metrics article { padding:9px; } .daily-metrics strong { font-size:14px; } .daily-dialog[open] { gap:9px; } }
+
+.daily-pills { display:flex; flex-wrap:wrap; gap:6px; flex-shrink:0; }
+.daily-pills button { border:1px solid var(--border); border-radius:99px; padding:7px 12px; background:transparent; color:var(--muted); font:inherit; font-size:11px; cursor:pointer; }
+.daily-pills button[aria-pressed="true"] { background:rgba(34,211,238,.13); border-color:#22b8cf; color:var(--text); }
+.daily-composer { display:flex; gap:8px; flex-shrink:0; margin:0; }
+.daily-composer input { min-width:0; flex:1; border:1px solid var(--border); border-radius:12px; padding:10px; background:var(--surface-2); color:var(--text); font:inherit; font-size:12px; }
+.daily-composer button { border:0; border-radius:12px; padding:8px 13px; background:#087e94; color:white; cursor:pointer; }
+.daily-composer button:disabled { opacity:.5; cursor:wait; }
+.daily-message { white-space:pre-wrap; overflow-wrap:anywhere; padding:10px 12px; border-radius:12px; background:var(--surface-2); line-height:1.6; }
+.daily-message.user { margin-left:35px; background:rgba(34,211,238,.12); }
+.daily-thinking,.daily-chat-error { font-size:11px; color:var(--muted); }
+.daily-dialog .daily-welcome { display:none; }
+.daily-dialog footer { flex-shrink:0; }
+.daily-composer .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
