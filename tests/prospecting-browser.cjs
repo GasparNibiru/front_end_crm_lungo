@@ -44,7 +44,7 @@ async function main() {
     });
     const base = `http://127.0.0.1:${server.address().port}`;
     await page.goto(base); await page.evaluate(() => window.LungoBusinessIntelligence.open('broker'));
-    await page.waitForSelector('.pr-card'); await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('20 tokens'));
+    await page.waitForSelector('.pr-card'); await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('20 créditos'));
     assert.equal(await page.locator('[data-pr-tab="search"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await page.locator('#prYear option').count(), 4); assert.equal(await page.locator('#prYear option').first().innerText(), 'Últimos 3 anos');
     assert.equal(await page.locator('.pr-card input:disabled').count(), 1);
@@ -61,7 +61,7 @@ async function main() {
     await page.locator('.pr-card input:not(:disabled)').nth(0).check(); await page.locator('.pr-card input:not(:disabled)').nth(1).check();
     assert.ok((await page.locator('#prCost').innerText()).includes('Saldo após aquisição: 18')); await page.locator('#prChoose').click(); assert.equal(acquisitions.length, 0);
     failNext = true; await page.locator('#prConfirmBuy').click(); await page.waitForFunction(() => document.querySelector('#prConfirmError').textContent.includes('mesma solicitação')); await page.locator('#prConfirmBuy').click();
-    await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('18 tokens')); await page.waitForFunction(() => document.querySelectorAll('.pr-card input:disabled').length === 3);
+    await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('18 créditos')); await page.waitForFunction(() => document.querySelectorAll('.pr-card input:disabled').length === 3);
     assert.deepEqual(acquisitions[0], acquisitions[1]); assert.equal(await page.locator('#prSelection').isVisible(), false); assert.ok((await page.locator('#prCards').innerText()).includes(raw[1].email)); report.push('batch selection, confirmation, retry idempotency, balance and unlock without reload');
     await page.locator('[data-pr-tab="mine"]').click(); await page.waitForSelector('.pr-card-footer'); assert.equal(await page.locator('.pr-card').count(), 3); assert.equal(await page.locator('#prFilters').isVisible(), false);
     assert.equal(await page.getByRole('button', { name: /VOIP/ }).count(), 0); assert.equal(await page.getByRole('button', { name: /Atendimento/ }).count(), 0); assert.ok(await page.getByRole('button', { name: '♙ Equipe' }).first().isEnabled()); assert.ok((await page.locator('.pr-future-actions a').first().getAttribute('href')).startsWith('https://wa.me/55'));
@@ -94,9 +94,9 @@ async function main() {
     await page.evaluate(() => window.LungoBusinessIntelligence.reset()); assert.equal(await page.locator('.pr-card').count(), 0); report.push('session switch and logout erase unlocked contacts');
     acquired.delete('opaque-0'); balance = 1;
     await page.evaluate(() => window.LungoBusinessIntelligence.open('broker'));
-    await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('1 tokens'));
+    await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('1 créditos'));
     await page.locator('.pr-card input:not(:disabled)').first().check(); await page.locator('#prChoose').click(); await page.locator('#prConfirmBuy').click();
-    await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('0 tokens'));
+    await page.waitForFunction(() => document.querySelector('#prBalance').textContent.includes('0 créditos'));
     assert.equal(acquisitions.at(-1).company_ids.length, 1); report.push('individual acquisition');
     acquired.delete('opaque-1'); await page.evaluate(() => window.LungoBusinessIntelligence.open('broker'));
     await page.waitForFunction(() => document.querySelector('#prCards').getAttribute('aria-busy') === 'false');

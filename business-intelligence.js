@@ -43,9 +43,9 @@
     const g = state.generation;
     try { const r = await api('wallet'); if (g !== state.generation) return; state.wallet = r.wallet; }
     catch { if (g !== state.generation) return; state.wallet = null; }
-    $('prBalance').textContent = state.wallet ? `${state.wallet.total_balance} tokens disponíveis` : 'Saldo indisponível';
+    $('prBalance').textContent = state.wallet ? `${state.wallet.total_balance} créditos disponíveis` : 'Saldo indisponível';
     $('prBalanceDetails').replaceChildren();
-    if (state.wallet) { const w = state.wallet; for (const label of [`Gratuitos: ${w.free_balance}`, `Extras: ${w.extra_balance}`, `Renovação: ${date(w.next_renewal)}`, `Franquia: ${w.cycle_allowance} tokens · dia 5`]) $('prBalanceDetails').append(node('p', '', label)); }
+    if (state.wallet) { const w = state.wallet; for (const label of [`Gratuitos: ${w.free_balance}`, `Extras: ${w.extra_balance}`, `Renovação: ${date(w.next_renewal)}`, `Franquia: ${w.cycle_allowance} créditos · dia 5`]) $('prBalanceDetails').append(node('p', '', label)); }
     else { const b = node('button', '', 'Consultar saldo novamente'); b.onclick = loadWallet; $('prBalanceDetails').append(b); }
     renderSelection();
   }
@@ -53,7 +53,7 @@
     const n = state.selected.size, balance = state.wallet?.total_balance;
     $('prSelection').hidden = !n || state.tab !== 'search';
     $('prSelectedCount').textContent = `${n} ${n === 1 ? 'empresa selecionada' : 'empresas selecionadas'}`;
-    $('prCost').textContent = `Custo: ${n} tokens · Saldo atual: ${balance ?? 'indisponível'} · Saldo após aquisição: ${balance === undefined ? '—' : balance - n}`;
+    $('prCost').textContent = `Custo: ${n} créditos · Saldo atual: ${balance ?? 'indisponível'} · Saldo após aquisição: ${balance === undefined ? '—' : balance - n}`;
     $('prChoose').disabled = state.buying || state.loading || balance === undefined || n > balance;
     $('prChoose').textContent = balance !== undefined && n > balance ? 'Saldo insuficiente' : 'Escolher empresas';
   }
@@ -121,7 +121,7 @@
       finally { submit.disabled = false; }
     });
     submit.disabled = true;
-    try { const result = await api('team'); broker.replaceChildren(new Option('Selecione um corretor', '')); for (const user of result.brokers) broker.append(new Option(clean(user.name), user.id)); message.textContent = result.brokers.length ? 'A distribuição não consome tokens.' : 'Nenhum corretor ativo na equipe.'; submit.disabled = !result.brokers.length; }
+    try { const result = await api('team'); broker.replaceChildren(new Option('Selecione um corretor', '')); for (const user of result.brokers) broker.append(new Option(clean(user.name), user.id)); message.textContent = result.brokers.length ? 'A distribuição não consome créditos.' : 'Nenhum corretor ativo na equipe.'; submit.disabled = !result.brokers.length; }
     catch (error) { message.textContent = error.message; }
   }
   async function exportToLeads(company, button) {
@@ -151,7 +151,7 @@
       }
       const names = node('div'); names.append(node('h3', '', clean(c.trade_name) || 'Sem nome fantasia'), node('p', '', clean(c.legal_name)));
       if (c.is_acquired) { const badge = node('span', 'pr-acquired', 'Já adquirida'); badge.title = 'Esta empresa já está disponível em Minhas empresas.'; badge.tabIndex = 0; badge.setAttribute('aria-label', 'Já adquirida. Esta empresa já está disponível em Minhas empresas.'); names.append(badge); }
-      else names.append(node('small', 'pr-lock', 'Contatos protegidos · 1 token'));
+      else names.append(node('small', 'pr-lock', 'Contatos protegidos · 1 crédito'));
       heading.append(names);
       const contacts = node('div', 'pr-contacts'); contacts.append(detail('Celular', c.mobile_1, 'pr-phone'), detail('CNPJ', cnpj(c.cnpj))); if (c.mobile_2) contacts.append(detail('Segundo celular', c.mobile_2)); contacts.append(detail('E-mail', c.email));
       const meta = node('div', 'pr-meta'); meta.append(detail('Categoria', c.category), detail('CNAE', c.cnae), detail('Abertura / Porte', `${c.opened_year || '—'} · ${c.company_size || '—'}`), detail('Cidade / UF', `${c.city || '—'} / ${c.state || '—'}`)); card.append(heading, contacts, meta);
@@ -204,7 +204,7 @@
   function reset() { state.generation++; state.request++; state.controller?.abort(); state.token = ''; state.wallet = null; state.rows = []; state.selected.clear(); state.pending = null; state.buying = false; state.loading = false; state.role = ''; if (!initialized) return; $('prCards').replaceChildren(); $('prCount').textContent = ''; $('prPagination').hidden = true; $('prSelection').hidden = true; $('prBalance').textContent = 'Consultando saldo…'; $('prBalanceDetails').replaceChildren(); notice(); for (const id of ['prConfirm','prApproach']) if ($(id).open) $(id).close(); $('prApproachText').value = ''; $('prConfirmBuy').disabled = false; $('prCancel').disabled = false; $('prConfirmBuy').textContent = 'Confirmar aquisição'; }
   function initialize() {
     if (initialized || !$('view-business-intelligence')) return; initialized = true;
-    $('prRequestTokens').href = 'https://wa.me/5555992102864?text=' + encodeURIComponent('Olá! Gostaria de solicitar mais tokens para Prospecção de Empresas no Lungo CRM.');
+    $('prRequestTokens').href = 'https://wa.me/5555992102864?text=' + encodeURIComponent('Olá! Gostaria de solicitar mais créditos para Prospecção de Empresas no Lungo CRM.');
     for (const uf of capitals.map(([, state]) => state).sort()) $('prState').append(new Option(uf, uf));
     for (const [city, uf] of [...capitals].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))) { const option = new Option(`${city} / ${uf}`, city); option.dataset.state = uf; $('prCity').append(option); }
     for (let y = new Date().getFullYear(), min = y - 2; y >= min; y--) $('prYear').append(new Option(y, y));
@@ -220,7 +220,7 @@
     $('prLimit').onchange = () => { if (!state.buying) { state.limit = +$('prLimit').value; loadList(); } };
     for (const b of $('view-business-intelligence').querySelectorAll('[data-pr-tab]')) b.onclick = () => setTab(b.dataset.prTab);
     $('prClearSelection').onclick = () => { if (state.buying) return; state.selected.clear(); state.pending = null; renderCards(); renderSelection(); };
-    $('prChoose').onclick = () => { if ($('prChoose').disabled || !state.selected.size) return; $('prConfirmText').textContent = `Você selecionou ${state.selected.size} empresas. Custo máximo: ${state.selected.size} tokens. Saldo após aquisição: ${state.wallet.total_balance - state.selected.size}. Empresas já adquiridas não serão cobradas novamente.`; $('prConfirmError').textContent = ''; $('prConfirm').showModal(); };
+    $('prChoose').onclick = () => { if ($('prChoose').disabled || !state.selected.size) return; $('prConfirmText').textContent = `Você selecionou ${state.selected.size} empresas. Custo máximo: ${state.selected.size} créditos. Saldo após aquisição: ${state.wallet.total_balance - state.selected.size}. Empresas já adquiridas não serão cobradas novamente.`; $('prConfirmError').textContent = ''; $('prConfirm').showModal(); };
     $('prCancel').onclick = () => $('prConfirm').close(); $('prConfirmBuy').onclick = acquire; $('prConfirm').oncancel = e => { if (state.buying) e.preventDefault(); };
     $('prCloseApproach').onclick = () => { $('prApproach').close(); $('prApproachText').value = ''; };
     $('prCopy').onclick = async () => { try { await navigator.clipboard.writeText($('prApproachText').value); $('prCopyStatus').textContent = 'Mensagem copiada.'; } catch { $('prApproachText').select(); $('prCopyStatus').textContent = 'Selecione e copie o texto manualmente.'; } };
