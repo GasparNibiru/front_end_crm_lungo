@@ -2104,6 +2104,15 @@
     if (el.supervisorSelectAllClients) el.supervisorSelectAllClients.checked = rows.length > 0 && rows.every((customer) => supervisorSelectedClientIds.has(customer.id));
   }
 
+  function startNotifications(supervisor) {
+    const token=supervisor?supervisorAccessToken:state.token;
+    window.LungoNotifications?.start({token,navigate:route=>{
+      if((supervisor?supervisorAccessToken:state.token)!==token)return;
+      if(route==='treinamentos'){if(supervisor)setSupervisorOperation('treinamentos');else setView('treinamentos');}
+      if(route==='settings'){if(supervisor)setSupervisorView('settings');else setView('settings');}
+    }});
+  }
+
   function openSupervisorArea() {
     stopCrmRealtime();
     if (el.supervisorScreen) el.supervisorScreen.hidden = false;
@@ -2112,15 +2121,15 @@
     renderSupervisorMocks();
     renderCompanyIdentity();
     if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = supervisorOrganizationName || "Corretora";
-    const topOrganization = document.querySelector(".supervisor-top-actions strong");
-    if (topOrganization) topOrganization.textContent = supervisorOrganizationName || "Corretora";
     clearInterval(recruitmentTimer); loadRecruitment(true, false); recruitmentTimer = setInterval(() => loadRecruitment(true, true), 20000);
     startCalendarReminders();
+    startNotifications(true);
   }
 
   function closeSupervisorArea() {
     window.LungoBusinessIntelligence?.reset();
     window.LungoDailyAssistant?.reset();
+    window.LungoNotifications?.reset();
     stopCalendarReminders();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     clearInterval(recruitmentTimer); recruitmentTimer = null;
@@ -2576,6 +2585,7 @@
       applyBrokerPersonalization();
       refreshBrokerHeaderGoal();
       startBrokerMessagePolling();
+      startNotifications(false);
       startCalendarReminders();
       setWhatsappPending(false);
       setAuthStatus(state.connected ? "Acesso liberado. WhatsApp conectado." : "Acesso liberado. A conexão com o WhatsApp é opcional.", "ok");
@@ -4611,6 +4621,7 @@
   function logout() {
     window.LungoBusinessIntelligence?.reset();
     window.LungoDailyAssistant?.reset();
+    window.LungoNotifications?.reset();
     stopCalendarReminders();
     stopBrokerMessagePolling();
     if (state.token) localStorage.removeItem(leadSyncKey());
