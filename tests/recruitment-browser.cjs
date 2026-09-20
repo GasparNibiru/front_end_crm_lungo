@@ -22,8 +22,12 @@ await page.locator('#supervisorModalCloseBtn').click();
 await page.evaluate(({candidates,vacancy})=>window.__rh.render({vacancy,candidates:[...candidates,{id:'hired',name:'João Aprovado',email:'joao@example.com',phone:'11999998888',stage:'aprovado',hiredUserId:'broker',approvedAt:'2026-09-19T10:00:00Z',accessGrantedAt:'2026-09-20T10:00:00Z'}]}),{candidates,vacancy});
 assert.equal(await page.locator('[data-rh-candidate="hired"]').count(),0);
 await page.locator('#rhApprovedTab').click();
+assert.equal(await page.locator('#rhApprovedList .supervisor-avatar').count(),1);assert.equal(await page.locator('[data-approved-dismiss="hired"]').count(),1);
 for(const query of ['joao','joao@example.com','(11) 99999-8888']){await page.locator('#rhApprovedSearch').fill(query);assert.equal(await page.locator('#rhApprovedList tbody tr').count(),1);}
 await page.locator('#rhApprovedSearch').fill('inexistente');assert.equal(await page.locator('#rhApprovedList tbody tr').count(),0);
+await page.locator('#rhDismissedTab').click();assert.equal(await page.locator('#rhApprovedList tbody tr').count(),0);
+await page.evaluate(({candidates,vacancy})=>window.__rh.render({vacancy,candidates:[...candidates,{id:'dismissed',name:'Pessoa desligada',email:'d@example.com',stage:'aprovado',hiredUserId:'former',dismissedAt:'2026-09-20',dismissalEmailSentAt:'2026-09-20'}]}),{candidates,vacancy});
+await page.locator('#rhApprovedSearch').fill('');assert.match(await page.locator('#rhApprovedList').innerText(),/Pessoa desligada/);assert.equal(await page.locator('[data-rh-candidate="dismissed"]').count(),0);
 await page.locator('#rhSelectionTab').click();
 await page.evaluate(c=>window.__rh.notify(c),candidates[2]);assert.match(await page.locator('#rhCandidateNotification h2').innerText(),/respondeu ao teste DISC/);await page.locator('#rhNotificationClose').click();await page.waitForSelector('#rhCandidateNotification',{state:'detached'});await page.evaluate(c=>window.__rh.notify(c),candidates[0]);assert.match(await page.locator('#rhCandidateNotification h2').innerText(),/Novo candidato/);
 await page.route('**/api/supervisor/recruitment', r=>r.fulfill({json:{ok:true,vacancy,candidates:[{id:'persisted',name:'Aguardando plano',stage:'aprovado',hirePending:true,email:'pendente@example.com',seenAt:'2026-09-20'}]}}));
