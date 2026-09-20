@@ -2211,9 +2211,20 @@
     $('#rhNotificationOpen').onclick = () => finish(true); $('#rhNotificationClose').onclick = () => finish(false); modal.addEventListener('cancel', (event) => event.preventDefault()); modal.showModal();
   }
 
+  let recruitmentRevision = 0;
+  async function saveRecruitmentCandidate(id, payload) {
+    const result = await window.LungoSupervisorApi.updateCandidate(id, payload, supervisorAccessToken);
+    const candidate = recruitmentData.candidates.find(item => item.id === id);
+    if (candidate) Object.assign(candidate, result.candidate || payload);
+    recruitmentRevision++;
+    renderRecruitment(true); renderSupervisorMocks();
+    return result;
+  }
+
   async function loadRecruitment(notify = true, preserveForm = true) {
     if (!supervisorAccessToken) return;
-    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); const identity = loadCompanyIdentity(); let vacancy = result.vacancy; if (identity.name && (vacancy?.companyName !== identity.name || (identity.logo && vacancy?.logo !== identity.logo))) { const logo = await compactRecruitmentLogo(identity.logo || ''); const updated = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken); vacancy = updated.vacancy; } recruitmentData = { vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if ($('#supervisor-view-brokers')?.classList.contains('active')) renderSupervisorMocks(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
+    const revision = recruitmentRevision;
+    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); if (revision !== recruitmentRevision) return; const identity = loadCompanyIdentity(); let vacancy = result.vacancy; if (identity.name && (vacancy?.companyName !== identity.name || (identity.logo && vacancy?.logo !== identity.logo))) { const logo = await compactRecruitmentLogo(identity.logo || ''); const updated = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken); vacancy = updated.vacancy; } if (revision !== recruitmentRevision) return; recruitmentData = { vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if ($('#supervisor-view-brokers')?.classList.contains('active')) renderSupervisorMocks(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
     catch (error) { if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); } }
   }
 
@@ -2228,9 +2239,8 @@
   }
 
   async function updateRecruitmentStage(candidateId, stage) {
-    await window.LungoSupervisorApi.updateCandidate(candidateId, { stage, seen: true }, supervisorAccessToken);
-    if (stage === 'aprovado') { const candidate = recruitmentData.candidates.find((item) => item.id === candidateId); if (candidate && await popupConfirm(`Deseja enviar ${candidate.name} para a aba Corretores aguardando a geração do token?`, 'Candidato aprovado')) await window.LungoSupervisorApi.updateCandidate(candidateId, { hirePending: true, seen: true }, supervisorAccessToken); }
-    await loadRecruitment(false, true);
+    await saveRecruitmentCandidate(candidateId, { stage, seen: true });
+    if (stage === 'aprovado') { const candidate = recruitmentData.candidates.find((item) => item.id === candidateId); if (candidate && await popupConfirm(`Deseja enviar ${candidate.name} para a aba Corretores aguardando a geração do token?`, 'Candidato aprovado')) await saveRecruitmentCandidate(candidateId, { hirePending: true, seen: true }); }
   }
 
   async function sendCandidateDisc(candidate) {
@@ -2349,7 +2359,7 @@
     if (name === "settings") { renderCompanyIdentity(); refreshSubscriptionCancellation(supervisorAccessToken, 'company'); }
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
     if (name === "messages") { loadSupervisorMessages(); supervisorMessageTimer = setInterval(loadSupervisorMessages, 10000); }
-    if (name === 'rh') loadRecruitment(false);
+    if (name === 'rh' || name === 'brokers') loadRecruitment(false);
     if (name === 'finance') window.LungoSupervisorFinance?.open(supervisorAccessToken);
     if (name === 'marketing-ai') window.LungoAiAgent?.open(supervisorAccessToken);
     if (name === 'brazil-partners') { const intro = $('#brazilPartnerIntro'); if (intro) intro.hidden = false; loadSupervisorBrazilPartners(); }
@@ -5874,7 +5884,7 @@
       const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]'); const discSend = event.target.closest('[data-rh-disc-send]'); const discResult = event.target.closest('[data-rh-disc-result]');
       if (discSend) { const candidate = recruitmentData.candidates.find((item) => item.id === discSend.dataset.rhDiscSend); if (candidate) await sendCandidateDisc(candidate); }
       if (discResult) { const candidate = recruitmentData.candidates.find((item) => item.id === discResult.dataset.rhDiscResult); if (candidate) openDiscResult(candidate); }
-      if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await popupConfirm(`${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`, 'Cadastrar novo corretor')) return; await window.LungoSupervisorApi.updateCandidate(candidate.id, { hirePending: true, seen: true }, supervisorAccessToken); await loadRecruitment(false, true); renderSupervisorMocks(); setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
+      if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await popupConfirm(`${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`, 'Cadastrar novo corretor')) return; try { await saveRecruitmentCandidate(candidate.id, { hirePending: true, seen: true }); } catch (error) { toast(error.message || 'Não foi possível encaminhar o candidato.'); return; } setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
       if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir o card de ${candidate.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir candidato', 'Excluir')) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
     });
     $('#rhCandidateKanban')?.addEventListener('dragstart', (event) => { const card = event.target.closest('[data-rh-candidate]'); if (!card) return; event.dataTransfer.setData('text/rh-candidate', card.dataset.rhCandidate); event.dataTransfer.effectAllowed = 'move'; });
