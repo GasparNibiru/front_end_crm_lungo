@@ -5995,7 +5995,7 @@
         }
         if (action === "archive") {
           if (!await popupConfirm(`Excluir o corretor ${broker.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir corretor', 'Excluir')) return;
-          try { await window.LungoSupervisorApi.archiveBroker(broker.id, supervisorAccessToken); await loadSupervisorRemoteData(); renderSupervisorMocks(); toast('Corretor excluído e vaga liberada.'); }
+          try { await window.LungoSupervisorApi.archiveBroker(broker.id, supervisorAccessToken); recruitmentRevision++; await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); toast('Corretor excluído e vaga liberada.'); }
           catch (error) { toast(error.message); }
           return;
         }
