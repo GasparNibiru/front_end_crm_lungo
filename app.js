@@ -2073,7 +2073,7 @@
       dashboardFunnel.innerHTML = funnelStages.map(([stage, label]) => { const count = SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length; return `<div><span><b>${escapeHtml(label)}</b><small>${count}</small></span><i><em style="width:${Math.max(count ? 8 : 0, (count / largestStage) * 100)}%"></em></i></div>`; }).join('');
     }
     const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.hirePending && !candidate.hiredUserId);
-    const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button><button class="tiny-btn icon-action-btn danger" type="button" data-rh-delete-pending="${candidate.id}" title="Excluir candidato" aria-label="Excluir candidato">${actionIcon('archive')}</button></td></tr>`).join('');
+    const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')} <button class="tiny-btn icon-action-btn" type="button" data-rh-pending-email="${candidate.id}" title="Editar e-mail" aria-label="Editar e-mail">${actionIcon('edit')}</button></td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button><button class="tiny-btn icon-action-btn danger" type="button" data-rh-delete-pending="${candidate.id}" title="Excluir candidato" aria-label="Excluir candidato">${actionIcon('archive')}</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
       <tr><td><div class="supervisor-person">${supervisorBrokerAvatar(broker)}<b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token ativo — valor protegido" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
     el.supervisorBrokerRows?.querySelectorAll('.supervisor-broker-avatar img').forEach(image=>{image.onerror=()=>image.remove();});
@@ -2234,6 +2234,25 @@
       if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); }
       if ($('#supervisor-view-brokers')?.classList.contains('active')) toast('Não foi possível atualizar os candidatos aguardando acesso. Tente novamente.');
     }
+  }
+
+  function openPendingCandidateEmail(candidate) {
+    let modal = $('#rhPendingEmailModal');
+    if (!modal) {
+      document.body.insertAdjacentHTML('beforeend', '<dialog id="rhPendingEmailModal" class="modal"><form class="modal-card"><header><div><h2>Editar e-mail</h2><p>Corrija o endereço antes de gerar o token de acesso.</p></div></header><div class="rh-disc-result-body"><label class="rh-email-form">E-mail do candidato<input type="email" required maxlength="254" autocomplete="email" aria-label="E-mail do candidato"></label><div class="auth-status" role="status" hidden></div></div><footer><button class="btn" type="button">Cancelar</button><button class="btn primary" type="submit">Salvar e-mail</button></footer></form></dialog>');
+      modal = $('#rhPendingEmailModal');
+    }
+    const form = modal.querySelector('form'), input = modal.querySelector('input'), status = modal.querySelector('[role=status]'), cancel = modal.querySelector('[type=button]'), save = modal.querySelector('[type=submit]');
+    input.value = candidate.email || ''; status.hidden = true; cancel.disabled = false; save.disabled = false;
+    cancel.onclick = () => modal.close();
+    form.onsubmit = async event => {
+      event.preventDefault(); input.value = input.value.trim(); if (!form.reportValidity()) return;
+      cancel.disabled = true; save.disabled = true; status.hidden = true;
+      try { await saveRecruitmentCandidate(candidate.id, { email: input.value }); modal.close(); toast('E-mail atualizado. Você já pode gerar o token.'); }
+      catch (error) { status.textContent = error.message || 'Não foi possível salvar o e-mail.'; status.className = 'auth-status error'; status.hidden = false; }
+      finally { cancel.disabled = false; save.disabled = false; }
+    };
+    modal.showModal(); input.focus();
   }
 
   async function deleteRecruitmentCandidate(id) {
@@ -5926,6 +5945,8 @@
         if (deal) openSupervisorDealDetails(deal, stageLabels);
         return;
       }
+      const pendingEmail = event.target.closest('[data-rh-pending-email]');
+      if (pendingEmail) { const candidate = recruitmentData.candidates.find(item => item.id === pendingEmail.dataset.rhPendingEmail); if (candidate && candidate.hirePending && !candidate.hiredUserId) openPendingCandidateEmail(candidate); return; }
       const pendingDelete = event.target.closest('[data-rh-delete-pending]');
       if (pendingDelete) {
         const candidate = recruitmentData.candidates.find(item => item.id === pendingDelete.dataset.rhDeletePending);
