@@ -2072,8 +2072,8 @@
       const largestStage = Math.max(1, ...funnelStages.map(([stage]) => SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length));
       dashboardFunnel.innerHTML = funnelStages.map(([stage, label]) => { const count = SUPERVISOR_DEALS.filter((deal) => deal.stage === stage).length; return `<div><span><b>${escapeHtml(label)}</b><small>${count}</small></span><i><em style="width:${Math.max(count ? 8 : 0, (count / largestStage) * 100)}%"></em></i></div>`; }).join('');
     }
-    const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.stage === 'aprovado' && candidate.hirePending && !candidate.hiredUserId);
-    const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button></td></tr>`).join('');
+    const pendingHires = recruitmentData.candidates.filter((candidate) => candidate.hirePending && !candidate.hiredUserId);
+    const pendingHireRows = pendingHires.map((candidate) => `<tr class="pending-hire-row"><td><div class="supervisor-person"><span class="supervisor-avatar">${escapeHtml(supervisorInitials(candidate.name))}</span><b>${escapeHtml(candidate.name)}</b></div></td><td>${escapeHtml(candidate.email || '—')}</td><td><span class="status-badge">Aguardando acesso</span></td><td>—</td><td><span>Token ainda não gerado</span></td><td><button class="tiny-btn" type="button" data-rh-generate-token="${candidate.id}">Gerar token</button><button class="tiny-btn icon-action-btn danger" type="button" data-rh-delete-pending="${candidate.id}" title="Excluir candidato" aria-label="Excluir candidato">${actionIcon('archive')}</button></td></tr>`).join('');
     if (el.supervisorBrokerRows) el.supervisorBrokerRows.innerHTML = SUPERVISOR_BROKERS.map((broker) => `
       <tr><td><div class="supervisor-person">${supervisorBrokerAvatar(broker)}<b>${escapeHtml(broker.name)}</b></div></td><td>${escapeHtml(broker.email)}</td><td><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</td><td>${escapeHtml(broker.login)}</td><td><div class="supervisor-token-cell">${broker.token ? `<code>${escapeHtml(broker.token)}</code><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="copy" data-broker-id="${broker.id}" title="Copiar token" aria-label="Copiar token">${actionIcon('copy')}</button>` : `<span>${broker.tokenActive ? "Token ativo — valor protegido" : "Sem token ativo"}</span>`}</div></td><td><div class="supervisor-broker-actions"><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="email" data-broker-id="${broker.id}" title="Reenviar token por e-mail" aria-label="Reenviar token por e-mail">${actionIcon('email')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="renew" data-broker-id="${broker.id}" title="Renovar token" aria-label="Renovar token">${actionIcon('renew')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="${broker.statusLabel === "Ativo" ? "disable" : "reactivate"}" data-broker-id="${broker.id}" title="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}" aria-label="${broker.statusLabel === "Ativo" ? "Bloquear" : "Reativar"}">${actionIcon(broker.statusLabel === "Ativo" ? 'block' : 'reactivate')}</button><button class="tiny-btn icon-action-btn" type="button" data-supervisor-broker-action="edit" data-broker-id="${broker.id}" title="Editar corretor" aria-label="Editar corretor">${actionIcon('edit')}</button><button class="tiny-btn icon-action-btn danger" type="button" data-supervisor-broker-action="archive" data-broker-id="${broker.id}" title="Arquivar corretor" aria-label="Arquivar corretor">${actionIcon('archive')}</button></div></td></tr>`).join("") + pendingHireRows;
     el.supervisorBrokerRows?.querySelectorAll('.supervisor-broker-avatar img').forEach(image=>{image.onerror=()=>image.remove();});
@@ -2224,8 +2224,23 @@
   async function loadRecruitment(notify = true, preserveForm = true) {
     if (!supervisorAccessToken) return;
     const revision = recruitmentRevision;
-    try { const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken); if (revision !== recruitmentRevision) return; const identity = loadCompanyIdentity(); let vacancy = result.vacancy; if (identity.name && (vacancy?.companyName !== identity.name || (identity.logo && vacancy?.logo !== identity.logo))) { const logo = await compactRecruitmentLogo(identity.logo || ''); const updated = await window.LungoSupervisorApi.updateVacancy({ companyName: identity.name, logo }, supervisorAccessToken); vacancy = updated.vacancy; } if (revision !== recruitmentRevision) return; recruitmentData = { vacancy, candidates: result.candidates || [] }; renderRecruitment(preserveForm); if ($('#supervisor-view-brokers')?.classList.contains('active')) renderSupervisorMocks(); if (notify) showRecruitmentNotification(recruitmentData.candidates.find((item) => !item.seenAt)); }
-    catch (error) { if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); } }
+    try {
+      const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken);
+      if (revision !== recruitmentRevision) return;
+      recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] };
+      renderRecruitment(preserveForm); renderSupervisorMocks();
+      if (notify) showRecruitmentNotification(recruitmentData.candidates.find(item => !item.seenAt));
+    } catch (error) {
+      if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); }
+      if ($('#supervisor-view-brokers')?.classList.contains('active')) toast('Não foi possível atualizar os candidatos aguardando acesso. Tente novamente.');
+    }
+  }
+
+  async function deleteRecruitmentCandidate(id) {
+    await window.LungoSupervisorApi.deleteCandidate(id, supervisorAccessToken);
+    recruitmentRevision++;
+    recruitmentData.candidates = recruitmentData.candidates.filter(item => item.id !== id);
+    renderRecruitment(true); renderSupervisorMocks();
   }
 
   function compactRecruitmentLogo(source) {
@@ -5885,7 +5900,7 @@
       if (discSend) { const candidate = recruitmentData.candidates.find((item) => item.id === discSend.dataset.rhDiscSend); if (candidate) await sendCandidateDisc(candidate); }
       if (discResult) { const candidate = recruitmentData.candidates.find((item) => item.id === discResult.dataset.rhDiscResult); if (candidate) openDiscResult(candidate); }
       if (hire) { const candidate = recruitmentData.candidates.find((item) => item.id === hire.dataset.rhHire); if (!candidate || !await popupConfirm(`${candidate.name} ficará na aba Corretores aguardando a geração do token. Continuar?`, 'Cadastrar novo corretor')) return; try { await saveRecruitmentCandidate(candidate.id, { hirePending: true, seen: true }); } catch (error) { toast(error.message || 'Não foi possível encaminhar o candidato.'); return; } setSupervisorView('brokers'); toast('Candidato enviado para a aba Corretores.'); }
-      if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir o card de ${candidate.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir candidato', 'Excluir')) return; try { await window.LungoSupervisorApi.deleteCandidate(candidate.id, supervisorAccessToken); await loadRecruitment(false, true); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
+      if (remove) { const candidate = recruitmentData.candidates.find((item) => item.id === remove.dataset.rhDelete); if (!candidate || !await popupConfirm(`Excluir o card de ${candidate.name}? A ação irá excluir permanentemente e não poderá ser desfeita.`, 'Excluir candidato', 'Excluir')) return; try { await deleteRecruitmentCandidate(candidate.id); toast('Candidato excluído.'); } catch (error) { toast(error.message); } }
     });
     $('#rhCandidateKanban')?.addEventListener('dragstart', (event) => { const card = event.target.closest('[data-rh-candidate]'); if (!card) return; event.dataTransfer.setData('text/rh-candidate', card.dataset.rhCandidate); event.dataTransfer.effectAllowed = 'move'; });
     $('#rhCandidateKanban')?.addEventListener('dragover', (event) => { const lane = event.target.closest('[data-rh-lane]'); if (!lane) return; event.preventDefault(); lane.classList.add('drag-over'); });
@@ -5911,12 +5926,23 @@
         if (deal) openSupervisorDealDetails(deal, stageLabels);
         return;
       }
+      const pendingDelete = event.target.closest('[data-rh-delete-pending]');
+      if (pendingDelete) {
+        const candidate = recruitmentData.candidates.find(item => item.id === pendingDelete.dataset.rhDeletePending);
+        if (!candidate || !await popupConfirm(`Excluir ${candidate.name} de Corretores e do processo seletivo?`, 'Excluir candidato', 'Excluir')) return;
+        pendingDelete.disabled = true;
+        try { await deleteRecruitmentCandidate(candidate.id); toast('Candidato excluído.'); }
+        catch (error) { toast(error.message); pendingDelete.disabled = false; }
+        return;
+      }
       const brokerButton = event.target.closest("[data-supervisor-broker-action]");
       const candidateTokenButton = event.target.closest('[data-rh-generate-token]');
       if (candidateTokenButton) {
         const candidate = recruitmentData.candidates.find((item) => item.id === candidateTokenButton.dataset.rhGenerateToken); if (!candidate) return;
-        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); await window.LungoSupervisorApi.updateCandidate(candidate.id, { hiredUserId: result.broker?.id || result.user?.id || '', hirePending: false, seen: true }, supervisorAccessToken); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast(result.emailDelivery?.sent ? 'Corretor cadastrado e acesso enviado por e-mail.' : 'Corretor cadastrado, mas o e-mail não pôde ser enviado.'); } }
+        candidateTokenButton.disabled = true;
+        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); const brokerId = result.broker?.id || result.user?.id; if (!brokerId) throw new Error('Não foi possível confirmar o acesso. O candidato continua aguardando.'); await saveRecruitmentCandidate(candidate.id, { hiredUserId: brokerId, hirePending: false, seen: true }); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast(result.emailDelivery?.sent ? 'Corretor cadastrado e acesso enviado por e-mail.' : 'Corretor cadastrado, mas o e-mail não pôde ser enviado.'); } }
         catch (error) { toast(error.message); }
+        finally { candidateTokenButton.disabled = false; }
         return;
       }
       if (brokerButton) {
