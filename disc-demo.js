@@ -20,28 +20,36 @@ const profiles={
   C:{title:"Conformidade",description:"Tendência a analisar, planejar e trabalhar com precisão e critérios claros.",strengths:["Organização e atenção aos detalhes","Decisões apoiadas em dados","Qualidade e responsabilidade"],attention:["Agilidade em cenários ambíguos","Espontaneidade na abordagem comercial"]}
 };
 const colors={D:"#ef6a62",I:"#e8ad36",S:"#43ae79",C:"#4b8fd8"};
-let step=0,answers=[];
+let step=0,answers=[],commercialAnswers=[],commercialQuestions=[],assessmentVersion=1;
+const totalQuestions=()=>questions.length+commercialQuestions.length;
 const testToken=new URLSearchParams(location.search).get("token");
 const API_BASE=String(window.LUNGO_CONFIG?.API_BASE_URL||"").replace(/\/$/,"");
 const $=id=>document.getElementById(id);
 function show(id){["intro","quiz","result","submitted","linkError"].forEach(x=>$(x).hidden=x!==id)}
 function render(){
-  const q=questions[step],answer=answers[step]||{};$("stepLabel").textContent=`Situação ${step+1} de ${questions.length}`;$("questionTitle").textContent=q[0];$("progressText").textContent=`${Math.round(((step+1)/questions.length)*100)}%`;$("progressBar").style.width=`${((step+1)/questions.length)*100}%`;
+  document.querySelector(".choice-guide").textContent=step>=questions.length?"Escolha a ação que você adotaria nesta situação.":"Escolha uma opção como Sou mais e outra como Sou menos.";
+  if(step>=questions.length){
+    const index=step-questions.length,q=commercialQuestions[index];
+    $("stepLabel").textContent=`Situação ${step+1} de ${totalQuestions()}`;$("questionTitle").textContent=q.title;$("progressText").textContent=`${Math.round((step+1)/totalQuestions()*100)}%`;$("progressBar").style.width=`${(step+1)/totalQuestions()*100}%`;
+    $("options").replaceChildren();q.options.forEach((label,i)=>{const button=document.createElement('button');button.type='button';button.className='commercial-choice'+(commercialAnswers[index]===i?' selected':'');button.textContent=label;button.setAttribute('aria-pressed',String(commercialAnswers[index]===i));button.onclick=()=>{commercialAnswers[index]=i;render();};$("options").append(button);});
+    $("backBtn").style.visibility='visible';$("nextBtn").disabled=commercialAnswers[index]===undefined;$("nextBtn").textContent=step===totalQuestions()-1?'Concluir avaliação ✓':'Continuar →';$("validation").textContent='';return;
+  }
+  const q=questions[step],answer=answers[step]||{};$("stepLabel").textContent=`Situação ${step+1} de ${totalQuestions()}`;$("questionTitle").textContent=q[0];$("progressText").textContent=`${Math.round(((step+1)/totalQuestions())*100)}%`;$("progressBar").style.width=`${((step+1)/totalQuestions())*100}%`;
   $("options").innerHTML=`<div class="choice-head"><span>Comportamento</span><b>Sou mais</b><b>Sou menos</b></div>${q[1].map((label,index)=>`<div class="option-row"><span>${label}</span><button class="choice-button ${answer.most===index?"selected most":""}" type="button" data-choice="most" data-option="${index}" aria-label="Sou mais: ${label}"><i></i></button><button class="choice-button ${answer.least===index?"selected least":""}" type="button" data-choice="least" data-option="${index}" aria-label="Sou menos: ${label}"><i></i></button></div>`).join("")}`;
-  $("backBtn").style.visibility=step?"visible":"hidden";$("nextBtn").disabled=answer.most===undefined||answer.least===undefined||answer.most===answer.least;$("nextBtn").textContent=step===questions.length-1?"Concluir avaliação ✓":"Continuar →";$("validation").textContent="";
+  $("backBtn").style.visibility=step?"visible":"hidden";$("nextBtn").disabled=answer.most===undefined||answer.least===undefined||answer.most===answer.least;$("nextBtn").textContent=step===totalQuestions()-1?"Concluir avaliação ✓":"Continuar →";$("validation").textContent="";
   document.querySelectorAll("[data-choice]").forEach(button=>button.onclick=()=>{const choice=button.dataset.choice,index=Number(button.dataset.option),other=choice==="most"?"least":"most";answers[step]={...(answers[step]||{}),[choice]:index};if(answers[step][other]===index)delete answers[step][other];render()});
 }
 async function finish(){
   if(testToken){
     const button=$("nextBtn");button.disabled=true;button.textContent="Enviando respostas...";
-    try{const response=await fetch(`${API_BASE}/api/public/recruitment/disc/${encodeURIComponent(testToken)}/complete`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({answers})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Não foi possível concluir a avaliação.");show("submitted");window.scrollTo({top:0,behavior:"smooth"});return}catch(error){$("validation").textContent=error.message;button.disabled=false;button.textContent="Concluir avaliação ✓";return}
+    try{const response=await fetch(`${API_BASE}/api/public/recruitment/disc/${encodeURIComponent(testToken)}/complete`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({answers,commercialAnswers,assessmentVersion})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Não foi possível concluir a avaliação.");show("submitted");window.scrollTo({top:0,behavior:"smooth"});return}catch(error){$("validation").textContent=error.message;button.disabled=false;button.textContent="Concluir avaliação ✓";return}
   }
   const most={D:0,I:0,S:0,C:0},least={D:0,I:0,S:0,C:0};answers.forEach(answer=>{most[traits[answer.most]]++;least[traits[answer.least]]++});const total=answers.length,raw=Object.fromEntries(traits.map(t=>[t,total+most[t]-least[t]])),rawTotal=Object.values(raw).reduce((a,b)=>a+b,0),scores=Object.fromEntries(traits.map(t=>[t,Math.round(raw[t]/rawTotal*100)]));let diff=100-Object.values(scores).reduce((a,b)=>a+b,0);scores[traits.reduce((a,b)=>scores[a]>=scores[b]?a:b)]+=diff;const lead=traits.reduce((a,b)=>scores[a]>=scores[b]?a:b),p=profiles[lead];
   // Perfil-alvo: forte iniciativa comercial, autonomia e disciplina de processo.
   const target={D:35,I:25,S:15,C:25};const distance=traits.reduce((sum,t)=>sum+Math.abs(scores[t]-target[t]),0);const match=Math.max(40,Math.min(98,Math.round(100-distance*.62)));
   window.discScores=scores;
   $("matchValue").textContent=`${match}%`;$("matchLabel").textContent=match>=80?"Alta aderência ao perfil de referência":match>=65?"Boa aderência ao perfil de referência":"Aderência moderada — aprofundar na entrevista";$("profileLetter").textContent=lead;$("profileTitle").textContent=`${lead} — ${p.title}`;$("profileDescription").textContent=p.description;$("strengths").innerHTML=p.strengths.map(x=>`<li>${x}</li>`).join("");$("attention").innerHTML=p.attention.map(x=>`<li>${x}</li>`).join("");$("bars").innerHTML=traits.map(t=>`<div class="bar-row"><b>${t} · ${profiles[t].title}</b><div class="bar-track"><i style="width:${scores[t]}%;background:${colors[t]}"></i></div><strong>${scores[t]}%</strong></div>`).join("");show("result");setTimeout(()=>$("matchCircle").style.strokeDashoffset=214-(214*match/100),50);window.scrollTo({top:0,behavior:"smooth"})}
-$("startBtn").onclick=()=>{show("quiz");render()};$("backBtn").onclick=()=>{if(step){step--;render()}};$("nextBtn").onclick=()=>{if(answers[step]===undefined){$("validation").textContent="Selecione uma alternativa para continuar.";return}if(step<questions.length-1){step++;render();window.scrollTo({top:0,behavior:"smooth"})}else finish()};$("restartBtn").onclick=()=>{step=0;answers=[];show("intro");$("matchCircle").style.strokeDashoffset=214;window.scrollTo({top:0,behavior:"smooth"})};
+$("startBtn").onclick=()=>{show("quiz");render()};$("backBtn").onclick=()=>{if(step){step--;render()}};$("nextBtn").onclick=()=>{if(step<questions.length?answers[step]===undefined:commercialAnswers[step-questions.length]===undefined){$("validation").textContent="Selecione uma alternativa para continuar.";return}if(step<totalQuestions()-1){step++;render();window.scrollTo({top:0,behavior:"smooth"})}else finish()};$("restartBtn").onclick=()=>{step=0;answers=[];commercialAnswers=[];show("intro");$("matchCircle").style.strokeDashoffset=214;window.scrollTo({top:0,behavior:"smooth"})};
 
 function renderFitIndicators(scores){
   const indicators=[
@@ -61,6 +69,8 @@ async function setupRemoteTest(){
   try{
     const response=await fetch(`${API_BASE}/api/public/recruitment/disc/${encodeURIComponent(testToken)}`),data=await response.json();
     if(!response.ok)throw new Error(data.error||"Este link não está disponível.");
+    assessmentVersion=data.assessmentVersion||1;commercialQuestions=data.commercialQuestions||[];
+    if(assessmentVersion===2){document.querySelector('#intro .notice b').textContent='Responda com sinceridade.';document.querySelector('#intro .notice span').textContent='As situações comerciais serão analisadas com critérios da vaga e aprofundadas em entrevista.';document.querySelector('.info-grid').innerHTML='<div><b>20</b><span>situações</span></div><div><b>8–10 min</b><span>estimativa</span></div><div><b>2 etapas</b><span>perfil e prática comercial</span></div>';document.querySelector('.lead').textContent='Responda sobre seu jeito de trabalhar e como agiria em situações comerciais. Na segunda etapa, escolha uma ação por situação.';}
     const name=data.candidate?.name||"Candidato";$("candidateName").textContent=name;$("candidateAvatar").textContent=name.split(/\s+/).slice(0,2).map(part=>part[0]).join("").toUpperCase();$("vacancyName").textContent=data.vacancy?.title||"Consultor comercial";
     const logo=document.querySelector(".brand img");if(logo&&data.vacancy?.logo)logo.src=data.vacancy.logo;
     $("startBtn").disabled=false;$("startBtn").innerHTML="Começar avaliação <span>→</span>";
