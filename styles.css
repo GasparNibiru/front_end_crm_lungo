@@ -5326,3 +5326,13 @@ body.supervisor-mode .supervisor-deal > b {
 @media(max-width:400px) { .public-application-form { grid-template-columns:minmax(0,1fr); padding:16px; } }
 
 .public-application-form > small { grid-column:1 / -1; color:#526273; font-size:11px; line-height:1.5; }
+
+/* Public vacancies scroll at the document level, including desktop. */
+html.public-vacancy-root { height:auto; min-height:100%; overflow-y:auto; overflow-x:hidden; }
+html.public-vacancy-root body.public-vacancy-mode { height:auto; min-height:100vh; overflow:visible; }
+.rh-email-edit { justify-self:start; }
+.rh-email-form { display:grid; gap:8px; min-width:0; }
+.rh-email-form[hidden] { display:none; }
+.rh-email-form label { display:grid; gap:5px; }
+.rh-email-form input { width:100%; min-width:0; }
+.rh-email-form>div { display:flex; gap:6px; flex-wrap:wrap; }

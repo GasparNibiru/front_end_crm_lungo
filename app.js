@@ -2232,6 +2232,32 @@
     } catch (error) { toast(error.message); if (button) { button.disabled = false; button.textContent = 'Enviar teste DISC'; } }
   }
 
+  function openRecruitmentDetails(candidate) {
+    openSupervisorModal(candidate.name, 'Candidato à vaga', [['WhatsApp', candidate.phone], ['E-mail', candidate.email || '—'], ['Cidade', candidate.city || '—'], ['Experiência', candidate.experience || '—'], ['Currículo', candidate.resumeUrl || '—'], ['Apresentação', candidate.message || '—']]);
+    if (candidate.stage !== 'teste_enviado' || candidate.disc?.completedAt) return;
+    const emailField = el.supervisorModalBody.children[1];
+    emailField.insertAdjacentHTML('beforeend', '<button type="button" class="tiny-btn rh-email-edit" title="Editar e-mail" aria-label="Editar e-mail">✎</button><form class="rh-email-form" hidden><label>E-mail do candidato<input type="email" required maxlength="254" autocomplete="email"></label><div><button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-cancel>Cancelar</button></div></form>');
+    const editor = emailField.querySelector('form'), input = editor.querySelector('input'), pencil = emailField.querySelector('.rh-email-edit');
+    const actions = document.createElement('article'); actions.className = 'full';
+    actions.innerHTML = '<button type="button" class="btn primary">Reenviar teste DISC</button><small>O novo link será enviado ao e-mail acima e substituirá o anterior.</small>';
+    el.supervisorModalBody.append(actions); const resend = actions.querySelector('button');
+    pencil.onclick = () => { input.value = candidate.email || ''; editor.hidden = false; pencil.hidden = true; resend.disabled = true; input.focus(); };
+    editor.querySelector('[data-cancel]').onclick = () => { editor.hidden = true; pencil.hidden = false; resend.disabled = false; };
+    editor.onsubmit = async event => {
+      event.preventDefault(); input.value = input.value.trim(); if (!editor.reportValidity()) return;
+      const buttons = editor.querySelectorAll('button'); buttons.forEach(b => b.disabled = true);
+      try { await window.LungoSupervisorApi.updateCandidate(candidate.id, { email: input.value }, supervisorAccessToken); candidate.email = input.value; renderRecruitment(true); openRecruitmentDetails(candidate); toast('E-mail atualizado.'); }
+      catch (error) { toast(error.message || 'Não foi possível salvar o e-mail.'); }
+      finally { buttons.forEach(b => b.disabled = false); }
+    };
+    resend.onclick = async () => {
+      resend.disabled = true; pencil.disabled = true; resend.textContent = 'Reenviando…';
+      try { await window.LungoSupervisorApi.sendCandidateDisc(candidate.id, supervisorAccessToken); toast('Teste reenviado para ' + candidate.email + '.'); await loadRecruitment(false, true); }
+      catch (error) { toast(error.message || 'Não foi possível reenviar o teste.'); }
+      finally { resend.disabled = false; pencil.disabled = false; resend.textContent = 'Reenviar teste DISC'; }
+    };
+  }
+
   function discLevel(value) { return Number(value) >= 70 ? 'Alto' : Number(value) >= 50 ? 'Moderado' : 'Baixo'; }
   function openDiscResult(candidate) {
     const result = candidate?.disc?.result; if (!result) return toast('O resultado ainda não está disponível.');
@@ -2254,7 +2280,7 @@
   }
 
   async function loadPublicVacancy(slug) {
-    document.body.classList.add('public-vacancy-mode'); $('#publicVacancyScreen').hidden = false; $('#authScreen').hidden = true;
+    document.documentElement.classList.add('public-vacancy-root'); document.body.classList.add('public-vacancy-mode'); $('#publicVacancyScreen').hidden = false; $('#authScreen').hidden = true;
     try {
       const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}`); const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Vaga indisponível.');
@@ -5824,7 +5850,7 @@
     $('#rhVacancyForm')?.addEventListener('input', () => { rhFormDirty = true; });
     $('#rhRefreshBtn')?.addEventListener('click', () => loadRecruitment(false));
     $('#rhCopyLinkBtn')?.addEventListener('click', async () => { const link = recruitmentLink(); if (!link) return toast('Salve a vaga primeiro.'); await navigator.clipboard.writeText(link); toast('Link público da vaga copiado.'); });
-    $('#rhCandidateKanban')?.addEventListener('click', (event) => { const button = event.target.closest('[data-rh-details]'); if (!button) return; const candidate = recruitmentData.candidates.find((item) => item.id === button.dataset.rhDetails); if (!candidate) return; openSupervisorModal(candidate.name, 'Candidato à vaga', [['WhatsApp', candidate.phone], ['E-mail', candidate.email || '—'], ['Cidade', candidate.city || '—'], ['Experiência', candidate.experience || '—'], ['Currículo', candidate.resumeUrl || '—'], ['Apresentação', candidate.message || '—']]); });
+    $('#rhCandidateKanban')?.addEventListener('click', (event) => { const button = event.target.closest('[data-rh-details]'); if (!button) return; const candidate = recruitmentData.candidates.find((item) => item.id === button.dataset.rhDetails); if (candidate) openRecruitmentDetails(candidate); });
     $('#rhCandidateKanban')?.addEventListener('click', async (event) => {
       const hire = event.target.closest('[data-rh-hire]'); const remove = event.target.closest('[data-rh-delete]'); const discSend = event.target.closest('[data-rh-disc-send]'); const discResult = event.target.closest('[data-rh-disc-result]');
       if (discSend) { const candidate = recruitmentData.candidates.find((item) => item.id === discSend.dataset.rhDiscSend); if (candidate) await sendCandidateDisc(candidate); }
