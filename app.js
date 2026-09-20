@@ -2169,7 +2169,7 @@
     if (!candidate.disc?.sentAt && candidate.stage === 'novo') actions.push(`<button class="btn small primary" type="button" data-rh-disc-send="${candidate.id}">Enviar teste DISC</button>`);
     else if (candidate.disc?.completedAt) actions.push(`<button class="rh-disc-result-btn" type="button" data-rh-disc-result="${candidate.id}" title="Abrir resultado DISC" aria-label="Abrir resultado DISC">✓ <b>${Number(candidate.disc.result?.match || 0)}%</b></button>`);
     else if (candidate.disc?.sentAt) actions.push('<span class="rh-disc-waiting" title="Aguardando resposta ao teste DISC">Aguardando</span>');
-    if (candidate.stage === 'aprovado' && !candidate.hiredUserId) actions.push(candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="btn small primary" type="button" data-rh-hire="${candidate.id}">Cadastrar novo corretor</button>`);
+    if (candidate.stage === 'aprovado' && !candidate.hiredUserId) actions.push(candidate.hirePending ? '<span class="rh-hire-pending">Aguardando token na aba Corretores</span>' : `<button class="rh-card-icon rh-hire-check" type="button" data-rh-hire="${candidate.id}" title="Cadastrar novo corretor" aria-label="Cadastrar novo corretor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></button>`);
     if (candidate.hiredUserId) actions.push('<span class="rh-hire-pending done">Corretor cadastrado</span>');
     return actions.join('');
   }

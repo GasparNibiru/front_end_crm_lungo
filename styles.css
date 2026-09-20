@@ -5336,3 +5336,14 @@ html.public-vacancy-root body.public-vacancy-mode { height:auto; min-height:100v
 .rh-email-form label { display:grid; gap:5px; }
 .rh-email-form input { width:100%; min-width:0; }
 .rh-email-form>div { display:flex; gap:6px; flex-wrap:wrap; }
+
+/* Explicit contrast for the public form, independent of the CRM theme/login. */
+body.public-vacancy-mode #publicApplicationForm { color:#203442; color-scheme:light; }
+body.public-vacancy-mode #publicApplicationForm label>span { color:#405565; }
+body.public-vacancy-mode #publicApplicationStatus { color:#405565; background:#eaf0f3; border-left-color:#607d8b; }
+body.public-vacancy-mode #publicApplicationStatus.error { color:#a42534; background:#fff0f0; border-left-color:#a42534; }
+body.public-vacancy-mode #publicApplicationStatus.ok { color:#087544; background:#e8f6ee; border-left-color:#087544; }
+.rh-card-actions .rh-hire-check { color:#39e75f; background:transparent; border-color:transparent; flex:0 0 25px; width:25px; height:25px; padding:3px; }
+.rh-card-actions .rh-hire-check:hover { background:rgba(57,231,95,.12); border-color:currentColor; }
+.rh-hire-check svg { width:18px; height:18px; }
+.rh-card-actions .rh-disc-result-btn { flex-shrink:0; white-space:nowrap; }
