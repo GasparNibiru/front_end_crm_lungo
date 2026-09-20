@@ -5359,3 +5359,10 @@ body.public-vacancy-mode #publicApplicationStatus.ok { color:#087544; background
 .rh-approved-list th { white-space:nowrap; font-size:10px; }
 .rh-approved-list td { overflow-wrap:anywhere; min-width:110px; }
 .rh-approved-list small { display:block; color:var(--muted); margin-top:4px; }
+
+.rh-approved-actions { display:flex; align-items:center; gap:7px; flex-wrap:nowrap; }
+.rh-approved-actions .rh-card-icon { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; flex:0 0 30px; padding:5px; border-radius:8px; background:var(--surface-2); }
+.rh-approved-actions svg { width:19px; height:19px; }
+.rh-approved-actions [data-approved-disc] { color:#19b995; }
+.rh-approved-actions .rh-dismiss-btn { color:#f08b48; }
+.rh-approved-actions .rh-card-icon:hover { border-color:currentColor; }
