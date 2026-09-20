@@ -36,6 +36,11 @@ await page.locator('#rhPendingEmailModal input').fill('novo@example.com');
 await page.locator('#rhPendingEmailModal [type=submit]').click();
 await page.waitForFunction(()=>!document.querySelector('#rhPendingEmailModal').open);
 assert.match(await page.locator('.pending-hire-row').innerText(),/novo@example.com/);
+await page.route('**/api/supervisor/brokers',r=>r.request().method()==='POST'?r.fulfill({json:{ok:true,broker:{user_id:'created-broker'},token:'test-only',emailDelivery:{sent:true}}}):r.fulfill({json:{ok:true,brokers:[]}}));
+await page.evaluate(()=>document.querySelector('[data-rh-generate-token="persisted"]').click());
+await page.waitForFunction(()=>!document.querySelector('[data-rh-generate-token="persisted"]'));
+assert.match(await page.locator('#rhApprovedList').innerText(),/Aguardando plano/);
+
 
 await page.goto(url+'/?vaga=teste');await page.waitForFunction(()=>document.querySelector('#publicVacancyDescription').textContent.length>1000);
 for(const width of [1360,1024,768,390,320])for(const theme of ['dark','light']){await page.setViewportSize({width,height:844});await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);const geometry=await page.locator('.public-application-form').evaluate(x=>({height:x.getBoundingClientRect().height,scroll:x.scrollWidth,client:x.clientWidth,bg:getComputedStyle(x.querySelector('input')).backgroundColor}));assert.ok(geometry.height<950&&geometry.scroll<=geometry.client+1,JSON.stringify({width,geometry}));assert.equal(geometry.bg,'rgb(247, 250, 251)');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.evaluate(()=>scrollTo(0,0)); await page.mouse.move(width/2,400); await page.mouse.wheel(0,100000); await page.waitForFunction(()=>scrollY>0 && innerHeight+scrollY>=document.documentElement.scrollHeight-2); assert.ok(await page.evaluate(()=>scrollY>0 && innerHeight+scrollY>=document.documentElement.scrollHeight-2), 'Landing must scroll to the bottom'); await page.screenshot({path:path.join(root,'test-results',`vacancy-${width}-${theme}.png`)});}

@@ -5961,7 +5961,14 @@
       if (candidateTokenButton) {
         const candidate = recruitmentData.candidates.find((item) => item.id === candidateTokenButton.dataset.rhGenerateToken); if (!candidate) return;
         candidateTokenButton.disabled = true;
-        try { const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); const brokerId = result.broker?.id || result.user?.id; if (!brokerId) throw new Error('Não foi possível confirmar o acesso. O candidato continua aguardando.'); await saveRecruitmentCandidate(candidate.id, { hiredUserId: brokerId, hirePending: false, seen: true }); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast(result.emailDelivery?.sent ? 'Corretor cadastrado e acesso enviado por e-mail.' : 'Corretor cadastrado, mas o e-mail não pôde ser enviado.'); } }
+        try {
+          const existing = SUPERVISOR_BROKERS.find(b => b.tokenActive && String(b.email || '').trim().toLowerCase() === String(candidate.email || '').trim().toLowerCase());
+          if (existing) {
+            if (!await popupConfirm(`Já existe um corretor com acesso ativo para ${candidate.email}: ${existing.name}. Vincular esse acesso ao candidato ${candidate.name} e concluir a seleção, sem gerar outro token?`, 'Concluir vínculo do candidato', 'Vincular acesso')) return;
+            await saveRecruitmentCandidate(candidate.id, { hiredUserId: existing.id, hirePending: false, seen: true });
+            toast('Acesso vinculado. Candidato movido para Aprovados com acesso.'); return;
+          }
+          const result = await window.LungoSupervisorApi.createBroker({ name: candidate.name, email: candidate.email || `${candidate.phone}@candidato.lungo`, phone: candidate.phone || null, expiresAt: null }, supervisorAccessToken); const brokerId = result.broker?.user_id || result.broker?.id || result.user?.user_id || result.user?.id; if (!brokerId) throw new Error('Não foi possível confirmar o acesso. O candidato continua aguardando.'); await saveRecruitmentCandidate(candidate.id, { hiredUserId: brokerId, hirePending: false, seen: true }); await loadSupervisorRemoteData(); await loadRecruitment(false, true); renderSupervisorMocks(); if (result.token) { el.supervisorGeneratedMessage.hidden = false; el.supervisorGeneratedMessage.querySelector('p').textContent = supervisorAccessMessage(candidate.name, result.token); toast(result.emailDelivery?.sent ? 'Corretor cadastrado e acesso enviado por e-mail.' : 'Corretor cadastrado, mas o e-mail não pôde ser enviado.'); } }
         catch (error) { toast(error.message); }
         finally { candidateTokenButton.disabled = false; }
         return;
