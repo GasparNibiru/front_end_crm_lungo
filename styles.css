@@ -5347,3 +5347,15 @@ body.public-vacancy-mode #publicApplicationStatus.ok { color:#087544; background
 .rh-card-actions .rh-hire-check:hover { background:rgba(57,231,95,.12); border-color:currentColor; }
 .rh-hire-check svg { width:18px; height:18px; }
 .rh-card-actions .rh-disc-result-btn { flex-shrink:0; white-space:nowrap; }
+
+.rh-view-tabs { display:flex; gap:6px; padding:0 0 10px; flex-shrink:0; }
+.rh-view-tabs .active { color:var(--primary); border-color:var(--primary); }
+#rhCandidateKanban[hidden],#rhApprovedPanel[hidden] { display:none; }
+.rh-approved-panel { display:flex; flex-direction:column; min-height:0; gap:10px; flex:1; }
+.rh-approved-search { display:grid; gap:5px; font-size:11px; width:min(380px,100%); }
+.rh-approved-list { overflow:auto; min-height:0; }
+.rh-approved-list table { width:100%; border-collapse:collapse; font-size:11px; }
+.rh-approved-list th,.rh-approved-list td { padding:10px 8px; border-bottom:1px solid var(--border); text-align:left; vertical-align:middle; }
+.rh-approved-list th { white-space:nowrap; font-size:10px; }
+.rh-approved-list td { overflow-wrap:anywhere; min-width:110px; }
+.rh-approved-list small { display:block; color:var(--muted); margin-top:4px; }
