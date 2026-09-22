@@ -4557,7 +4557,7 @@ body.auth-locked .auth-login-btn:hover { filter: brightness(1.06); }
 
 /* Login: fotografia com filtro preto suave e formulário de vidro. */
 body.auth-locked .auth-screen {
-  background: linear-gradient(rgba(0, 0, 0, .34), rgba(0, 0, 0, .44)),
+  background: linear-gradient(rgba(0, 0, 0, .46), rgba(0, 0, 0, .56)),
     url("assets/backgrounds/login-office.png") center center / cover no-repeat,
     #073d2d;
 }
