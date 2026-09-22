@@ -4571,10 +4571,10 @@ body.auth-locked .auth-screen::before {
   border: 0;
   border-radius: 0;
   pointer-events: none;
-  background: linear-gradient(rgba(0, 0, 0, .54), rgba(0, 0, 0, .64)),
+  background: linear-gradient(rgba(0, 0, 0, .46), rgba(0, 0, 0, .56)),
     url("assets/backgrounds/login-office.png") center center / cover no-repeat,
     #073d2d;
-  filter: grayscale(72%);
+  filter: grayscale(50%);
 }
 body.auth-locked .auth-screen::after,
 body.auth-locked .auth-bg-mark { display: none; }
