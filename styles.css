@@ -4500,15 +4500,15 @@ body.auth-locked .auth-screen::before { top: -24%; right: -10%; }
 body.auth-locked .auth-screen::after { bottom: -32%; left: -12%; }
 
 body.auth-locked .auth-card {
-  border: 1px solid rgba(240, 255, 249, .20);
+  border: 1px solid rgba(255, 255, 255, .16);
   border-radius: 16px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .035)),
-    rgba(0, 0, 0, .36);
+    linear-gradient(145deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .01)),
+    rgba(0, 0, 0, .72);
   color: #f5faf7;
-  box-shadow: 0 26px 70px rgba(0, 18, 13, .42), inset 1px 1px 0 rgba(255, 255, 255, .12);
-  backdrop-filter: blur(16px) saturate(110%);
-  -webkit-backdrop-filter: blur(16px) saturate(110%);
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .42), inset 1px 1px 0 rgba(255, 255, 255, .08);
+  backdrop-filter: blur(16px) saturate(0%);
+  -webkit-backdrop-filter: blur(16px) saturate(0%);
 }
 body.auth-locked .auth-brand h1 { color: #fff; }
 body.auth-locked .auth-brand p,
@@ -4524,7 +4524,7 @@ body.auth-locked .auth-role-tabs {
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, .14);
   border-radius: 10px;
-  background: rgba(0, 24, 18, .24);
+  background: rgba(0, 0, 0, .24);
 }
 body.auth-locked .auth-role-tab {
   border-radius: 7px;
@@ -4538,7 +4538,7 @@ body.auth-locked .auth-role-tab.active {
 body.auth-locked .auth-form input {
   border-color: rgba(255, 255, 255, .17);
   border-radius: 8px;
-  background: rgba(0, 24, 18, .30);
+  background: rgba(0, 0, 0, .30);
   color: #fff;
 }
 body.auth-locked .auth-form input::placeholder { color: rgba(241, 250, 246, .42); }
