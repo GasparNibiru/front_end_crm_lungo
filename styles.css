@@ -4557,11 +4557,25 @@ body.auth-locked .auth-login-btn:hover { filter: brightness(1.06); }
 
 /* Login: fotografia com filtro preto suave e formulário de vidro. */
 body.auth-locked .auth-screen {
+  background: #073d2d;
+}
+body.auth-locked .auth-screen::before {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  pointer-events: none;
   background: linear-gradient(rgba(0, 0, 0, .46), rgba(0, 0, 0, .56)),
     url("assets/backgrounds/login-office.png") center center / cover no-repeat,
     #073d2d;
+  filter: grayscale(72%);
 }
-body.auth-locked .auth-screen::before,
 body.auth-locked .auth-screen::after,
 body.auth-locked .auth-bg-mark { display: none; }
 body.auth-locked .auth-brand img {
