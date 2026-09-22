@@ -4556,7 +4556,11 @@ body.auth-locked .auth-login-btn {
 body.auth-locked .auth-login-btn:hover { filter: brightness(1.06); }
 
 /* Login simplificado: verde sólido ao fundo e logo sem moldura. */
-body.auth-locked .auth-screen { background: #073d2d; }
+body.auth-locked .auth-screen {
+  background: linear-gradient(rgba(4, 24, 18, .24), rgba(4, 24, 18, .34)),
+    url("assets/backgrounds/login-office.png") center center / cover no-repeat,
+    #073d2d;
+}
 body.auth-locked .auth-screen::before,
 body.auth-locked .auth-screen::after,
 body.auth-locked .auth-bg-mark { display: none; }
