@@ -4503,12 +4503,12 @@ body.auth-locked .auth-card {
   border: 1px solid rgba(240, 255, 249, .20);
   border-radius: 16px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, .11), rgba(255, 255, 255, .035)),
-    rgba(5, 48, 36, .72);
+    linear-gradient(145deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .035)),
+    rgba(5, 30, 24, .48);
   color: #f5faf7;
   box-shadow: 0 26px 70px rgba(0, 18, 13, .42), inset 1px 1px 0 rgba(255, 255, 255, .12);
-  backdrop-filter: blur(22px) saturate(125%);
-  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(16px) saturate(110%);
+  -webkit-backdrop-filter: blur(16px) saturate(110%);
 }
 body.auth-locked .auth-brand h1 { color: #fff; }
 body.auth-locked .auth-brand p,
@@ -4555,9 +4555,9 @@ body.auth-locked .auth-login-btn {
 }
 body.auth-locked .auth-login-btn:hover { filter: brightness(1.06); }
 
-/* Login simplificado: verde sólido ao fundo e logo sem moldura. */
+/* Login: fotografia com filtro preto suave e formulário de vidro. */
 body.auth-locked .auth-screen {
-  background: linear-gradient(rgba(4, 24, 18, .24), rgba(4, 24, 18, .34)),
+  background: linear-gradient(rgba(0, 0, 0, .34), rgba(0, 0, 0, .44)),
     url("assets/backgrounds/login-office.png") center center / cover no-repeat,
     #073d2d;
 }
