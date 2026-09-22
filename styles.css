@@ -4510,7 +4510,17 @@ body.auth-locked .auth-card {
   backdrop-filter: blur(16px) saturate(0%);
   -webkit-backdrop-filter: blur(16px) saturate(0%);
 }
-body.auth-locked .auth-brand h1 { color: #fff; }
+body.auth-locked .auth-brand {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+}
+body.auth-locked .auth-brand img {
+  width: 190px;
+  max-width: 100%;
+  height: 90px;
+}
 body.auth-locked .auth-brand p,
 body.auth-locked .auth-form label > span,
 body.auth-locked .auth-status { color: rgba(241, 250, 246, .72); }
