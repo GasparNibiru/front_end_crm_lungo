@@ -4504,7 +4504,7 @@ body.auth-locked .auth-card {
   border-radius: 16px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .035)),
-    rgba(5, 30, 24, .48);
+    rgba(5, 30, 24, .36);
   color: #f5faf7;
   box-shadow: 0 26px 70px rgba(0, 18, 13, .42), inset 1px 1px 0 rgba(255, 255, 255, .12);
   backdrop-filter: blur(16px) saturate(110%);
@@ -4571,7 +4571,7 @@ body.auth-locked .auth-screen::before {
   border: 0;
   border-radius: 0;
   pointer-events: none;
-  background: linear-gradient(rgba(0, 0, 0, .46), rgba(0, 0, 0, .56)),
+  background: linear-gradient(rgba(0, 0, 0, .54), rgba(0, 0, 0, .64)),
     url("assets/backgrounds/login-office.png") center center / cover no-repeat,
     #073d2d;
   filter: grayscale(72%);
