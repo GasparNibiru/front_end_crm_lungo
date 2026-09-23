@@ -4551,6 +4551,23 @@ body.auth-locked .auth-form input {
   background: rgba(0, 0, 0, .30);
   color: #fff;
 }
+/* Keep login tokens readable, including browser autofill and saved light themes. */
+body.auth-locked #authScreen .auth-form input {
+  color-scheme: dark;
+  background-color: #202020;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  caret-color: #fff;
+}
+body.auth-locked #authScreen .auth-form input:is(:autofill, :-webkit-autofill) {
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff;
+  box-shadow: inset 0 0 0 1000px #202020;
+  transition: none;
+}
+body.auth-locked #authScreen .auth-form input:is(:autofill, :-webkit-autofill):focus {
+  box-shadow: inset 0 0 0 1000px #202020, 0 0 0 3px rgba(87, 207, 161, .14);
+}
 body.auth-locked .auth-form input::placeholder { color: rgba(241, 250, 246, .42); }
 body.auth-locked .auth-form input:focus {
   border-color: rgba(185, 247, 220, .62);
