@@ -5415,8 +5415,9 @@ body.public-vacancy-mode #publicApplicationStatus.ok { color:#087544; background
 /* Revenue ranking: podium trophies remain distinct from profile photos. */
 .supervisor-ranked-name { display:flex; align-items:center; gap:6px; min-width:0; }
 .supervisor-ranked-name > span:last-child { overflow-wrap:anywhere; }
-.supervisor-ranking-trophy { display:inline-flex; flex:0 0 22px; width:22px; height:22px; align-items:center; justify-content:center; }
-.supervisor-ranking-trophy svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.supervisor-ranking-trophy { display:inline-flex; flex-direction:column; flex:0 0 44px; width:44px; gap:2px; align-items:center; justify-content:center; }
+.supervisor-ranking-label { font-size:9px; font-weight:500; line-height:1.2; white-space:nowrap; }
+.supervisor-ranking-trophy svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .supervisor-ranking-trophy .trophy-cup { fill:currentColor; fill-opacity:.22; }
 .supervisor-ranking-trophy.gold { color:#e6b53d; }
 .supervisor-ranking-trophy.silver { color:#aab8ca; }
