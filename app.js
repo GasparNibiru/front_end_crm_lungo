@@ -1973,6 +1973,13 @@
     return `<span class="supervisor-avatar supervisor-broker-avatar">${escapeHtml(supervisorInitials(broker.name))}${valid?`<img src="${escapeHtml(photo)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:''}</span>`;
   }
 
+  function supervisorRankingTrophy(index) {
+    const medals = ['gold', 'silver', 'bronze'];
+    if (index >= medals.length) return '';
+    const label = (index + 1) + 'º lugar em faturamento';
+    return `<span class="supervisor-ranking-trophy ${medals[index]}" role="img" aria-label="${label}" title="${label}"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trophy-cup" d="M7 3h10v6a5 5 0 0 1-10 0V3Z"/><path d="M7 5H4v3a4 4 0 0 0 4 4M17 5h3v3a4 4 0 0 1-4 4M12 14v4M8 21v-3h8v3M6 21h12"/></svg></span>`;
+  }
+
   function supervisorInitials(name) {
     return String(name || "").split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
   }
@@ -2061,9 +2068,12 @@
       [`${conversion.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, `${closedSales} fechamentos em ${totalLeads} leads`]
     ];
     dashboardCards.forEach((card, index) => { if (dashboardValues[index]) { card.querySelector("b").textContent = dashboardValues[index][0]; card.querySelector("small").textContent = dashboardValues[index][1]; } });
-    const brokerRows = SUPERVISOR_BROKERS.map((broker) => `
+    const rankedBrokers = [...SUPERVISOR_BROKERS].sort((a, b) =>
+      (Number(b.revenue) || 0) - (Number(a.revenue) || 0) || String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR')
+    );
+    const brokerRows = rankedBrokers.map((broker, index) => `
       <div class="supervisor-broker-row">
-        <div class="supervisor-person">${supervisorBrokerAvatar(broker)}<b>${escapeHtml(broker.name)}${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}<small class="supervisor-target-badge">Meta ${formatCurrency(brokerTarget)}</small></b></div>
+        <div class="supervisor-person">${supervisorBrokerAvatar(broker)}<b><span class="supervisor-ranked-name">${supervisorRankingTrophy(index)}<span>${escapeHtml(broker.name)}</span></span>${broker.supervisor ? ' <small class="supervisor-role-badge">Supervisor</small>' : ""}<small class="supervisor-target-badge">Meta ${formatCurrency(brokerTarget)}</small></b></div>
         <span><i class="status-dot ${escapeHtml(broker.status)}"></i>${escapeHtml(broker.statusLabel)}</span>
         <b>${broker.sales} vendas</b>
         <div><div class="supervisor-progress"><i style="width:${broker.goal}%"></i></div><small>${broker.goal}% da meta</small></div>

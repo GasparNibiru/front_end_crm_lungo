@@ -5411,3 +5411,16 @@ body.public-vacancy-mode #publicApplicationStatus.ok { color:#087544; background
 .rh-approved-actions [data-approved-disc] { color:#19b995; }
 .rh-approved-actions .rh-dismiss-btn { color:#f08b48; }
 .rh-approved-actions .rh-card-icon:hover { border-color:currentColor; }
+
+/* Revenue ranking: podium trophies remain distinct from profile photos. */
+.supervisor-ranked-name { display:flex; align-items:center; gap:6px; min-width:0; }
+.supervisor-ranked-name > span:last-child { overflow-wrap:anywhere; }
+.supervisor-ranking-trophy { display:inline-flex; flex:0 0 22px; width:22px; height:22px; align-items:center; justify-content:center; }
+.supervisor-ranking-trophy svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.supervisor-ranking-trophy .trophy-cup { fill:currentColor; fill-opacity:.22; }
+.supervisor-ranking-trophy.gold { color:#e6b53d; }
+.supervisor-ranking-trophy.silver { color:#aab8ca; }
+.supervisor-ranking-trophy.bronze { color:#cd8b56; }
+[data-theme="light"] .supervisor-ranking-trophy.gold { color:#98700c; }
+[data-theme="light"] .supervisor-ranking-trophy.silver { color:#66758a; }
+[data-theme="light"] .supervisor-ranking-trophy.bronze { color:#995a2e; }
