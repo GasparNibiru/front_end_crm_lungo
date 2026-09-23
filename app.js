@@ -1371,16 +1371,21 @@
     return { branding, goals, message, theme };
   }
 
+  // Resolve the retired default URL without replacing custom company logos.
+  function resolveCompanyLogo(value) {
+    if (!value || /^https?:\/\/imagensconrato\.pagecor\.com\.br\/logo-lungo\.png(?:[?#].*)?$/i.test(value)) return "assets/branding/logo-lungo.png";
+    return value;
+  }
+
   function renderCompanyBranding() {
     const data = loadCompanyBranding();
     const branding = data.branding;
     const hasBranding = Boolean(branding.name || branding.logo || branding.banner || data.message || data.goals.monthly);
-    const defaultLogo = "https://imagensconrato.pagecor.com.br/logo-lungo.png";
-    if (el.brokerCompanyLogo) el.brokerCompanyLogo.src = branding.logo || defaultLogo;
+    if (el.brokerCompanyLogo) el.brokerCompanyLogo.src = resolveCompanyLogo(branding.logo);
     if (el.brokerCompanyLogo) el.brokerCompanyLogo.alt = branding.name || "Lungo";
     if (el.brokerCompanyName) el.brokerCompanyName.textContent = branding.name || "Lungo";
     if (el.brokerBrandingBanner) el.brokerBrandingBanner.hidden = !hasBranding;
-    if (el.brokerBannerImage) el.brokerBannerImage.src = branding.logo || defaultLogo;
+    if (el.brokerBannerImage) el.brokerBannerImage.src = resolveCompanyLogo(branding.logo);
     if (el.brokerBannerCompanyName) el.brokerBannerCompanyName.textContent = branding.name || "Lungo Corretores";
     if (el.brokerWeeklyMessage) el.brokerWeeklyMessage.textContent = data.message || branding.slogan || "Bem-vindo ao seu painel comercial.";
     if (el.brokerMonthlyGoal) el.brokerMonthlyGoal.textContent = data.goals.monthly || "Não definida";
@@ -1464,7 +1469,7 @@
     if (radio) radio.checked = true;
     pendingBrokerProfilePhoto = preferences.photo || "";
     if (el.brokerCompanyLogo) {
-      el.brokerCompanyLogo.src = pendingBrokerProfilePhoto || company.logo || "https://imagensconrato.pagecor.com.br/logo-lungo.png";
+      el.brokerCompanyLogo.src = pendingBrokerProfilePhoto || resolveCompanyLogo(company.logo);
       el.brokerCompanyLogo.alt = pendingBrokerProfilePhoto ? `Foto de ${state.clientName || "corretor"}` : company.name || "Lungo";
       el.brokerCompanyLogo.classList.toggle("broker-personal-photo", Boolean(pendingBrokerProfilePhoto));
     }
@@ -1582,9 +1587,8 @@
 
   function renderCompanyIdentity() {
     const identity = loadCompanyIdentity();
-    const defaultLogo = "https://imagensconrato.pagecor.com.br/logo-lungo.png";
     const name = identity.name || "Lungo";
-    const logo = identity.logo || defaultLogo;
+    const logo = resolveCompanyLogo(identity.logo);
     if (el.companySidebarColor) el.companySidebarColor.value = identity.sidebarColor || "#0b7658";
     applyCompanySidebarColor(identity.sidebarColor || "#0b7658");
     applyCompanyBackground(identity.background);
@@ -2030,7 +2034,7 @@
     if ($('#supervisorGoalModalSplit')) $('#supervisorGoalModalSplit').textContent = `${formatCurrency(goal && SUPERVISOR_BROKERS.length ? goal / SUPERVISOR_BROKERS.length : 0)} por corretor`;
     const identity = loadCompanyIdentity();
     const companyName = identity.name || supervisorOrganizationName || 'Corretora';
-    const logo = identity.logo || 'https://imagensconrato.pagecor.com.br/logo-lungo.png';
+    const logo = resolveCompanyLogo(identity.logo);
     if ($('#supervisorReportLogo')) { $('#supervisorReportLogo').src = logo; $('#supervisorReportLogo').alt = companyName; }
     if ($('#supervisorReportCompany')) $('#supervisorReportCompany').textContent = companyName;
     if ($('#supervisorReportOwner')) $('#supervisorReportOwner').textContent = `Supervisor: ${state.clientName || 'Supervisor'} · ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`;
@@ -2346,7 +2350,7 @@
       const response = await fetch(`${API}/api/public/vacancies/${encodeURIComponent(slug)}`); const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Vaga indisponível.');
       const vacancy = data.vacancy; const header = $('.public-vacancy-page > header'); const logo = header?.querySelector('img');
-      if (logo && vacancy.logo) { logo.src = vacancy.logo; logo.alt = vacancy.companyName || 'Corretora'; }
+      if (logo && vacancy.logo) { logo.src = resolveCompanyLogo(vacancy.logo); logo.alt = vacancy.companyName || 'Corretora'; }
       if (header && !$('#publicVacancyCompany')) logo?.insertAdjacentHTML('afterend', `<b id="publicVacancyCompany">${escapeHtml(vacancy.companyName || 'Corretora')}</b>`);
       $('#publicVacancyTitle').textContent = vacancy.title; $('#publicVacancyHeadline').textContent = vacancy.headline || ''; $('#publicVacancyLocation').textContent = [vacancy.workModel, vacancy.location].filter(Boolean).join(' · '); $('#publicVacancyDescription').textContent = vacancy.description || '';
       const lines = (value) => String(value || '').split('\n').filter(Boolean).map((line) => `<span>✓ ${escapeHtml(line)}</span>`).join('') || '<span>Consulte a equipe responsável.</span>';
@@ -5319,7 +5323,7 @@
 
   function ensureAdminMobileHeader() {
     const topbar = $(".admin-master-topbar"); if (!topbar || $("#adminMobileBackBtn")) return;
-    topbar.insertAdjacentHTML("afterbegin", `<button id="adminMobileBackBtn" class="admin-mobile-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><img class="admin-mobile-logo" src="https://imagensconrato.pagecor.com.br/logo-lungo.png" alt="Lungo">`);
+    topbar.insertAdjacentHTML("afterbegin", `<button id="adminMobileBackBtn" class="admin-mobile-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><img class="admin-mobile-logo" src="assets/branding/logo-lungo.png" alt="Lungo">`);
     $("#adminMobileBackBtn").addEventListener("click", () => {
       const saleForm = $("#adminNewSaleForm"), saleStep = Number(saleForm?.dataset.mobileSaleStep || 1);
       if (adminMasterCurrentView === "new-sale" && saleStep > 1) { showAdminMobileSaleStep(saleStep - 1); return; }
