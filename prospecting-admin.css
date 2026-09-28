@@ -1,0 +1,16 @@
+.pa-panel { min-width:0; }
+.pa-search,.pa-pager { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0; }
+.pa-search input { flex:1; min-width:180px; padding:10px; }
+.pa-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; align-items:start; }
+.pa-user { padding:12px 0; border-bottom:1px solid var(--border); display:flex; gap:10px; align-items:center; justify-content:space-between; }
+.pa-user div { min-width:0; overflow-wrap:anywhere; }
+.pa-user small { display:block; color:var(--muted); margin-top:4px; }
+.pa-user button { flex-shrink:0; }
+.pa-detail { padding:16px; border:1px solid var(--border); border-radius:8px; min-width:0; overflow-wrap:anywhere; }
+#paCreditForm { display:grid; gap:12px; margin:18px 0; }
+#paCreditForm label { display:grid; gap:6px; }
+#paCreditForm input,#paCreditForm textarea { width:100%; min-width:0; padding:10px; }
+.pa-history article { border-bottom:1px solid var(--border); padding:12px 0; }
+.pa-history span { display:block; font-size:11px; color:var(--muted); }
+.pa-history small,.pa-detail>small { color:var(--muted); font-size:11px; }
+@media(max-width:1000px) { .pa-layout { grid-template-columns:minmax(0,1fr); } }

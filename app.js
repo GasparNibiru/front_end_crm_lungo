@@ -5359,8 +5359,8 @@
 
   function ensureAdminMobileMoreSheet() {
     const screen = $("#adminMasterScreen"); if (!screen || $("#adminMobileMoreSheet")) return;
-    const views = ["calendar", "receivables", "archived", "trainings", "campaigns", "lead-marketplace", "settings"];
-    const labels = { calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", campaigns:"Campanhas visuais", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
+    const views = ["prospecting-credits", "calendar", "receivables", "archived", "trainings", "campaigns", "lead-marketplace", "settings"];
+    const labels = { "prospecting-credits":"Créditos de Prospecção", calendar:"Calendário financeiro", receivables:"Recebimentos", archived:"Excluídos", trainings:"Treinamentos", campaigns:"Campanhas visuais", "lead-marketplace":"Marketplace de Leads", settings:"Configurações" };
     const items = views.map((view) => { const source = $(`[data-admin-master-view="${view}"]`); return `<button type="button" data-mobile-more-view="${view}"><span>${source?.querySelector("svg")?.outerHTML || ""}</span><b>${labels[view]}</b><svg class="admin-mobile-more-next" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`; }).join("");
     screen.insertAdjacentHTML("beforeend", `<section id="adminMobileMoreSheet" class="admin-mobile-more-sheet" hidden><header><div><span>Menu</span><h2>Mais funcionalidades</h2></div><button type="button" data-mobile-more-close aria-label="Fechar">×</button></header><nav>${items}</nav><button class="admin-mobile-more-logout" type="button" data-mobile-more-logout>Sair do Admin</button></section>`);
     const sheet = $("#adminMobileMoreSheet");
@@ -5390,13 +5390,14 @@
     ensureAdminMobileHeader();
     if (window.matchMedia("(max-width: 600px)").matches && options.remember !== false && view !== adminMasterCurrentView) adminMasterViewHistory.push(adminMasterCurrentView);
     adminMasterCurrentView = view;
-    const titles = { "ai-credits": "Créditos de IA", dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", "brazil-partners": "Parceiros Brasil", settings: "Configurações" };
+    const titles = { "prospecting-credits": "Créditos de Prospecção", "ai-credits": "Créditos de IA", dashboard: "Dashboard", clients: "Clientes e assinaturas", "new-sale": "Nova venda", tokens: "Acessos e tokens", calendar: "Calendário financeiro", receivables: "Recebimentos", archived: "Excluídos", trainings: "Treinamentos", campaigns: "Campanhas visuais", "lead-marketplace": "Marketplace de Leads", "brazil-partners": "Parceiros Brasil", settings: "Configurações" };
     $$(".admin-master-nav-item").forEach((button) => button.classList.toggle("active", button.dataset.adminMasterView === view));
     $("#adminMasterMoreBtn")?.classList.toggle("active", !["dashboard", "clients", "new-sale", "tokens"].includes(view));
     $$(".admin-master-view").forEach((section) => section.classList.toggle("active", section.id === `admin-master-view-${view}`));
     if ($("#adminMasterViewTitle")) $("#adminMasterViewTitle").textContent = titles[view] || "Admin Master";
     closeAdminMobileMore();
     $("#adminMobileBackBtn")?.classList.toggle("visible", view !== "dashboard");
+    if (view === 'prospecting-credits') window.LungoProspectingAdmin?.open(adminMasterKey);
     if (view === 'ai-credits') window.LungoAiAgent?.adminOpen(adminMasterKey);
     if (view === 'trainings') loadAdminTrainings();
     if (view === 'campaigns') loadAdminCampaignMedia();
@@ -5453,6 +5454,7 @@
   }
 
   function logoutAdminMaster() {
+    window.LungoProspectingAdmin?.reset();
     window.LungoAiAgent?.adminReset();
     adminMasterLogged = false;
     adminMasterKey = "";
