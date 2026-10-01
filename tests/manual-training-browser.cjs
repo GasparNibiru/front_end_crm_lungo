@@ -59,7 +59,7 @@ const hook = `window.__training={load:()=>loadTrainingLibrary(supervisorAccessTo
     assert.equal(await check.isEnabled(),true);
     fail=false;delay=100;
     await check.evaluate(button=>{button.click();button.click();});
-    await page.waitForFunction(()=>document.querySelector('[data-training-confirm]').textContent.includes('confirmado'));
+    await page.waitForFunction(()=>document.querySelector('[data-training-confirm]').getAttribute('aria-pressed') === 'true');
     assert.equal(await check.isDisabled(),true);
     assert.equal(requests.filter(p=>p.endsWith('/confirm')).length,2,'one failed request plus one successful declaration');
     await page.locator('#supervisorTrainingSourceFilter').selectOption('supervisor');
@@ -71,6 +71,18 @@ const hook = `window.__training={load:()=>loadTrainingLibrary(supervisorAccessTo
     assert.match(await page.locator('#trainingMetricsBody').innerText(),/Corretor Teste/);
     assert.doesNotMatch(await page.locator('#trainingMetricsBody').innerText(),/%|Progresso/);
     await page.locator('#trainingMetricsModal [data-training-metrics-close]').last().click();
+    await page.evaluate(({item,confirmedAt})=>window.__training.render([
+      {...item,stars:5,confirmation:{confirmedAt}},
+      {...item,id:'second',title:'Venda de planos',stars:4,confirmation:{confirmedAt}},
+      {...item,id:'third',title:'Cadastro e comissão',stars:5,confirmation:null},
+      {...item,id:'fourth',title:'Novos corretores',stars:4,confirmation:null}
+    ]),{item,confirmedAt});
+    const visual = await page.locator('[data-training-confirm]').evaluateAll(buttons=>buttons.map(button=>({
+      background:getComputedStyle(button).backgroundColor,
+      fontSize:getComputedStyle(button).fontSize,
+      genericButton:button.classList.contains('btn')
+    })));
+    assert.ok(visual.every(button=>button.background==='rgba(0, 0, 0, 0)'&&button.fontSize==='10px'&&!button.genericButton));
     fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
     for(const width of [1360,390]){
       await page.setViewportSize({width,height:900});

@@ -2490,13 +2490,23 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-card { display: flex; flex-direction: column; }
 .training-card > div { flex: 1; display: flex; flex-direction: column; }
 .training-card [data-training-confirm] {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
   align-self: flex-start; justify-content: flex-start;
   width: auto; max-width: 100%; min-height: 32px;
   margin-top: auto; padding: 6px 0;
   border: 0; border-radius: 4px; background: transparent;
   box-shadow: none; color: var(--muted);
-  font-size: 10px; font-weight: 500; line-height: 1.4;
+  font-family: inherit; font-size: 10px; font-weight: 500; line-height: 1.4;
   text-align: left; white-space: normal;
+}
+.training-card [data-training-confirm]::before {
+  content: ''; flex: 0 0 13px; width: 13px; height: 13px;
+  box-sizing: border-box; border: 1px solid var(--muted); border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; line-height: 1;
+}
+.training-card [data-training-confirm].is-confirmed::before {
+  content: '✓'; border-color: transparent; color: var(--primary-2);
 }
 .training-card [data-training-confirm]:hover:not(:disabled) {
   color: var(--primary-2); background: transparent;
@@ -2508,7 +2518,7 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 }
 .training-card [data-training-confirm]:disabled { opacity: 1; cursor: default; }
 .training-card [data-training-confirm-status] {
-  display: block; min-height: 0; overflow: visible;
+  display: block; min-height: 13px; overflow: visible;
   margin-top: -2px; font-size: 9px; line-height: 1.45;
 }
 .training-stars { color: #f5b301; letter-spacing: 1px; font-size: 11px; }

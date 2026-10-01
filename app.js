@@ -1637,7 +1637,7 @@
     const tracks = [...new Set(trainings.map(item => item.track || 'Geral'))];
     return tracks.map(track => `<section class="training-track ${options.featured ? 'training-track-featured' : ''}"><header><div><span>${escapeHtml(options.eyebrow || 'Trilha de conhecimento')}</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter(item => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter(item => (item.track || 'Geral') === track).map(item => {
       const date = item.confirmation?.confirmedAt;
-      return `<article class="training-card ${item.ownerType === 'admin' ? 'training-card-admin' : ''}"><button type="button" class="training-thumb" data-training-id="${escapeHtml(item.id)}" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span></button><div><div class="training-card-meta"><small>${item.ownerType === 'admin' ? 'Conteúdo Lungo' : 'Trilha da equipe'}</small>${options.metrics ? `<button class="training-eye" type="button" data-training-metrics="${escapeHtml(item.id)}" title="Confirmações de presença" aria-label="Ver quem confirmou que assistiu">&#128065;</button>` : ''}</div><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p><button type="button" class="btn ${date ? '' : 'primary'}" data-training-confirm="${escapeHtml(item.id)}" ${date ? 'disabled' : ''}>${date ? '✓ Assistido — confirmado' : '✓ Confirmo que assisti'}</button><p data-training-confirm-status="${escapeHtml(item.id)}" role="status">${date ? `Confirmado em ${escapeHtml(calendarDateTime(date))}` : 'Marque após assistir ao treinamento.'}</p></div></article>`;
+      return `<article class="training-card ${item.ownerType === 'admin' ? 'training-card-admin' : ''}"><button type="button" class="training-thumb" data-training-id="${escapeHtml(item.id)}" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span></button><div><div class="training-card-meta"><small>${item.ownerType === 'admin' ? 'Conteúdo Lungo' : 'Trilha da equipe'}</small>${options.metrics ? `<button class="training-eye" type="button" data-training-metrics="${escapeHtml(item.id)}" title="Confirmações de presença" aria-label="Ver quem confirmou que assistiu">&#128065;</button>` : ''}</div><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p><button type="button" class="training-confirm-action ${date ? 'is-confirmed' : ''}" aria-label="Confirmo que assisti a este treinamento" aria-pressed="${Boolean(date)}" data-training-confirm="${escapeHtml(item.id)}" ${date ? 'disabled' : ''}>${date ? 'Assistido' : 'Marcar como assistido'}</button><p data-training-confirm-status="${escapeHtml(item.id)}" role="status">${date ? `Confirmado em ${escapeHtml(calendarDateTime(date))}` : ''}</p></div></article>`;
     }).join('')}</div></section>`).join('');
   }
 
@@ -1696,14 +1696,14 @@
       if (!button.isConnected) {
         document.querySelectorAll('[data-training-confirm]').forEach(current => {
           if (current.dataset.trainingConfirm !== id) return;
-          current.disabled = true; current.textContent = '✓ Assistido — confirmado'; current.classList.remove('primary');
+          current.disabled = true; current.textContent = 'Assistido'; current.classList.add('is-confirmed'); current.setAttribute('aria-pressed', 'true');
           const currentStatus = current.parentElement.querySelector('[data-training-confirm-status]');
           if (currentStatus) currentStatus.textContent = `Confirmado em ${calendarDateTime(result.confirmation.confirmedAt)}`;
         });
         return;
       }
-      button.textContent = '✓ Assistido — confirmado';
-      button.classList.remove('primary');
+      button.textContent = 'Assistido';
+      button.classList.add('is-confirmed'); button.setAttribute('aria-pressed', 'true');
       if (status) status.textContent = `Confirmado em ${calendarDateTime(result.confirmation.confirmedAt)}`;
     } catch (error) {
       if (calendarToken() === token && button.isConnected) {
