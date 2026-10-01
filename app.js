@@ -1699,26 +1699,63 @@
     });
   }
 
-  async function saveTrainingPlayback(delta = 0, playback = trainingPlayback) {
-    const active = playback; if (!active?.player?.getDuration || active.saving) return;
-    const duration = active.player.getDuration(), currentTime = active.player.getCurrentTime(); if (!duration) return;
-    const calculatedDelta = delta === null ? Math.max(0, Math.min(15, currentTime - Number(active.lastCurrentTime || 0))) : delta;
-    active.lastCurrentTime = Math.max(Number(active.lastCurrentTime || 0), currentTime);
-    active.saving = true;
-    try {
-      const result = await window.LungoSupervisorApi.updateTrainingProgress(active.id, { duration, currentTime, watchedSecondsDelta: calculatedDelta }, active.token);
-      const progress = result.progress;
-      if ($('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `${progress.percent}% assistido${progress.status === 'completed' ? ' · Treinamento concluído' : ''}`;
-    } catch (error) {
-      if ($('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `Não foi possível salvar o progresso: ${error.message}`;
-    } finally {
-      active.saving = false;
-    }
+  function createTrainingProgressSaver(send, onProgress, onError) {
+    let latest = null, previous = null, acknowledged = '', pending = 0;
+    let running = null, requested = false;
+    return {
+      sample(duration, currentTime, playing, now = performance.now(), rate = 1) {
+        if (!duration) return;
+        if (previous?.playing) {
+          const elapsed = Math.max(0, (now - previous.now) / 1000);
+          const advance = currentTime - previous.currentTime;
+          // Ignore seeking; only accumulate movement consistent with playback.
+          if (advance > 0 && advance <= elapsed * previous.rate + 1)
+            pending += Math.min(advance, elapsed * previous.rate);
+        }
+        previous = { currentTime, playing, now, rate };
+        latest = { duration, currentTime };
+      },
+      flush() {
+        requested = true;
+        if (running) return running;
+        running = Promise.resolve().then(async () => {
+          while (requested) {
+            requested = false;
+            if (!latest) break;
+            const snapshot = { ...latest }, key = JSON.stringify(snapshot);
+            const delta = Math.min(15, Math.floor(pending));
+            if (key === acknowledged && !delta) break;
+            try {
+              const result = await send({ ...snapshot, watchedSecondsDelta: delta });
+              pending = Math.max(0, pending - delta);
+              acknowledged = key;
+              onProgress(result);
+              if (pending >= 1) requested = true;
+            } catch (error) { requested = false; onError(error); break; }
+          }
+        }).finally(() => { running = null; });
+        return running;
+      }
+    };
+  }
+
+  function saveTrainingPlayback(delta = 0, playback = trainingPlayback) {
+    const active = playback; if (!active?.player?.getDuration) return Promise.resolve();
+    if (!active.progressSaver) active.progressSaver = createTrainingProgressSaver(
+      payload => window.LungoSupervisorApi.updateTrainingProgress(active.id, payload, active.token),
+      result => { if (trainingPlayback === active && $('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `${result.progress.percent}% assistido${result.progress.status === 'completed' ? ' · Treinamento concluído' : ''}`; },
+      error => { if (trainingPlayback === active && $('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `Não foi possível salvar o progresso: ${error.message}`; }
+    );
+    active.progressSaver.sample(active.player.getDuration(), active.player.getCurrentTime(), active.player.getPlayerState?.() === window.YT.PlayerState.PLAYING, performance.now(), active.player.getPlaybackRate?.() || 1);
+    const now = performance.now();
+    if (delta === null && now - (active.lastFlushAt || 0) < 12000) return Promise.resolve();
+    active.lastFlushAt = now;
+    return active.progressSaver.flush();
   }
 
   function closeTrainingPlayer() {
     const modal = $('#trainingPlayerModal');
-    if (trainingPlayback) { const finished = trainingPlayback; clearInterval(finished.timer); saveTrainingPlayback(0, finished); try { finished.player.destroy(); } catch {} trainingPlayback = null; setTimeout(() => loadTrainingLibrary(finished.token, finished.target), 500); }
+    if (trainingPlayback) { const finished = trainingPlayback; clearInterval(finished.timer); const saved = saveTrainingPlayback(0, finished); try { finished.player.destroy(); } catch {} trainingPlayback = null; saved.finally(() => { if (calendarToken() === finished.token) loadTrainingLibrary(finished.token, finished.target); }); }
     if (!$('#trainingPlayerFrame')) $('.training-player-frame')?.insertAdjacentHTML('beforeend', '<div id="trainingPlayerFrame"></div>');
     if (modal?.open) modal.close();
   }
