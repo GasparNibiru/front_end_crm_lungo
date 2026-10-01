@@ -1630,10 +1630,15 @@
 
   function trainingStars(count) { return count > 0 ? `<span class="training-stars" aria-label="${count} estrelas">${'★'.repeat(count)}</span>` : ''; }
 
+  let trainingLibraryToken = null;
+  let trainingLibraryRecords = new Map();
   function trainingCards(trainings, options = {}) {
     if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado nesta trilha.</div>';
-    const tracks = options.flat ? ['__all__'] : [...new Set(trainings.map((item) => item.track || 'Geral'))];
-    return tracks.map((track) => { const group = options.flat ? trainings : trainings.filter((item) => (item.track || 'Geral') === track); return `<section class="training-track ${options.featured ? 'training-track-featured' : ''}"><header><div><span>${escapeHtml(options.eyebrow || 'Trilha de conhecimento')}</span><h3>${escapeHtml(options.flatTitle || track)}</h3></div><b>${group.length} aulas</b></header><div class="training-card-grid">${group.map((item) => { const progress = item.progress || { percent: 0, status: 'not_started' }; return `<article class="training-card ${item.ownerType === 'admin' ? 'training-card-admin' : ''} ${progress.status === 'in_progress' ? 'training-card-watching' : ''}"><button type="button" class="training-thumb" data-training-id="${escapeHtml(item.id)}" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span>${progress.status === 'in_progress' ? '<b class="training-watching-badge">Em andamento</b>' : ''}</button><div><div class="training-card-meta"><small>${item.ownerType === 'supervisor' ? 'Trilha da equipe' : 'Conteúdo Lungo'}</small>${options.metrics ? `<button class="training-eye" type="button" data-training-metrics="${escapeHtml(item.id)}" title="Visto por" aria-label="Ver quem assistiu">&#128065;</button>` : ''}</div><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p><div class="training-progress"><span><i style="width:${Number(progress.percent || 0)}%"></i></span><b>${Number(progress.percent || 0)}%${progress.status === 'completed' ? ' · Concluído' : progress.status === 'in_progress' ? ' · Em andamento' : ''}</b></div></div></article>`; }).join('')}</div></section>`; }).join('');
+    const tracks = [...new Set(trainings.map(item => item.track || 'Geral'))];
+    return tracks.map(track => `<section class="training-track ${options.featured ? 'training-track-featured' : ''}"><header><div><span>${escapeHtml(options.eyebrow || 'Trilha de conhecimento')}</span><h3>${escapeHtml(track)}</h3></div><b>${trainings.filter(item => (item.track || 'Geral') === track).length} aulas</b></header><div class="training-card-grid">${trainings.filter(item => (item.track || 'Geral') === track).map(item => {
+      const date = item.confirmation?.confirmedAt;
+      return `<article class="training-card ${item.ownerType === 'admin' ? 'training-card-admin' : ''}"><button type="button" class="training-thumb" data-training-id="${escapeHtml(item.id)}" data-training-play="${escapeHtml(item.youtubeId)}" data-training-title="${escapeHtml(item.title)}" data-training-track="${escapeHtml(item.track || 'Geral')}"><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/hqdefault.jpg" alt="Capa de ${escapeHtml(item.title)}"><span>▶ Assistir agora</span></button><div><div class="training-card-meta"><small>${item.ownerType === 'admin' ? 'Conteúdo Lungo' : 'Trilha da equipe'}</small>${options.metrics ? `<button class="training-eye" type="button" data-training-metrics="${escapeHtml(item.id)}" title="Confirmações de presença" aria-label="Ver quem confirmou que assistiu">&#128065;</button>` : ''}</div><h4>${escapeHtml(item.title)}</h4>${trainingStars(item.stars)}<p>${escapeHtml(item.description || 'Treinamento em vídeo.')}</p><button type="button" class="btn ${date ? '' : 'primary'}" data-training-confirm="${escapeHtml(item.id)}" ${date ? 'disabled' : ''}>${date ? '✓ Assistido — confirmado' : '✓ Confirmo que assisti'}</button><p data-training-confirm-status="${escapeHtml(item.id)}" role="status">${date ? `Confirmado em ${escapeHtml(calendarDateTime(date))}` : 'Marque após assistir ao treinamento.'}</p></div></article>`;
+    }).join('')}</div></section>`).join('');
   }
 
   function orderedTrainings(trainings) {
@@ -1642,122 +1647,70 @@
 
   function trainingLibraryContent(trainings, options = {}) {
     if (!trainings.length) return '<div class="empty-state">Nenhum treinamento publicado.</div>';
-    const inProgress = trainings.filter((item) => item.progress?.status === 'in_progress').sort((a, b) => String(b.progress?.lastViewedAt || '').localeCompare(String(a.progress?.lastViewedAt || '')));
-    const activeIds = new Set(inProgress.map((item) => item.id));
-    const admin = orderedTrainings(trainings.filter((item) => !activeIds.has(item.id) && item.ownerType === 'admin'));
-    const team = orderedTrainings(trainings.filter((item) => !activeIds.has(item.id) && item.ownerType === 'supervisor'));
-    return `${inProgress.length ? trainingCards(inProgress, { ...options, flat: true, flatTitle: 'Em andamento', featured: true, eyebrow: 'Continue assistindo' }) : ''}${admin.length ? trainingCards(admin, { ...options, featured: true, eyebrow: 'Em destaque · Lungo' }) : ''}${team.length ? trainingCards(team, { ...options, eyebrow: 'Trilha da equipe' }) : ''}`;
-  }
-
-  let trainingPlayback = null;
-  let youtubeApiPromise = null;
-  function loadYoutubeApi() {
-    if (window.YT?.Player) return Promise.resolve(window.YT);
-    if (youtubeApiPromise) return youtubeApiPromise;
-    youtubeApiPromise = new Promise((resolve) => { const previous = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { if (typeof previous === 'function') previous(); resolve(window.YT); }; const script = document.createElement('script'); script.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(script); });
-    return youtubeApiPromise;
+    const admin = orderedTrainings(trainings.filter(item => item.ownerType === 'admin'));
+    const team = orderedTrainings(trainings.filter(item => item.ownerType === 'supervisor'));
+    return `${admin.length ? trainingCards(admin, { ...options, featured: true, eyebrow: 'Em destaque · Lungo' }) : ''}${team.length ? trainingCards(team, { ...options, eyebrow: 'Trilha da equipe' }) : ''}`;
   }
 
   function ensureTrainingPlayer() {
     let modal = $('#trainingPlayerModal');
     if (modal) return modal;
-    document.body.insertAdjacentHTML('beforeend', `<dialog id="trainingPlayerModal" class="modal training-player-modal"><div class="modal-card"><header><div><h2 id="trainingPlayerTitle">Treinamento</h2><p id="trainingPlayerTrack">Trilha de conhecimento</p></div><button class="btn icon" type="button" data-training-player-close aria-label="Fechar">×</button></header><div class="training-player-frame"><div id="trainingPlayerFrame"></div></div><footer><span id="trainingPlayerProgress">O progresso é salvo durante a reprodução.</span><span class="footer-spacer"></span><button class="btn primary" type="button" data-training-player-close>Fechar</button></footer></div></dialog>`);
+    document.body.insertAdjacentHTML('beforeend', `<dialog id="trainingPlayerModal" class="modal training-player-modal"><div class="modal-card"><header><div><h2 id="trainingPlayerTitle">Treinamento</h2><p id="trainingPlayerTrack"></p></div><button class="btn icon" type="button" data-training-player-close aria-label="Fechar">×</button></header><div class="training-player-frame" id="trainingPlayerFrame"></div><footer><span>Após assistir, feche o vídeo e marque “Confirmo que assisti” na lista.</span><span class="footer-spacer"></span><button class="btn primary" type="button" data-training-player-close>Fechar</button></footer></div></dialog>`);
     modal = $('#trainingPlayerModal');
     modal.addEventListener('close', closeTrainingPlayer);
-    modal.addEventListener('click', (event) => { if (event.target === modal || event.target.closest('[data-training-player-close]')) closeTrainingPlayer(); });
+    modal.addEventListener('click', event => { if (event.target === modal || event.target.closest('[data-training-player-close]')) closeTrainingPlayer(); });
     return modal;
   }
 
-  async function openTrainingPlayer(button) {
+  function openTrainingPlayer(button) {
     const modal = ensureTrainingPlayer();
     $('#trainingPlayerTitle').textContent = button.dataset.trainingTitle || 'Treinamento';
-    $('#trainingPlayerTrack').textContent = `Trilha: ${button.dataset.trainingTrack || 'Geral'}`;
-    $('#trainingPlayerProgress').textContent = 'Preparando o acompanhamento...';
+    $('#trainingPlayerTrack').textContent = button.dataset.trainingTrack || 'Geral';
+    const frame = document.createElement('iframe');
+    frame.src = `https://www.youtube.com/embed/${encodeURIComponent(button.dataset.trainingPlay)}?autoplay=1&rel=0&playsinline=1`;
+    frame.title = button.dataset.trainingTitle || 'Treinamento';
+    frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    frame.allowFullscreen = true;
+    $('#trainingPlayerFrame').replaceChildren(frame);
     modal.showModal();
-    await loadYoutubeApi();
-    const playback = { id: button.dataset.trainingId, player: null, timer: null, token: calendarToken(), target: supervisorAccessToken ? 'supervisor' : 'broker', saving: false, lastCurrentTime: 0 };
-    trainingPlayback = playback;
-    playback.player = new window.YT.Player('trainingPlayerFrame', {
-      videoId: button.dataset.trainingPlay,
-      playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 },
-      events: {
-        onReady(event) {
-          playback.player = event.target;
-          playback.lastCurrentTime = Number(event.target.getCurrentTime?.() || 0);
-          saveTrainingPlayback(0, playback);
-          clearInterval(playback.timer);
-          playback.timer = setInterval(() => saveTrainingPlayback(null, playback), 3000);
-        },
-        onStateChange(event) {
-          if (event.data === window.YT.PlayerState.PLAYING) {
-            saveTrainingPlayback(0, playback);
-          } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
-            saveTrainingPlayback(0, playback);
-          }
-        }
-      }
-    });
-  }
-
-  function createTrainingProgressSaver(send, onProgress, onError) {
-    let latest = null, previous = null, acknowledged = '', pending = 0;
-    let running = null, requested = false;
-    return {
-      sample(duration, currentTime, playing, now = performance.now(), rate = 1) {
-        if (!duration) return;
-        if (previous?.playing) {
-          const elapsed = Math.max(0, (now - previous.now) / 1000);
-          const advance = currentTime - previous.currentTime;
-          // Ignore seeking; only accumulate movement consistent with playback.
-          if (advance > 0 && advance <= elapsed * previous.rate + 1)
-            pending += Math.min(advance, elapsed * previous.rate);
-        }
-        previous = { currentTime, playing, now, rate };
-        latest = { duration, currentTime };
-      },
-      flush() {
-        requested = true;
-        if (running) return running;
-        running = Promise.resolve().then(async () => {
-          while (requested) {
-            requested = false;
-            if (!latest) break;
-            const snapshot = { ...latest }, key = JSON.stringify(snapshot);
-            const delta = Math.min(15, Math.floor(pending));
-            if (key === acknowledged && !delta) break;
-            try {
-              const result = await send({ ...snapshot, watchedSecondsDelta: delta });
-              pending = Math.max(0, pending - delta);
-              acknowledged = key;
-              onProgress(result);
-              if (pending >= 1) requested = true;
-            } catch (error) { requested = false; onError(error); break; }
-          }
-        }).finally(() => { running = null; });
-        return running;
-      }
-    };
-  }
-
-  function saveTrainingPlayback(delta = 0, playback = trainingPlayback) {
-    const active = playback; if (!active?.player?.getDuration) return Promise.resolve();
-    if (!active.progressSaver) active.progressSaver = createTrainingProgressSaver(
-      payload => window.LungoSupervisorApi.updateTrainingProgress(active.id, payload, active.token),
-      result => { if (trainingPlayback === active && $('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `${result.progress.percent}% assistido${result.progress.status === 'completed' ? ' · Treinamento concluído' : ''}`; },
-      error => { if (trainingPlayback === active && $('#trainingPlayerProgress')) $('#trainingPlayerProgress').textContent = `Não foi possível salvar o progresso: ${error.message}`; }
-    );
-    active.progressSaver.sample(active.player.getDuration(), active.player.getCurrentTime(), active.player.getPlayerState?.() === window.YT.PlayerState.PLAYING, performance.now(), active.player.getPlaybackRate?.() || 1);
-    const now = performance.now();
-    if (delta === null && now - (active.lastFlushAt || 0) < 12000) return Promise.resolve();
-    active.lastFlushAt = now;
-    return active.progressSaver.flush();
   }
 
   function closeTrainingPlayer() {
+    $('#trainingPlayerFrame')?.replaceChildren();
     const modal = $('#trainingPlayerModal');
-    if (trainingPlayback) { const finished = trainingPlayback; clearInterval(finished.timer); const saved = saveTrainingPlayback(0, finished); try { finished.player.destroy(); } catch {} trainingPlayback = null; saved.finally(() => { if (calendarToken() === finished.token) loadTrainingLibrary(finished.token, finished.target); }); }
-    if (!$('#trainingPlayerFrame')) $('.training-player-frame')?.insertAdjacentHTML('beforeend', '<div id="trainingPlayerFrame"></div>');
     if (modal?.open) modal.close();
+  }
+
+  const pendingTrainingConfirmations = new Set();
+  async function confirmTrainingWatched(button) {
+    const id = button.dataset.trainingConfirm, token = calendarToken();
+    const pendingKey = `${token}:${id}`;
+    if (!token || button.disabled || pendingTrainingConfirmations.has(pendingKey)) return;
+    pendingTrainingConfirmations.add(pendingKey); button.disabled = true;
+    const status = button.parentElement.querySelector('[data-training-confirm-status]');
+    if (status) status.textContent = 'Registrando confirmação...';
+    try {
+      const result = await window.LungoSupervisorApi.confirmTraining(id, token);
+      if (calendarToken() !== token) return;
+      if (trainingLibraryToken === token && trainingLibraryRecords.has(id)) trainingLibraryRecords.get(id).confirmation = result.confirmation;
+      if (!button.isConnected) {
+        document.querySelectorAll('[data-training-confirm]').forEach(current => {
+          if (current.dataset.trainingConfirm !== id) return;
+          current.disabled = true; current.textContent = '✓ Assistido — confirmado'; current.classList.remove('primary');
+          const currentStatus = current.parentElement.querySelector('[data-training-confirm-status]');
+          if (currentStatus) currentStatus.textContent = `Confirmado em ${calendarDateTime(result.confirmation.confirmedAt)}`;
+        });
+        return;
+      }
+      button.textContent = '✓ Assistido — confirmado';
+      button.classList.remove('primary');
+      if (status) status.textContent = `Confirmado em ${calendarDateTime(result.confirmation.confirmedAt)}`;
+    } catch (error) {
+      if (calendarToken() === token && button.isConnected) {
+        button.disabled = false;
+        if (status) status.textContent = error.message || 'Não foi possível confirmar. Tente novamente.';
+      }
+    } finally { pendingTrainingConfirmations.delete(pendingKey); }
   }
 
   document.querySelectorAll('.daily-trigger').forEach(button => button.addEventListener('click', () => {
@@ -1854,7 +1807,10 @@
     if (status) status.textContent = 'Carregando treinamentos...';
     try {
       const result = await window.LungoSupervisorApi.getTrainings(token);
+      if (calendarToken() !== token) return;
       const trainings = result.trainings || [];
+      trainingLibraryToken = token;
+      trainingLibraryRecords = new Map(trainings.map(item => [item.id, item]));
       if (target === 'supervisor') {
         library.innerHTML = `<div class="training-library"><header class="training-library-header"><div><h2>Central de treinamentos</h2><p>Conteúdos Lungo em destaque e trilhas exclusivas da sua equipe.</p></div><div class="training-library-actions"><select id="supervisorTrainingSourceFilter" class="select"><option value="">Todos os treinamentos</option><option value="admin">Conteúdos Lungo</option><option value="supervisor">Treinamentos da Corretora</option></select><select id="supervisorTrainingTrackFilter" class="select"><option value="">Todas as trilhas</option></select><button class="btn primary" type="button" data-supervisor-training-manage>Gerenciar trilhas</button></div></header><div id="supervisorTrainingLibrary" class="training-tracks">${trainingLibraryContent(trainings, { metrics: true })}</div></div>`;
         const filter = $('#supervisorTrainingTrackFilter');
@@ -1876,9 +1832,25 @@
 
   async function openTrainingMetrics(id, mode = 'supervisor') {
     let modal = $('#trainingMetricsModal');
-    if (!modal) { document.body.insertAdjacentHTML('beforeend', '<dialog id="trainingMetricsModal" class="modal training-metrics-modal"><div class="modal-card"><header><div><h2>Visto por</h2><p id="trainingMetricsSubtitle">Acompanhamento do treinamento</p></div><button class="btn icon" type="button" data-training-metrics-close>×</button></header><div id="trainingMetricsBody"><div class="empty-state">Carregando métricas...</div></div><footer><span class="footer-spacer"></span><button class="btn primary" type="button" data-training-metrics-close>Fechar</button></footer></div></dialog>'); modal = $('#trainingMetricsModal'); modal.addEventListener('click', (event) => { if (event.target.closest('[data-training-metrics-close]')) modal.close(); }); }
-    $('#trainingMetricsBody').innerHTML = '<div class="empty-state">Carregando métricas...</div>'; modal.showModal();
-    try { const result = mode === 'admin' ? await window.LungoAdminApi.getTrainingMetrics(id, adminMasterKey) : await window.LungoSupervisorApi.getSupervisorTrainingMetrics(id, supervisorAccessToken); const viewers = result.viewers || []; $('#trainingMetricsSubtitle').textContent = result.training?.title || 'Acompanhamento do treinamento'; $('#trainingMetricsBody').innerHTML = viewers.length ? `<div class="training-metrics-summary"><article><span>Pessoas que iniciaram</span><b>${viewers.length}</b></article><article><span>Concluíram</span><b>${viewers.filter((item) => item.status === 'completed').length}</b></article><article><span>Progresso médio</span><b>${Math.round(viewers.reduce((sum, item) => sum + Number(item.percent || 0), 0) / viewers.length)}%</b></article></div><div class="training-viewer-list">${viewers.map((item) => `<article><div><b>${escapeHtml(item.userName || 'Usuário')}</b><span>${escapeHtml(item.userRole === 'supervisor' ? 'Supervisor' : 'Corretor')}${mode === 'admin' ? ` · ${escapeHtml(item.organizationName || 'Sem empresa')}` : ''}</span></div><div class="training-viewer-progress"><b>${Number(item.percent || 0)}%</b><span>${item.status === 'completed' ? 'Concluído' : 'Em andamento'}</span></div><time>${calendarDateTime(item.lastViewedAt)}</time></article>`).join('')}</div>` : '<div class="empty-state">Ninguém iniciou este treinamento ainda.</div>'; } catch (error) { $('#trainingMetricsBody').innerHTML = `<div class="auth-status error">${escapeHtml(error.message)}</div>`; }
+    if (!modal) {
+      document.body.insertAdjacentHTML('beforeend', '<dialog id="trainingMetricsModal" class="modal training-metrics-modal"><div class="modal-card"><header><div><h2>Confirmaram que assistiram</h2><p id="trainingMetricsSubtitle"></p></div><button class="btn icon" type="button" data-training-metrics-close aria-label="Fechar">×</button></header><div id="trainingMetricsBody" role="status"></div><footer><button class="btn primary" type="button" data-training-metrics-close>Fechar</button></footer></div></dialog>');
+      modal = $('#trainingMetricsModal');
+      modal.addEventListener('click', event => { if (event.target.closest('[data-training-metrics-close]')) modal.close(); });
+    }
+    const key = mode === 'admin' ? adminMasterKey : supervisorAccessToken;
+    modal.dataset.trainingId = id;
+    $('#trainingMetricsBody').textContent = 'Carregando confirmações...';
+    $('#trainingMetricsSubtitle').textContent = '';
+    modal.showModal();
+    try {
+      const result = mode === 'admin' ? await window.LungoAdminApi.getTrainingMetrics(id, key) : await window.LungoSupervisorApi.getSupervisorTrainingMetrics(id, key);
+      if (modal.dataset.trainingId !== id || key !== (mode === 'admin' ? adminMasterKey : supervisorAccessToken)) return;
+      const viewers = result.viewers || [];
+      $('#trainingMetricsSubtitle').textContent = result.training?.title || 'Treinamento';
+      $('#trainingMetricsBody').innerHTML = viewers.length ? `<p>${viewers.length} confirmação(ões)</p><div class="training-viewer-list">${viewers.map(item => `<article><div><b>${escapeHtml(item.userName || 'Usuário')}</b><span>${item.userRole === 'supervisor' ? 'Supervisor' : 'Corretor'}${mode === 'admin' ? ` - ${escapeHtml(item.organizationName || 'Sem empresa')}` : ''}</span></div><time>${escapeHtml(calendarDateTime(item.confirmedAt))}</time></article>`).join('')}</div>` : '<div class="empty-state">Nenhuma confirmação manual registrada.</div>';
+    } catch (error) {
+      if (modal.dataset.trainingId === id && key === (mode === 'admin' ? adminMasterKey : supervisorAccessToken)) $('#trainingMetricsBody').textContent = error.message;
+    }
   }
 
   async function openSupervisorTrainingManager(token) {
@@ -5323,7 +5295,7 @@
     if (!$('#adminTrainingNew')) list.insertAdjacentHTML('beforebegin', '<div class="training-admin-toolbar"><div class="admin-list-search"><span aria-hidden="true">⌕</span><input id="adminTrainingSearch" type="search" placeholder="Pesquisar título, trilha ou status" autocomplete="off"><small id="adminTrainingSearchCount"></small></div><button id="adminTrainingNew" class="btn primary" type="button">Cadastrar novo</button></div>');
     const tracks = [...new Set(adminTrainings.map((item) => item.track || 'Geral'))];
     if ($('#adminTrainingTrackList')) $('#adminTrainingTrackList').innerHTML = tracks.map((track) => `<option value="${escapeHtml(track)}"></option>`).join('');
-    list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || (a.track || '').localeCompare(b.track || '') || (a.title || '').localeCompare(b.title || '')).map((item) => `<article class="training-admin-item training-admin-sortable" draggable="true" data-admin-training-drag="${item.id}"><button class="training-drag-handle" type="button" title="Arraste para ordenar" aria-label="Arraste para ordenar">⋮⋮</button><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track || 'Geral')}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn training-eye" type="button" data-training-action="metrics" data-id="${item.id}" title="Visto por">&#128065; Visto por</button><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
+    list.innerHTML = adminTrainings.length ? adminTrainings.slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || (a.track || '').localeCompare(b.track || '') || (a.title || '').localeCompare(b.title || '')).map((item) => `<article class="training-admin-item training-admin-sortable" draggable="true" data-admin-training-drag="${item.id}"><button class="training-drag-handle" type="button" title="Arraste para ordenar" aria-label="Arraste para ordenar">⋮⋮</button><img src="https://i.ytimg.com/vi/${escapeHtml(item.youtubeId)}/mqdefault.jpg" alt=""><div><span>${escapeHtml(item.track || 'Geral')}</span><b>${escapeHtml(item.title)}</b>${trainingStars(item.stars)}<small>${item.active === false ? 'Oculto' : 'Publicado'}</small></div><div class="admin-master-actions"><button class="tiny-btn training-eye" type="button" data-training-action="metrics" data-id="${item.id}" title="Confirmaram que assistiram">&#128065; Confirmações</button><button class="tiny-btn" type="button" data-training-action="edit" data-id="${item.id}">Editar</button><button class="tiny-btn" type="button" data-training-action="toggle" data-id="${item.id}">${item.active === false ? 'Publicar' : 'Ocultar'}</button><button class="tiny-btn" type="button" data-training-action="delete" data-id="${item.id}">Excluir</button></div></article>`).join('') : '<div class="empty-state">Nenhum treinamento cadastrado.</div>';
     if ($('#adminTrainingSearch')) $('#adminTrainingSearch').oninput = () => filterAdminItems('#adminTrainingSearch', '#adminTrainingList', ':scope > .training-admin-item', '#adminTrainingSearchCount');
     filterAdminItems('#adminTrainingSearch', '#adminTrainingList', ':scope > .training-admin-item', '#adminTrainingSearchCount');
     bindAdminTrainingDrag(list);
@@ -5797,7 +5769,7 @@
 
   function bindEvents() {
     if ($('#publicApplicationForm')) { $('#publicApplicationForm').noValidate = true; $('#publicApplicationForm').addEventListener('submit', submitPublicApplication); }
-    document.addEventListener('click', (event) => { const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); const metrics = event.target.closest('[data-training-metrics]'); if (metrics) openTrainingMetrics(metrics.dataset.trainingMetrics, 'supervisor'); });
+    document.addEventListener('click', (event) => { const confirm = event.target.closest('[data-training-confirm]'); if (confirm) confirmTrainingWatched(confirm); const play = event.target.closest('[data-training-play]'); if (play) openTrainingPlayer(play); const metrics = event.target.closest('[data-training-metrics]'); if (metrics) openTrainingMetrics(metrics.dataset.trainingMetrics, 'supervisor'); });
     el.navItems.forEach((btn) => btn.addEventListener("click", () => setView(btn.dataset.view)));
     el.sidebarToggleBtn?.addEventListener("click", () => {
       const collapsed = !el.appShell.classList.contains("sidebar-collapsed");
