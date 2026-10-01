@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const id = '10000000-0000-4000-8000-000000000001';
-const hook = `window.__training={load:()=>loadTrainingLibrary(supervisorAccessToken,'supervisor'),render:items=>{document.querySelector('#supervisorOperationContent').innerHTML=trainingLibraryContent(items,{metrics:true});},session:token=>{supervisorAccessToken=token;},metrics:openTrainingMetrics};`;
+const hook = `window.__training={load:()=>loadTrainingLibrary(calendarToken(),'supervisor'),render:items=>{document.querySelector('#supervisorOperationContent').innerHTML=trainingLibraryContent(items,{metrics:true});},session:(token,role='broker')=>{supervisorAccessToken=role==='supervisor'?token:null;state.token=role==='broker'?token:null;},metrics:openTrainingMetrics};`;
 (async()=>{
   const server=http.createServer((req,res)=>{
     const file=path.resolve(root,'.'+(req.url.split('?')[0]==='/'?'/index.html':req.url.split('?')[0]));
@@ -67,10 +67,16 @@ const hook = `window.__training={load:()=>loadTrainingLibrary(supervisorAccessTo
     assert.equal(await check.isDisabled(),true,'filter rerender retains the confirmed state without another request');
     await page.evaluate(()=>window.__training.load());
     assert.equal(await check.isDisabled(),true,'saved declaration survives library reload');
+    await page.evaluate(()=>{window.__training.session('supervisor-test','supervisor');return window.__training.load();});
+    assert.equal(await page.locator('[data-training-confirm]').count(),0,'supervisor has no confirmation control');
+    assert.equal(await page.locator('[data-training-confirm-status]').count(),0);
+    assert.ok(await page.locator('[data-training-play]').count());
+    assert.ok(await page.locator('[data-training-metrics]').count());
     await page.evaluate(id=>window.__training.metrics(id),id);
     assert.match(await page.locator('#trainingMetricsBody').innerText(),/Corretor Teste/);
     assert.doesNotMatch(await page.locator('#trainingMetricsBody').innerText(),/%|Progresso/);
     await page.locator('#trainingMetricsModal [data-training-metrics-close]').last().click();
+    await page.evaluate(()=>window.__training.session('synthetic'));
     await page.evaluate(({item,confirmedAt})=>window.__training.render([
       {...item,stars:5,confirmation:{confirmedAt}},
       {...item,id:'second',title:'Venda de planos',stars:4,confirmation:{confirmedAt}},
