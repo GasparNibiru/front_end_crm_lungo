@@ -22,7 +22,7 @@ await page.locator('#supervisorModalCloseBtn').click();
 await page.evaluate(({candidates,vacancy})=>window.__rh.render({vacancy,candidates:[...candidates,{id:'hired',name:'João Aprovado',email:'joao@example.com',phone:'11999998888',stage:'aprovado',hiredUserId:'broker',approvedAt:'2026-09-19T10:00:00Z',accessGrantedAt:'2026-09-20T10:00:00Z'}]}),{candidates,vacancy});
 assert.equal(await page.locator('[data-rh-candidate="hired"]').count(),0);
 await page.locator('#rhApprovedTab').click();
-assert.equal(await page.locator('#rhApprovedList .supervisor-avatar').count(),1);assert.equal(await page.locator('[data-approved-dismiss="hired"]').count(),1);
+assert.equal(await page.locator('#rhApprovedList .supervisor-avatar').count(),0);assert.equal(await page.locator('[data-approved-dismiss="hired"]').count(),1);
 for(const query of ['joao','joao@example.com','(11) 99999-8888']){await page.locator('#rhApprovedSearch').fill(query);assert.equal(await page.locator('#rhApprovedList tbody tr').count(),1);}
 await page.locator('#rhApprovedSearch').fill('inexistente');assert.equal(await page.locator('#rhApprovedList tbody tr').count(),0);
 await page.locator('#rhDismissedTab').click();assert.equal(await page.locator('#rhApprovedList tbody tr').count(),0);

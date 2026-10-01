@@ -167,6 +167,8 @@
   let supervisorMessageTimer = null;
   let recruitmentData = { vacancy: null, candidates: [] };
   let recruitmentTimer = null;
+  let recruitmentEpoch = 0, recruitmentVersion = '', recruitmentLoadedAt = 0;
+  let recruitmentRequest = null, recruitmentPoll = null;
   let calendarReminderTimer = null;
   let calendarWeekOffset = 0;
   let rhFormDirty = false;
@@ -2142,7 +2144,9 @@
     renderSupervisorMocks();
     renderCompanyIdentity();
     if (el.supervisorCompanyName) el.supervisorCompanyName.textContent = supervisorOrganizationName || "Corretora";
-    clearInterval(recruitmentTimer); loadRecruitment(true, false); recruitmentTimer = setInterval(() => loadRecruitment(true, true), 20000);
+    resetRecruitmentPolling();
+    pollRecruitment();
+    recruitmentTimer = setInterval(pollRecruitment, 20000);
     startCalendarReminders();
     startNotifications(true);
   }
@@ -2153,7 +2157,7 @@
     window.LungoNotifications?.reset();
     stopCalendarReminders();
     clearInterval(supervisorMessageTimer); supervisorMessageTimer = null;
-    clearInterval(recruitmentTimer); recruitmentTimer = null;
+    resetRecruitmentPolling();
     window.LungoAiAgent?.reset();
     supervisorAccessToken = "";
     supervisorUserId = "";
@@ -2218,8 +2222,7 @@
     const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const query = normalize($('#rhApprovedSearch')?.value.trim()), digits = query.replace(/\D/g, '');
     const rows = recruitmentData.candidates.filter(c => c.hiredUserId && Boolean(c.dismissedAt) === rhHistoryDismissed && (!query || normalize(c.name).includes(query) || normalize(c.email).includes(query) || normalize(c.phone).includes(query) || (digits.length > 0 && /^[\d\s()+.-]+$/.test(query) && String(c.phone || '').replace(/\D/g, '').includes(digits))));
-    host.innerHTML = rows.length ? `<table><thead><tr><th>Candidato</th><th>Contato</th><th>Seleção</th><th>Aprovado em</th><th>${rhHistoryDismissed ? 'Desligado em' : 'Acesso liberado em'}</th><th>Informações</th></tr></thead><tbody>${rows.map(c => `<tr><td><div class="supervisor-person">${supervisorBrokerAvatar({name:c.name,photo:c.profilePhotoUrl})}<b>${escapeHtml(c.name)}</b></div><small>${escapeHtml(c.city || 'Cidade não informada')}</small></td><td>${escapeHtml(c.email || '—')}<small>${escapeHtml(c.phone || '—')}</small></td><td>${escapeHtml(c.source === 'broker_registry' ? 'Cadastro em Corretores' : c.experience || 'Experiência não informada')}<small>${c.disc?.completedAt ? `DISC: ${Number(c.disc.result?.match || 0)}%` : c.source === 'broker_registry' ? 'Seleção: não se aplica' : 'DISC não realizado'}</small></td><td>${escapeHtml(c.source === 'broker_registry' ? 'Não se aplica' : recruitmentDate(c.approvedAt))}</td><td>${escapeHtml(recruitmentDate(rhHistoryDismissed ? c.dismissedAt : c.accessGrantedAt))}</td><td><div class="rh-approved-actions"><button class="rh-card-icon" type="button" data-approved-details="${escapeHtml(c.id)}" title="Ver informações da seleção" aria-label="Ver informações da seleção">${recruitmentActionIcon('user')}</button>${c.disc?.result ? `<button class="rh-card-icon" type="button" data-approved-disc="${escapeHtml(c.id)}" title="Ver resultado DISC" aria-label="Ver resultado DISC">${recruitmentActionIcon('check')}</button>` : ''}${!c.dismissedAt ? `<button class="rh-card-icon rh-dismiss-btn" type="button" data-approved-dismiss="${escapeHtml(c.id)}" title="Demitir e encerrar acesso" aria-label="Demitir e encerrar acesso">${recruitmentActionIcon('fire')}</button>` : !c.dismissalEmailSentAt ? `<button class="tiny-btn" type="button" data-approved-dismiss="${escapeHtml(c.id)}">Reenviar aviso</button>` : '<small>Aviso enviado</small>'}</div>${!c.dismissedAt && c.accessRemovedAt ? '<small>Acesso excluído</small>' : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">Nenhum candidato encontrado.</div>';
-    host.querySelectorAll('img').forEach(img=>img.onerror=()=>img.remove());
+    host.innerHTML = rows.length ? `<table><thead><tr><th>Candidato</th><th>Contato</th><th>Seleção</th><th>Aprovado em</th><th>${rhHistoryDismissed ? 'Desligado em' : 'Acesso liberado em'}</th><th>Informações</th></tr></thead><tbody>${rows.map(c => `<tr><td><div class="supervisor-person"><b>${escapeHtml(c.name)}</b></div><small>${escapeHtml(c.city || 'Cidade não informada')}</small></td><td>${escapeHtml(c.email || '—')}<small>${escapeHtml(c.phone || '—')}</small></td><td>${escapeHtml(c.source === 'broker_registry' ? 'Cadastro em Corretores' : c.experience || 'Experiência não informada')}<small>${c.disc?.completedAt ? `DISC: ${Number(c.disc.result?.match || 0)}%` : c.source === 'broker_registry' ? 'Seleção: não se aplica' : 'DISC não realizado'}</small></td><td>${escapeHtml(c.source === 'broker_registry' ? 'Não se aplica' : recruitmentDate(c.approvedAt))}</td><td>${escapeHtml(recruitmentDate(rhHistoryDismissed ? c.dismissedAt : c.accessGrantedAt))}</td><td><div class="rh-approved-actions"><button class="rh-card-icon" type="button" data-approved-details="${escapeHtml(c.id)}" title="Ver informações da seleção" aria-label="Ver informações da seleção">${recruitmentActionIcon('user')}</button>${c.disc?.result ? `<button class="rh-card-icon" type="button" data-approved-disc="${escapeHtml(c.id)}" title="Ver resultado DISC" aria-label="Ver resultado DISC">${recruitmentActionIcon('check')}</button>` : ''}${!c.dismissedAt ? `<button class="rh-card-icon rh-dismiss-btn" type="button" data-approved-dismiss="${escapeHtml(c.id)}" title="Demitir e encerrar acesso" aria-label="Demitir e encerrar acesso">${recruitmentActionIcon('fire')}</button>` : !c.dismissalEmailSentAt ? `<button class="tiny-btn" type="button" data-approved-dismiss="${escapeHtml(c.id)}">Reenviar aviso</button>` : '<small>Aviso enviado</small>'}</div>${!c.dismissedAt && c.accessRemovedAt ? '<small>Acesso excluído</small>' : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">Nenhum candidato encontrado.</div>';
     host.onclick = async event => { const dismiss=event.target.closest('[data-approved-dismiss]'); if(dismiss){const c=recruitmentData.candidates.find(c=>c.id===dismiss.dataset.approvedDismiss);if(!c)return; if(!await popupConfirm(c.dismissedAt ? `Reenviar o aviso de desligamento para ${c.email}? Se o envio anterior chegou, ele poderá receber outro aviso.` : `Demitir ${c.name}? O acesso será encerrado, um e-mail informará que o desempenho ficou abaixo do esperado e o histórico bloqueará novas candidaturas com o mesmo e-mail ou celular nesta corretora.`, c.dismissedAt ? 'Reenviar aviso' : 'Confirmar demissão', c.dismissedAt ? 'Reenviar' : 'Demitir e avisar'))return;dismiss.disabled=true;try{const result=await window.LungoSupervisorApi.dismissCandidate(c.id,supervisorAccessToken);recruitmentRevision++;Object.assign(c,result.candidate);renderRecruitment(true);await loadSupervisorRemoteData();renderSupervisorMocks();toast(result.warning||'Desligamento concluído e e-mail enviado.');}catch(error){toast(error.message);}finally{dismiss.disabled=false;}return;} const button = event.target.closest('[data-approved-details],[data-approved-disc]'); if (!button) return; const c = recruitmentData.candidates.find(c => c.id === (button.dataset.approvedDetails || button.dataset.approvedDisc)); if (c) button.dataset.approvedDisc ? openDiscResult(c) : openRecruitmentDetails(c); };
   }
 
@@ -2227,7 +2230,19 @@
     if ($('#rhCandidateNotification')?.open || !candidate) return;
     const completed=Boolean(candidate.disc?.completedAt);
     document.body.insertAdjacentHTML('beforeend', `<dialog id="rhCandidateNotification" class="modal rh-notification-modal"><div class="modal-card"><header><div><h2>${completed?'Candidato respondeu ao teste DISC':'Novo candidato!'}</h2><p>${completed?'A avaliação está disponível para análise.':'Uma candidatura acaba de chegar.'}</p></div></header><div class="broker-message-body"><b>${escapeHtml(candidate.name)}</b><p>${escapeHtml(candidate.city || 'Cidade não informada')} · ${escapeHtml(candidate.experience || 'Experiência não informada')}</p></div><footer><span class="footer-spacer"></span><button id="rhNotificationOpen" class="btn primary" type="button">Ver candidato</button><button id="rhNotificationClose" class="btn" type="button">Fechar</button></footer></div></dialog>`);
-    const modal = $('#rhCandidateNotification'); const finish = async (open) => { try { await window.LungoSupervisorApi.updateCandidate(candidate.id, { seen: true }, supervisorAccessToken); candidate.seenAt=new Date().toISOString(); modal.close(); modal.remove(); if (open) setSupervisorView('rh'); } catch(error) { toast(error.message); } };
+    const modal = $('#rhCandidateNotification'), token = supervisorAccessToken, epoch = recruitmentEpoch;
+    const finish = async (open) => {
+      if (token !== supervisorAccessToken || epoch !== recruitmentEpoch) return;
+      try {
+        await window.LungoSupervisorApi.updateCandidate(candidate.id, { seen: true }, token);
+        if (token !== supervisorAccessToken || epoch !== recruitmentEpoch) return;
+        candidate.seenAt = new Date().toISOString();
+        const local = recruitmentData.candidates.find(item => item.id === candidate.id);
+        if (local) local.seenAt = candidate.seenAt;
+        recruitmentRevision++; recruitmentVersion = '';
+        modal.close(); modal.remove(); if (open) setSupervisorView('rh');
+      } catch(error) { if (token === supervisorAccessToken && epoch === recruitmentEpoch) toast(error.message); }
+    };
     $('#rhNotificationOpen').onclick = () => finish(true); $('#rhNotificationClose').onclick = () => finish(false); modal.addEventListener('cancel', (event) => event.preventDefault()); modal.showModal();
   }
 
@@ -2241,20 +2256,52 @@
     return result;
   }
 
-  async function loadRecruitment(notify = true, preserveForm = true) {
-    if (!supervisorAccessToken) return;
-    const revision = recruitmentRevision;
-    try {
-      const result = await window.LungoSupervisorApi.getRecruitment(supervisorAccessToken);
-      if (revision !== recruitmentRevision) return;
-      recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] };
-      renderRecruitment(preserveForm); renderSupervisorMocks();
-      if (notify) showRecruitmentNotification(recruitmentData.candidates.find(item => !item.seenAt));
-    } catch (error) {
-      if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); }
-      if ($('#supervisor-view-brokers')?.classList.contains('active')) toast('Não foi possível atualizar os candidatos aguardando acesso. Tente novamente.');
-    }
+  function resetRecruitmentPolling() {
+    clearInterval(recruitmentTimer); recruitmentTimer = null;
+    recruitmentEpoch++; recruitmentVersion = ''; recruitmentLoadedAt = 0;
+    recruitmentRequest = null; recruitmentPoll = null;
+    recruitmentData = { vacancy: null, candidates: [] };
+    $('#rhCandidateNotification')?.remove();
   }
+
+  function loadRecruitment(notify = true, preserveForm = true) {
+    if (!supervisorAccessToken) return Promise.resolve();
+    const token = supervisorAccessToken, epoch = recruitmentEpoch, revision = recruitmentRevision;
+    if (recruitmentRequest?.token === token && recruitmentRequest.revision === revision) return recruitmentRequest.promise;
+    const pending = { token, revision };
+    recruitmentRequest = pending;
+    pending.promise = Promise.resolve().then(async () => {
+      try {
+        const result = await window.LungoSupervisorApi.getRecruitment(token);
+        if (epoch !== recruitmentEpoch || token !== supervisorAccessToken || revision !== recruitmentRevision) return;
+        recruitmentData = { vacancy: result.vacancy, candidates: result.candidates || [] };
+        recruitmentVersion = result.version || ''; recruitmentLoadedAt = Date.now();
+        renderRecruitment(preserveForm); renderSupervisorMocks();
+        if (notify) showRecruitmentNotification(recruitmentData.candidates.find(item => !item.seenAt));
+      } catch (error) {
+        if (epoch !== recruitmentEpoch || token !== supervisorAccessToken) return;
+        if ($('#rhVacancyStatus')) { $('#rhVacancyStatus').textContent = error.message; $('#rhVacancyStatus').classList.add('error'); }
+        if ($('#supervisor-view-brokers')?.classList.contains('active')) toast('Não foi possível atualizar os candidatos aguardando acesso. Tente novamente.');
+      } finally { if (recruitmentRequest === pending) recruitmentRequest = null; }
+    });
+    return pending.promise;
+  }
+
+  async function pollRecruitment() {
+    if (!supervisorAccessToken || document.hidden || recruitmentPoll || recruitmentRequest) return;
+    const token = supervisorAccessToken, epoch = recruitmentEpoch, revision = recruitmentRevision, pending = {};
+    recruitmentPoll = pending;
+    try {
+      const result = await window.LungoSupervisorApi.getRecruitmentUpdates(token);
+      if (epoch !== recruitmentEpoch || token !== supervisorAccessToken || revision !== recruitmentRevision) return;
+      const detailsVisible = ['rh', 'brokers'].some(view => $(`#supervisor-view-${view}`)?.classList.contains('active'));
+      // Refresh reconciliation periodically only while its details are in use.
+      if (detailsVisible && (result.version !== recruitmentVersion || Date.now() - recruitmentLoadedAt >= 60000)) await loadRecruitment(true, true);
+      else showRecruitmentNotification(result.notification);
+    } catch { /* Keep existing details and try again at the next scheduled poll. */ }
+    finally { if (recruitmentPoll === pending) recruitmentPoll = null; }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollRecruitment(); });
 
   function openPendingCandidateEmail(candidate) {
     let modal = $('#rhPendingEmailModal');
