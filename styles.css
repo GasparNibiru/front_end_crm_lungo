@@ -2487,6 +2487,30 @@ body.supervisor-mode .supervisor-screen { height: 100vh; display: grid; grid-tem
 .training-card h4, .training-card p { margin: 0; }
 .training-card h4 { min-height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; line-height: 1.3; }
 .training-card p { min-height: 28px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.training-card { display: flex; flex-direction: column; }
+.training-card > div { flex: 1; display: flex; flex-direction: column; }
+.training-card [data-training-confirm] {
+  align-self: flex-start; justify-content: flex-start;
+  width: auto; max-width: 100%; min-height: 32px;
+  margin-top: auto; padding: 6px 0;
+  border: 0; border-radius: 4px; background: transparent;
+  box-shadow: none; color: var(--muted);
+  font-size: 10px; font-weight: 500; line-height: 1.4;
+  text-align: left; white-space: normal;
+}
+.training-card [data-training-confirm]:hover:not(:disabled) {
+  color: var(--primary-2); background: transparent;
+  text-decoration: underline; text-underline-offset: 3px;
+  transform: none; box-shadow: none;
+}
+.training-card [data-training-confirm]:focus-visible {
+  outline: 2px solid var(--primary-2); outline-offset: 3px;
+}
+.training-card [data-training-confirm]:disabled { opacity: 1; cursor: default; }
+.training-card [data-training-confirm-status] {
+  display: block; min-height: 0; overflow: visible;
+  margin-top: -2px; font-size: 9px; line-height: 1.45;
+}
 .training-stars { color: #f5b301; letter-spacing: 1px; font-size: 11px; }
 .training-admin-layout { display: grid; grid-template-columns: minmax(300px, .8fr) minmax(380px, 1.2fr); gap: 12px; align-items: start; }
 .campaign-admin-grid { display: grid; grid-template-columns: repeat(2, minmax(320px, 1fr)); gap: 12px; align-items: start; }
