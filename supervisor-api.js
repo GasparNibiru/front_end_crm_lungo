@@ -1,9 +1,9 @@
 "use strict";
 (function exposeLungoSupervisorApi() {
   const baseUrl = String(window.LUNGO_CONFIG?.API_BASE_URL || "").replace(/\/+$/, "");
-  async function request(path, { method = "GET", token, body } = {}) {
+  async function request(path, { method = "GET", token, body, signal } = {}) {
     let response;
-    try { response = await fetch(`${baseUrl}${path}`, { method, headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(token ? { "x-access-token": token } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }); }
+    try { response = await fetch(`${baseUrl}${path}`, { method, headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(token ? { "x-access-token": token } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal }); }
     catch { throw new Error("Não foi possível conectar ao servidor."); }
     let data = null; try { data = await response.json(); } catch (_) {}
     if (!response.ok) { const error = new Error(data?.error || data?.message || "Não foi possível concluir a operação."); error.status = response.status; throw error; }
@@ -36,7 +36,8 @@
   const sendTeamMessage = (payload, token) => request('/api/supervisor/messages', { method: 'POST', token, body: payload });
   const getBrokerMessages = (token, unread = false) => request(`/api/team/messages${unread ? '?unread=1' : ''}`, { token });
   const markBrokerMessageRead = (id, token) => request(`/api/team/messages/${encodeURIComponent(id)}/read`, { method: 'POST', token, body: {} });
-  const getRecruitment = (token) => request('/api/supervisor/recruitment', { token });
+  const getRecruitment = (token) => request('/api/supervisor/recruitment', { token, signal: AbortSignal.timeout(15000) });
+  const getRecruitmentUpdates = (token) => request('/api/supervisor/recruitment/updates', { token, signal: AbortSignal.timeout(15000) });
   const updateVacancy = (payload, token) => request('/api/supervisor/recruitment/vacancy', { method: 'PATCH', token, body: payload });
   const updateCandidate = (id, payload, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'PATCH', token, body: payload });
   const deleteCandidate = (id, token) => request(`/api/supervisor/recruitment/candidates/${encodeURIComponent(id)}`, { method: 'DELETE', token });
@@ -70,5 +71,5 @@
   const confirmFinanceReceivable = (id,payload,token) => request(`/api/supervisor/finance/receivables/${encodeURIComponent(id)}/payment`, { method:'PATCH', token, body:payload });
   const getFinanceTransfers = token => request('/api/supervisor/finance/transfers', { token });
   const confirmFinanceTransfer = (id,payload,token) => request(`/api/supervisor/finance/transfers/${encodeURIComponent(id)}/payment`, { method:'PATCH', token, body:payload });
-  window.LungoSupervisorApi = Object.freeze({ dismissCandidate, verify, updateOwnProfile, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getCampaignMedia, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal, updateOrganizationBranding, getSubscription, cancelSubscription, getBrazilPartners, getFinanceSettings, activateFinance, getFinanceProducts, createFinanceProduct, updateFinanceProduct, getFinanceBrokerRules, createFinanceBrokerRule, updateFinanceBrokerRule, getFinanceSales, scheduleFinanceSale, getFinanceReceivables, confirmFinanceReceivable, getFinanceTransfers, confirmFinanceTransfer });
+  window.LungoSupervisorApi = Object.freeze({ dismissCandidate, verify, updateOwnProfile, getDashboard, getBrokers, createBroker, resendBrokerAccessEmail, updateBroker, archiveBroker, changeBroker, renewBrokerToken, getClients, getLeads, assignLead, getOperationalClients, getTrainings, getCampaignMedia, updateTrainingProgress, getSupervisorTrainings, createSupervisorTraining, updateSupervisorTraining, deleteSupervisorTraining, getSupervisorTrainingMetrics, getTeamMessages, sendTeamMessage, getBrokerMessages, markBrokerMessageRead, getRecruitment, getRecruitmentUpdates, updateVacancy, updateCandidate, deleteCandidate, markCandidatesSeen, sendCandidateDisc, declineCandidate, getCalendarEvents, createCalendarEvent, deleteCalendarEvent, checkCalendarReminders, getLeadMarketplace, getLeadPurchaseHistory, buyMarketplaceLead, getTeamGoal, updateTeamGoal, updateOrganizationBranding, getSubscription, cancelSubscription, getBrazilPartners, getFinanceSettings, activateFinance, getFinanceProducts, createFinanceProduct, updateFinanceProduct, getFinanceBrokerRules, createFinanceBrokerRule, updateFinanceBrokerRule, getFinanceSales, scheduleFinanceSale, getFinanceReceivables, confirmFinanceReceivable, getFinanceTransfers, confirmFinanceTransfer });
 })();
